@@ -744,12 +744,6 @@ theorem Strategy.runWithRoles_compWithRoles_append
               (fun tr₁ out₁ => cpt₂ ⟨xc.1, tr₁⟩ out₁))
   exact go s₁ r₁ strat₁ f cpt₁ cpt₂
 
-/-- Replicate a role decoration `n` times, mirroring `Spec.replicate`. -/
-abbrev RoleDecoration.replicate {spec : Spec}
-    (roles : RoleDecoration spec) (n : Nat) :
-    RoleDecoration (spec.replicate n) :=
-  Spec.Decoration.replicate roles n
-
 /-- Role swapping commutes with replication. -/
 theorem RoleDecoration.swap_replicate {spec : Spec}
     (roles : RoleDecoration spec) (n : Nat) :
@@ -768,13 +762,6 @@ def Counterpart.iterate {m : Type u → Type u} [Monad m]
   | n + 1, step, b =>
       Counterpart.appendFlat (step 0 b) (fun _ b' => iterate n (fun i => step i.succ) b')
 
-/-- Uniform `Counterpart.iterate`: same step function at every round. -/
-def Counterpart.iterateUniform {m : Type u → Type u} [Monad m]
-    {spec : Spec} {roles : RoleDecoration spec} {β : Type u}
-    (n : Nat) (step : β → Counterpart m spec roles (fun _ => β)) (b : β) :
-    Counterpart m (spec.replicate n) (roles.replicate n) (fun _ => β) :=
-  Counterpart.iterate n (fun _ => step) b
-
 /-- `n`-fold role-aware strategy iteration on `spec.replicate n`, threading state `α`
 through each round. -/
 def Strategy.iterateWithRoles {m : Type u → Type u} [Monad m]
@@ -789,24 +776,7 @@ def Strategy.iterateWithRoles {m : Type u → Type u} [Monad m]
     let strat ← step 0 a
     compWithRolesFlat strat (fun _ mid => iterateWithRoles n (fun i => step i.succ) mid)
 
-/-- Uniform `Strategy.iterateWithRoles`: same step function at every round. -/
-def Strategy.iterateWithRolesUniform {m : Type u → Type u} [Monad m]
-    {spec : Spec} {roles : RoleDecoration spec} {α : Type u}
-    (n : Nat) (step : α → m (Strategy.withRoles m spec roles (fun _ => α)))
-    (a : α) :
-    m (Strategy.withRoles m (spec.replicate n) (roles.replicate n) (fun _ => α)) :=
-  Strategy.iterateWithRoles n (fun _ => step) a
-
 end Spec
-
-/-- Role decoration along `Spec.stateChain`: use `roles i s` at each stage. -/
-abbrev RoleDecoration.stateChain
-    {Stage : Nat → Type v} {spec : (i : Nat) → Stage i → Spec}
-    {advance : (i : Nat) → (s : Stage i) → Spec.Transcript (spec i s) → Stage (i + 1)}
-    (roles : (i : Nat) → (s : Stage i) → RoleDecoration (spec i s))
-    (n : Nat) (i : Nat) (s : Stage i) :
-    RoleDecoration (Spec.stateChain Stage spec advance n i s) :=
-  Spec.Decoration.stateChain roles n i s
 
 namespace Spec
 
@@ -823,27 +793,11 @@ def Counterpart.stateChainComp {m : Type u → Type u} [Monad m]
       Counterpart m (spec i s) (roles i s) (fun tr => Family (i + 1) (advance i s tr))) :
     (n : Nat) → (i : Nat) → (s : Stage i) → Family i s →
     Counterpart m (Spec.stateChain Stage spec advance n i s)
-      (RoleDecoration.stateChain roles n i s) (Spec.Transcript.stateChainFamily Family n i s)
+      (Spec.Decoration.stateChain roles n i s) (Spec.Transcript.stateChainFamily Family n i s)
   | 0, _, _, b => b
   | n + 1, i, s, b =>
       Counterpart.append (step i s b)
         (fun tr b' => stateChainComp step n (i + 1) (advance i s tr) b')
-
-/-- Uniform `Counterpart.stateChainComp` with a fixed output type `β` at every stage. -/
-def Counterpart.stateChainCompUniform {m : Type u → Type u} [Monad m]
-    {Stage : Nat → Type u} {spec : (i : Nat) → Stage i → Spec}
-    {advance : (i : Nat) → (s : Stage i) → Spec.Transcript (spec i s) → Stage (i + 1)}
-    {roles : (i : Nat) → (s : Stage i) → RoleDecoration (spec i s)}
-    {β : Type u}
-    (step : (i : Nat) → (s : Stage i) → β →
-      Counterpart m (spec i s) (roles i s) (fun _ => β)) :
-    (n : Nat) → (i : Nat) → (s : Stage i) → β →
-    Counterpart m (Spec.stateChain Stage spec advance n i s)
-      (RoleDecoration.stateChain roles n i s) (fun _ => β)
-  | 0, _, _, b => b
-  | n + 1, i, s, b =>
-      Counterpart.appendFlat (step i s b)
-        (fun tr b' => stateChainCompUniform step n (i + 1) (advance i s tr) b')
 
 /-- Compose role-aware strategies along a state chain with stage-dependent output.
 At each stage, the step transforms `Family i s` into a strategy whose output is
@@ -859,29 +813,12 @@ def Strategy.stateChainCompWithRoles {m : Type u → Type u} [Monad m]
         (fun tr => Family (i + 1) (advance i s tr)))) :
     (n : Nat) → (i : Nat) → (s : Stage i) → Family i s →
     m (Strategy.withRoles m (Spec.stateChain Stage spec advance n i s)
-      (RoleDecoration.stateChain roles n i s) (Spec.Transcript.stateChainFamily Family n i s))
+      (Spec.Decoration.stateChain roles n i s) (Spec.Transcript.stateChainFamily Family n i s))
   | 0, _, _, a => pure a
   | n + 1, i, s, a => do
     let strat ← step i s a
     compWithRoles strat
       (fun tr mid => stateChainCompWithRoles step n (i + 1) (advance i s tr) mid)
-
-/-- Uniform `Strategy.stateChainCompWithRoles` with a fixed output type `α` at every stage. -/
-def Strategy.stateChainCompWithRolesUniform {m : Type u → Type u} [Monad m]
-    {Stage : Nat → Type u} {spec : (i : Nat) → Stage i → Spec}
-    {advance : (i : Nat) → (s : Stage i) → Spec.Transcript (spec i s) → Stage (i + 1)}
-    {roles : (i : Nat) → (s : Stage i) → RoleDecoration (spec i s)}
-    {α : Type u}
-    (step : (i : Nat) → (s : Stage i) → α →
-      m (Strategy.withRoles m (spec i s) (roles i s) (fun _ => α))) :
-    (n : Nat) → (i : Nat) → (s : Stage i) → α →
-    m (Strategy.withRoles m (Spec.stateChain Stage spec advance n i s)
-      (RoleDecoration.stateChain roles n i s) (fun _ => α))
-  | 0, _, _, a => pure a
-  | n + 1, i, s, a => do
-    let strat ← step i s a
-    compWithRolesFlat strat
-      (fun tr mid => stateChainCompWithRolesUniform step n (i + 1) (advance i s tr) mid)
 
 /-- Compose per-node-monad counterparts along a state chain with stage-dependent output.
 At each stage, the step transforms `Family i s` into a counterpart whose output is
@@ -898,7 +835,7 @@ def Counterpart.withMonads.stateChainComp
         (fun tr => Family (i + 1) (advance i s tr))) :
     (n : Nat) → (i : Nat) → (s : Stage i) → Family i s →
     Counterpart.withMonads (Spec.stateChain Stage spec advance n i s)
-      (RoleDecoration.stateChain roles n i s)
+      (Spec.Decoration.stateChain roles n i s)
       (Decoration.stateChain md n i s)
       (Spec.Transcript.stateChainFamily Family n i s)
   | 0, _, _, b => b

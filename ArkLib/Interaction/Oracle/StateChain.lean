@@ -27,9 +27,9 @@ private def stateChainVerifier
         (fun tr => VerifierState (i + 1) (advance i st tr))) :
     (n : Nat) → (i : Nat) → (st : Stage i) → VerifierState i st →
     Spec.Counterpart.withMonads (Spec.stateChain Stage spec advance n i st)
-      (RoleDecoration.stateChain roles n i st)
+      (Spec.Decoration.stateChain roles n i st)
       (toMonadDecoration oSpec OStmtIn (Spec.stateChain Stage spec advance n i st)
-        (RoleDecoration.stateChain roles n i st) (Role.Refine.stateChain od n i st) accSpec)
+        (Spec.Decoration.stateChain roles n i st) (Role.Refine.stateChain od n i st) accSpec)
       (Spec.Transcript.stateChainFamily VerifierState n i st)
   | 0, _, _, b => b
   | n + 1, i, st, b => by
@@ -88,11 +88,11 @@ def OracleReduction.stateChainComp {ι : Type} {oSpec : OracleSpec ι}
       QueryImpl [OStmtOut s tr]ₒ
         (OracleComp ([OStmtIn]ₒ + toOracleSpec
           (Spec.stateChain Stage spec advance n 0 (initStage s))
-          (RoleDecoration.stateChain roles n 0 (initStage s))
+          (Spec.Decoration.stateChain roles n 0 (initStage s))
           (Role.Refine.stateChain (fun i st => od i st) n 0 (initStage s)) tr))) :
     OracleReduction oSpec StatementIn OStmtIn WitnessIn
       (fun s => Spec.stateChain Stage spec advance n 0 (initStage s))
-      (fun s => RoleDecoration.stateChain roles n 0 (initStage s))
+      (fun s => Spec.Decoration.stateChain roles n 0 (initStage s))
       (fun s => Role.Refine.stateChain (fun i st => od i st) n 0 (initStage s))
       (fun s => Spec.Transcript.stateChainFamily VerifierState n 0 (initStage s))
       OStmtOut
@@ -165,11 +165,11 @@ def stateChainComp {ι : Type} {oSpec : OracleSpec ι}
       QueryImpl [OStmtOut shared tr]ₒ
         (OracleComp ([OStmtIn shared]ₒ + toOracleSpec
           (Spec.stateChain Stage spec advance n 0 (initStage shared))
-          (RoleDecoration.stateChain roles n 0 (initStage shared))
+          (Spec.Decoration.stateChain roles n 0 (initStage shared))
           (Role.Refine.stateChain (fun i st => od i st) n 0 (initStage shared)) tr))) :
     OracleReduction.Continuation oSpec SharedIn
       (fun shared => Spec.stateChain Stage spec advance n 0 (initStage shared))
-      (fun shared => RoleDecoration.stateChain roles n 0 (initStage shared))
+      (fun shared => Spec.Decoration.stateChain roles n 0 (initStage shared))
       (fun shared => Role.Refine.stateChain (fun i st => od i st) n 0 (initStage shared))
       StatementIn OStmtIn WitnessIn
       (fun shared tr =>

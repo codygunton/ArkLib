@@ -8,7 +8,6 @@ import ArkLib.Interaction.Basic.Replicate
 import ArkLib.Interaction.Basic.Chain
 import ArkLib.Interaction.TwoParty.Role
 import ArkLib.Interaction.TwoParty.Decoration
-import ArkLib.Interaction.TwoParty.Compose
 import Mathlib.Logic.Equiv.Defs
 
 /-!
@@ -60,7 +59,7 @@ def append {S : Type u → Type v}
   | .node _ _rest, ⟨.receiver, _rRest⟩ => fun rr sd₂ =>
       fun x => append (rr x) (fun p => sd₂ ⟨x, p⟩)
 
-/-- Replicate along `Spec.replicate` / `RoleDecoration.replicate`. -/
+/-- Replicate along `Spec.replicate` / `Spec.Decoration.replicate`. -/
 def replicate {S : Type u → Type v}
     {spec : Spec} {roles : RoleDecoration spec}
     (sd : Role.Refine S spec roles) : (n : Nat) →
@@ -76,7 +75,7 @@ def stateChain {S : Type u → Type v}
     (sdeco : (i : Nat) → (s : Stage i) → Role.Refine S (spec i s) (roles i s)) :
     (n : Nat) → (i : Nat) → (s : Stage i) →
     Role.Refine S (Spec.stateChain Stage spec advance n i s)
-      (RoleDecoration.stateChain roles n i s)
+      (Spec.Decoration.stateChain roles n i s)
   | 0, _, _ => ⟨⟩
   | n + 1, i, s =>
       append (sdeco i s)
@@ -174,7 +173,7 @@ theorem map_stateChain {S T : Type u → Type v} (f : ∀ X, S X → T X)
     (sdeco : (i : Nat) → (s : Stage i) → Role.Refine S (spec i s) (roles i s)) :
     (n : Nat) → (i : Nat) → (s : Stage i) →
     map f (Spec.stateChain Stage spec advance n i s)
-        (RoleDecoration.stateChain roles n i s) (stateChain sdeco n i s) =
+        (Spec.Decoration.stateChain roles n i s) (stateChain sdeco n i s) =
       stateChain (fun j t => map f (spec j t) (roles j t) (sdeco j t)) n i s
   | 0, _, _ => rfl
   | n + 1, i, s => by

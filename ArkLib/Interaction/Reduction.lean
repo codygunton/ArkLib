@@ -370,7 +370,7 @@ def stateChainComp {m : Type u → Type u} [Monad m]
       (fun shared =>
         Spec.stateChain Stage spec advance n 0 (initStage shared))
       (fun shared =>
-        RoleDecoration.stateChain roles n 0 (initStage shared))
+        Spec.Decoration.stateChain roles n 0 (initStage shared))
       StatementIn WitnessIn
       (fun shared tr =>
         Spec.Transcript.stateChainFamily (fun i st => VerifierState shared i st)
@@ -386,44 +386,6 @@ def stateChainComp {m : Type u → Type u} [Monad m]
       (fun tr pOut => ⟨stmtResult shared stmt tr, pOut⟩) strat
   verifier shared stmt :=
     Spec.Counterpart.stateChainComp
-      (verifierStep shared) n 0 (initStage shared) (verifierInit shared stmt)
-
-/-- Uniform `Reduction.Continuation.stateChainComp` with fixed prover state `α`
-and verifier state `β` at every stage. -/
-def stateChainCompUniform {m : Type u → Type u} [Monad m]
-    {SharedIn : Type v}
-    {StatementIn WitnessIn : SharedIn → Type w}
-    {Stage : Nat → Type u}
-    {spec : (i : Nat) → Stage i → Spec}
-    {advance : (i : Nat) → (st : Stage i) -> Spec.Transcript (spec i st) -> Stage (i + 1)}
-    {roles : (i : Nat) → (st : Stage i) → RoleDecoration (spec i st)}
-    {α β : Type u}
-    (n : Nat)
-    (initStage : SharedIn → Stage 0)
-    (proverInit : (shared : SharedIn) → StatementIn shared → WitnessIn shared → m α)
-    (proverStep : (shared : SharedIn) → (i : Nat) → (st : Stage i) → α →
-      m (Spec.Strategy.withRoles m (spec i st) (roles i st) (fun _ => α)))
-    (stmtResult : (shared : SharedIn) → (stmt : StatementIn shared) →
-      (tr : Spec.Transcript (Spec.stateChain Stage spec advance n 0 (initStage shared))) → β)
-    (verifierInit : (shared : SharedIn) → StatementIn shared → β)
-    (verifierStep : (shared : SharedIn) → (i : Nat) → (st : Stage i) → β →
-      Spec.Counterpart m (spec i st) (roles i st) (fun _ => β)) :
-    Reduction.Continuation m SharedIn
-      (fun shared =>
-        Spec.stateChain Stage spec advance n 0 (initStage shared))
-      (fun shared =>
-        RoleDecoration.stateChain roles n 0 (initStage shared))
-      StatementIn WitnessIn
-      (fun _ _ => β)
-      (fun _ _ => α) where
-  prover shared stmt wit := do
-    let a ← proverInit shared stmt wit
-    let strat ← Spec.Strategy.stateChainCompWithRolesUniform
-      (proverStep shared) n 0 (initStage shared) a
-    pure <| Spec.Strategy.mapOutputWithRoles
-      (fun tr a' => ⟨stmtResult shared stmt tr, a'⟩) strat
-  verifier shared stmt :=
-    Spec.Counterpart.stateChainCompUniform
       (verifierStep shared) n 0 (initStage shared) (verifierInit shared stmt)
 
 end Reduction.Continuation
@@ -653,7 +615,7 @@ def Reduction.stateChainComp {m : Type u → Type u} [Monad m]
         (fun tr => VerifierState (i + 1) (advance i st tr))) :
     Reduction m StatementIn WitnessIn
       (fun s => Spec.stateChain Stage spec advance n 0 (initStage s))
-      (fun s => RoleDecoration.stateChain roles n 0 (initStage s))
+      (fun s => Spec.Decoration.stateChain roles n 0 (initStage s))
       (fun s => Spec.Transcript.stateChainFamily VerifierState n 0 (initStage s))
       (fun s => Spec.Transcript.stateChainFamily ProverState n 0 (initStage s)) where
   prover s w := do
@@ -662,36 +624,6 @@ def Reduction.stateChainComp {m : Type u → Type u} [Monad m]
     pure <| Spec.Strategy.mapOutputWithRoles (fun tr pOut => ⟨stmtResult s tr, pOut⟩) strat
   verifier s :=
     Spec.Counterpart.stateChainComp verifierStep n 0 (initStage s) (verifierInit s)
-
-/-- Uniform `Reduction.stateChainComp` with fixed prover state `α` and verifier
-state `β` at every stage. -/
-def Reduction.stateChainCompUniform {m : Type u → Type u} [Monad m]
-    {StatementIn : Type v} {WitnessIn : Type w}
-    {Stage : Nat → Type u}
-    {spec : (i : Nat) → Stage i → Spec}
-    {advance : (i : Nat) → (s : Stage i) → Spec.Transcript (spec i s) → Stage (i + 1)}
-    {roles : (i : Nat) → (s : Stage i) → RoleDecoration (spec i s)}
-    {α β : Type u}
-    (n : Nat)
-    (initStage : StatementIn → Stage 0)
-    (proverInit : StatementIn → WitnessIn → m α)
-    (proverStep : (i : Nat) → (st : Stage i) → α →
-      m (Spec.Strategy.withRoles m (spec i st) (roles i st) (fun _ => α)))
-    (stmtResult : (s : StatementIn) →
-      (tr : Spec.Transcript (Spec.stateChain Stage spec advance n 0 (initStage s))) → β)
-    (verifierInit : StatementIn → β)
-    (verifierStep : (i : Nat) → (st : Stage i) → β →
-      Spec.Counterpart m (spec i st) (roles i st) (fun _ => β)) :
-    Reduction m StatementIn WitnessIn
-      (fun s => Spec.stateChain Stage spec advance n 0 (initStage s))
-      (fun s => RoleDecoration.stateChain roles n 0 (initStage s))
-      (fun _ _ => β) (fun _ _ => α) where
-  prover s w := do
-    let a ← proverInit s w
-    let strat ← Spec.Strategy.stateChainCompWithRolesUniform proverStep n 0 (initStage s) a
-    pure <| Spec.Strategy.mapOutputWithRoles (fun tr a' => ⟨stmtResult s tr, a'⟩) strat
-  verifier s :=
-    Spec.Counterpart.stateChainCompUniform verifierStep n 0 (initStage s) (verifierInit s)
 
 /-! ## Chain-based (stateless) reduction composition
 
