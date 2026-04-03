@@ -181,7 +181,7 @@ def friReduction {ι : Type} {oSpec : OracleSpec ι}
       (F := F) (D := D) (n := n) (x := x) (s := s) (d := d) (l := l)
       (ι := ι) (oSpec := oSpec)
       h_domain sampleFoldChallenge sampleFinalChallenge sampleQueries
-  cont.fix PUnit.unit
+  cont.freezeSharedToPUnit PUnit.unit
 
 end
 

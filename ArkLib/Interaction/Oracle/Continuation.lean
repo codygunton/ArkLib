@@ -15,11 +15,10 @@ namespace OracleDecoration
 
 namespace OracleReduction
 
-/-- Fix the shared input of an oracle reduction, freezing the ambient protocol
-spine and reindexing the reduction over `PUnit`. This is useful when later
-proofs want to work with a static shared input as a degenerate one-point
-ambient index. -/
-def fix
+/-- Freeze the shared input of an oracle reduction, reindexing the ambient
+protocol spine over `PUnit`. This is a bridge utility for proofs that want to
+view a fixed shared spine as a degenerate one-point ambient index. -/
+def freezeSharedToPUnit
     {ι : Type} {oSpec : OracleSpec ι}
     {SharedIn : Type}
     {Context : SharedIn → Spec}
@@ -97,11 +96,11 @@ def id
   simulate _ _ :=
     fun q => liftM <| query (spec := [OStmtIn _]ₒ) q
 
-/-- Freeze the ambient shared input of a continuation-shaped oracle reduction
-and reindex it over the carried statement. This is the right bridge when a
-fixed shared spine should become ambient data for a one-shot oracle reduction
-indexed by the explicit current statement. -/
-def fixToStatementInput
+/-- Freeze the shared spine of a continuation-shaped oracle reduction and
+promote the carried statement to the new ambient index. This is a bridge
+utility for one-shot views whose ambient input is precisely the explicit
+current statement. -/
+def promoteStatementToShared
     {ι : Type} {oSpec : OracleSpec ι}
     {SharedIn : Type}
     {Context : SharedIn → Spec}
@@ -1230,7 +1229,7 @@ def comp {ι : Type} {oSpec : OracleSpec ι}
         ⟨⟨stmtOut, oracleOut⟩, splitOuter.2⟩)
       strat
   verifier shared {ιₐ} accSpec stmt := by
-    let reduction1Fixed := fixToStatementInput reduction1 shared
+    let reduction1Fixed := promoteStatementToShared reduction1 shared
     simpa [toMonadDecoration_append] using
       (Spec.Counterpart.withMonads.append
         (reduction1.verifier shared accSpec stmt)

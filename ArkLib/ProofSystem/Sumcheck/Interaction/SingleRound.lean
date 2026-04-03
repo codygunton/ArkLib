@@ -460,7 +460,7 @@ noncomputable def roundOracleReduction
     (prefixLen := 0)
     (Nat.succ_pos numVars)
     prefixTr
-    sampleChallenge).fixToStatementInput PUnit.unit
+    sampleChallenge).promoteStatementToShared PUnit.unit
 
 /-- A single-round sum-check oracle reduction with a private residual
 polynomial witness. The public oracle statement stays fixed as the original
@@ -483,7 +483,7 @@ noncomputable def roundOracleReductionStateful
       (fun _ _ => Sumcheck.PolyFamily R deg (numVars + 1))
       (fun _ _ => Sumcheck.PolyStmt R deg numVars) :=
   (roundContinuationStateful (R := R) (deg := deg) D
-    (totalVars := numVars + 1) numVars sampleChallenge).fixToStatementInput PUnit.unit
+    (totalVars := numVars + 1) numVars sampleChallenge).promoteStatementToShared PUnit.unit
 
 theorem roundOracleReduction_executePublic_eq_stateful
     {ι : Type} {oSpec : OracleSpec ι}
@@ -611,7 +611,7 @@ theorem roundOracleReduction_executePublic_eq_stateful
     congrArg runTop hStrategy
   simpa [runTop, Interaction.OracleDecoration.OracleReduction.executePublicConcrete,
     roundOracleReduction, roundOracleReductionStateful,
-    Interaction.OracleDecoration.OracleReduction.fixToStatementInput,
+    Interaction.OracleDecoration.OracleReduction.promoteStatementToShared,
     sCont, liftStmt, pack, k] using hRun
 
 theorem roundOracleReduction_execute_eq_stateful
@@ -872,7 +872,7 @@ theorem roundOracleReduction_execute_eq_stateful
           claim s PUnit.unit =
       runTopStateless statelessProver := by
     simpa [runTopStateless, roundOracleReduction,
-      Interaction.OracleDecoration.OracleReduction.fixToStatementInput,
+      Interaction.OracleDecoration.OracleReduction.promoteStatementToShared,
       sCont, liftOut, statelessProver,
       verifierStateless, simulateStateless, gStateless] using
       (Interaction.OracleDecoration.OracleReduction.mapExecuteWitness_eq_execute_mappedOutput
@@ -902,7 +902,7 @@ theorem roundOracleReduction_execute_eq_stateful
       runTopStateful statefulProver := by
     simp [runTopStateful, roundOracleReductionStateful,
       Interaction.OracleDecoration.OracleReduction.executeConcrete,
-      Interaction.OracleDecoration.OracleReduction.fixToStatementInput,
+      Interaction.OracleDecoration.OracleReduction.promoteStatementToShared,
       sCont, liftOut, statefulProver, verifierStateful, simulateStateful, gStateful]
   exact hLeft.trans <| hRun₁.trans <| hRun₂.trans hRight.symm
 

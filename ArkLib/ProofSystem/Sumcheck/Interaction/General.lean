@@ -400,7 +400,7 @@ noncomputable def sumcheckReduction
       (fun _ _ => Option (RoundClaim R))
       (fun _ _ => Sumcheck.PolyFamily R deg n)
       (fun _ _ => PUnit) :=
-  (sumcheckContinuation (R := R) (deg := deg) n D sampleChallenge).fixToStatementInput PUnit.unit
+  (sumcheckContinuation (R := R) (deg := deg) n D sampleChallenge).promoteStatementToShared PUnit.unit
 
 /-- The canonical `n`-round oracle-native sum-check protocol with a private
 residual polynomial witness threaded across rounds. The public oracle statement
@@ -421,7 +421,7 @@ noncomputable def sumcheckReductionStateful
       (fun _ _ => Option (RoundClaim R))
       (fun _ _ => Sumcheck.PolyFamily R deg n)
       (fun _ _ => Sumcheck.PolyStmt R deg 0) :=
-  (sumcheckContinuationStateful (R := R) (deg := deg) n D sampleChallenge).fixToStatementInput PUnit.unit
+  (sumcheckContinuationStateful (R := R) (deg := deg) n D sampleChallenge).promoteStatementToShared PUnit.unit
 
 /-! ## Security placeholders
 
