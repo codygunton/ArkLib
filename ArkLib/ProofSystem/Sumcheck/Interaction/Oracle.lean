@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Quang Dao
 -/
 import ArkLib.ProofSystem.Sumcheck.Interaction.Defs
-import ArkLib.Interaction.Oracle
+import ArkLib.Interaction.Oracle.Core
 
 /-!
 # Interaction-Native Sum-Check: Oracle Round Primitives

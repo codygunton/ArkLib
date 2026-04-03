@@ -13,7 +13,7 @@ import ArkLib.Interaction.TwoParty.Decoration
 # Swapping roles
 
 Involutivity of `Role.swap`, compatibility with `RoleDecoration.map`, and interaction with
-`RoleDecoration.append`.
+appended role decorations.
 -/
 
 universe u
@@ -33,7 +33,7 @@ theorem RoleDecoration.swap_swap :
       congr 1; funext x
       exact RoleDecoration.swap_swap (rest x) (rRest x)
 
-/-- Swapping commutes with `RoleDecoration.append`. -/
+/-- Swapping commutes with appended role decorations. -/
 theorem RoleDecoration.swap_append
     {s₁ : Spec} {s₂ : Spec.Transcript s₁ → Spec}
     (r₁ : RoleDecoration s₁)

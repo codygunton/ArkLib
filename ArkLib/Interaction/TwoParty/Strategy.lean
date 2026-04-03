@@ -220,11 +220,6 @@ abbrev Strategy.withRoles (m : Type u → Type u)
     (spec : Spec) (roles : RoleDecoration spec) (Output : Transcript spec → Type u) :=
   SyntaxOver.Family (pairedSyntax m) Participant.focal spec roles Output
 
-/-- Non-dependent-output variant of `withRoles`. -/
-abbrev Strategy.withRoles' (m : Type u → Type u) (spec : Spec)
-    (roles : RoleDecoration spec) (α : Type u) :=
-  Strategy.withRoles m spec roles (fun _ => α)
-
 @[simp]
 theorem Strategy.withRoles_done {m : Type u → Type u} {Output : PUnit → Type u} :
     Strategy.withRoles m .done PUnit.unit Output = Output PUnit.unit := rfl

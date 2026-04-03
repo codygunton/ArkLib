@@ -302,18 +302,6 @@ def Counterpart.withMonads.append
       Functor.map
         (fun ⟨x, rec⟩ => ⟨x, append rec (fun p o => c₂ ⟨x, p⟩ o)⟩) c₁
 
-/-- Run a strategy against a counterpart on a composed interaction. -/
-def Strategy.runWithRolesAppend {m : Type u → Type u} [Monad m]
-    {s₁ : Spec} {s₂ : Spec.Transcript s₁ → Spec}
-    {r₁ : RoleDecoration s₁}
-    {r₂ : (tr₁ : Spec.Transcript s₁) → RoleDecoration (s₂ tr₁)}
-    {OutputP : Spec.Transcript (s₁.append s₂) → Type u}
-    {OutputC : Spec.Transcript (s₁.append s₂) → Type u}
-    (strat : Strategy.withRoles m (s₁.append s₂) (r₁.append r₂) OutputP)
-    (cpt : Counterpart m (s₁.append s₂) (r₁.append r₂) OutputC) :
-    m ((tr : Spec.Transcript (s₁.append s₂)) × OutputP tr × OutputC tr) :=
-  Strategy.runWithRoles (s₁.append s₂) (r₁.append r₂) strat cpt
-
 /-- Executing a flat composed strategy/counterpart factors into first executing
 the prefix interaction and then executing the suffix continuation. -/
 theorem Strategy.runWithRoles_compWithRolesFlat_appendFlat

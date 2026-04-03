@@ -45,7 +45,7 @@ def map {S : Type u → Type v} {T : Type u → Type w}
   | .node _ rest, ⟨.receiver, rRest⟩, rr =>
       fun x => map f (rest x) (rRest x) (rr x)
 
-/-- Append refinements over `RoleDecoration.append`. -/
+/-- Append refinements over appended role decorations. -/
 def append {S : Type u → Type v}
     {s₁ : Spec} {s₂ : Spec.Transcript s₁ → Spec}
     {r₁ : RoleDecoration s₁}
@@ -83,36 +83,6 @@ def stateChain {S : Type u → Type v}
         (fun tr => stateChain sdeco n (i + 1) (advance i s tr))
 
 end Role.Refine
-
-/-- Synonym for `Role.Refine` (sender-side data only). -/
-abbrev SenderDecoration (S : Type u → Type v) (spec : Spec.{u})
-    (roles : RoleDecoration spec) :=
-  Role.Refine S spec roles
-
-abbrev SenderDecoration.append {S : Type u → Type v}
-    {s₁ : Spec} {s₂ : Spec.Transcript s₁ → Spec}
-    {r₁ : RoleDecoration s₁}
-    {r₂ : (tr₁ : Spec.Transcript s₁) → RoleDecoration (s₂ tr₁)}
-    (sd₁ : SenderDecoration S s₁ r₁)
-    (sd₂ : (tr₁ : Spec.Transcript s₁) → SenderDecoration S (s₂ tr₁) (r₂ tr₁)) :
-    SenderDecoration S (s₁.append s₂) (r₁.append r₂) :=
-  Role.Refine.append sd₁ sd₂
-
-abbrev SenderDecoration.replicate {S : Type u → Type v}
-    {spec : Spec} {roles : RoleDecoration spec}
-    (sd : SenderDecoration S spec roles) (n : Nat) :
-    SenderDecoration S (spec.replicate n) (roles.replicate n) :=
-  Role.Refine.replicate sd n
-
-abbrev SenderDecoration.stateChain {S : Type u → Type v}
-    {Stage : Nat → Type u} {spec : (i : Nat) → Stage i → Spec}
-    {advance : (i : Nat) → (s : Stage i) → Spec.Transcript (spec i s) → Stage (i + 1)}
-    {roles : (i : Nat) → (s : Stage i) → RoleDecoration (spec i s)}
-    (sdeco : (i : Nat) → (s : Stage i) → SenderDecoration S (spec i s) (roles i s))
-    (n : Nat) (i : Nat) (s : Stage i) :
-    SenderDecoration S (Spec.stateChain Stage spec advance n i s)
-      (RoleDecoration.stateChain roles n i s) :=
-  Role.Refine.stateChain sdeco n i s
 
 namespace Role
 

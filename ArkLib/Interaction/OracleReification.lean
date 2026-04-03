@@ -1,4 +1,4 @@
-import ArkLib.Interaction.Oracle
+import ArkLib.Interaction.Oracle.Core
 
 /-!
 # Optional Reification for Interaction-Native Oracle Verifiers

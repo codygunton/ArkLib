@@ -139,7 +139,7 @@ private noncomputable def tailContinuation
           OracleReduction.Continuation oSpec PUnit
             (fun _ => (roundSpec R deg).append (fun _ => Sumcheck.fullSpec R deg remaining))
             (fun _ =>
-              RoleDecoration.append
+              Spec.Decoration.append
                 (roundRoles R deg)
                 (fun _ => Sumcheck.fullRoles R deg remaining))
             (fun _ =>
@@ -205,7 +205,7 @@ private noncomputable def tailContinuationStateful
           OracleReduction.Continuation oSpec PUnit
             (fun _ => (roundSpec R deg).append (fun _ => Sumcheck.fullSpec R deg remaining))
             (fun _ =>
-              RoleDecoration.append
+              Spec.Decoration.append
                 (roundRoles R deg)
                 (fun _ => Sumcheck.fullRoles R deg remaining))
             (fun _ =>
@@ -274,7 +274,7 @@ private noncomputable def sumcheckContinuation
           OracleReduction.Continuation oSpec PUnit
             (fun _ => (roundSpec R deg).append (fun _ => Sumcheck.fullSpec R deg n))
             (fun _ =>
-              RoleDecoration.append
+              Spec.Decoration.append
                 (roundRoles R deg)
                 (fun _ => Sumcheck.fullRoles R deg n))
             (fun _ =>
@@ -346,7 +346,7 @@ private noncomputable def sumcheckContinuationStateful
           OracleReduction.Continuation oSpec PUnit
             (fun _ => (roundSpec R deg).append (fun _ => Sumcheck.fullSpec R deg n))
             (fun _ =>
-              RoleDecoration.append
+              Spec.Decoration.append
                 (roundRoles R deg)
                 (fun _ => Sumcheck.fullRoles R deg n))
             (fun _ =>

@@ -1,4 +1,5 @@
 import ArkLib.Interaction.OracleReification
+import ArkLib.Interaction.Oracle.Continuation
 import ArkLib.Interaction.Security
 
 /-!
