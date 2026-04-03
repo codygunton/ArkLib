@@ -53,6 +53,34 @@ structure Continuation {ι : Type} (oSpec : OracleSpec ι)
 
 namespace Continuation
 
+/-- Forget the prover and witness bookkeeping of an oracle continuation,
+keeping only the verifier-side interaction and output-oracle simulation. -/
+def toVerifier
+    {ι : Type} {oSpec : OracleSpec ι}
+    {SharedIn : Type}
+    {Context : SharedIn → Spec}
+    {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
+    {OD : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
+    {StatementIn : SharedIn → Type}
+    {ιₛᵢ : (shared : SharedIn) → Type}
+    {OStmtIn : (shared : SharedIn) → ιₛᵢ shared → Type}
+    [∀ shared i, OracleInterface (OStmtIn shared i)]
+    {WitnessIn : SharedIn → Type}
+    {StatementOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type}
+    {ιₛₒ : (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → Type}
+    {OStmtOut :
+      (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type}
+    [∀ shared tr i, OracleInterface (OStmtOut shared tr i)]
+    {WitnessOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type}
+    (reduction : Continuation oSpec SharedIn Context Roles OD
+      StatementIn OStmtIn WitnessIn StatementOut OStmtOut WitnessOut) :
+    Interaction.OracleVerifier.Continuation oSpec SharedIn Context Roles OD
+      StatementIn OStmtIn StatementOut OStmtOut where
+  toFun shared {_} accSpec stmt :=
+    reduction.verifier shared accSpec stmt
+  simulate :=
+    reduction.simulate
+
 /-- Fix the shared input of an oracle continuation and view it as an ordinary
 oracle reduction. This is the thin top-level wrapper for protocols whose shared
 input is static. -/

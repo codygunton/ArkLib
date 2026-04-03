@@ -14,7 +14,7 @@ open OracleComp
 namespace Interaction
 namespace OracleDecoration
 
-namespace OracleVerifier
+namespace FixedOracleVerifier
 
 /-- Query-level agreement between a verifier's output-oracle simulation and a
 concrete family of output oracles. -/
@@ -27,7 +27,7 @@ def Simulates
     {ιₛₒ : Type _} {OStmtOut : (s : StmtIn) → (tr : Spec.Transcript pSpec) → ιₛₒ → Type _}
     [∀ i, OracleInterface (OStmtIn i)]
     [∀ s tr i, OracleInterface (OStmtOut s tr i)]
-    (verifier : OracleVerifier oSpec pSpec roles oracleDec StmtIn OStmtIn StmtOut OStmtOut)
+    (verifier : FixedOracleVerifier oSpec pSpec roles oracleDec StmtIn OStmtIn StmtOut OStmtOut)
     (s : StmtIn) (oStmtIn : OracleStatement OStmtIn) (tr : Spec.Transcript pSpec)
     (oStmtOut : OracleStatement (OStmtOut s tr)) : Prop :=
   ∀ i (q : OracleInterface.Query (OStmtOut s tr i)),
@@ -45,7 +45,7 @@ structure Reification
     {ιₛₒ : Type _} {OStmtOut : (s : StmtIn) → (tr : Spec.Transcript pSpec) → ιₛₒ → Type _}
     [∀ i, OracleInterface (OStmtIn i)]
     [∀ s tr i, OracleInterface (OStmtOut s tr i)]
-    (verifier : OracleVerifier oSpec pSpec roles oracleDec StmtIn OStmtIn StmtOut OStmtOut) where
+    (verifier : FixedOracleVerifier oSpec pSpec roles oracleDec StmtIn OStmtIn StmtOut OStmtOut) where
   reify : (s : StmtIn) → OracleStatement OStmtIn →
     (tr : Spec.Transcript pSpec) → Option (OracleStatement (OStmtOut s tr))
   correct : ∀ (s : StmtIn) (oStmtIn : OracleStatement OStmtIn) (tr : Spec.Transcript pSpec)
@@ -72,7 +72,7 @@ def output
     {ιₛₒ : Type _} {OStmtOut : (s : StmtIn) → (tr : Spec.Transcript pSpec) → ιₛₒ → Type _}
     [∀ i, OracleInterface (OStmtIn i)]
     [∀ s tr i, OracleInterface (OStmtOut s tr i)]
-    {verifier : OracleVerifier oSpec pSpec roles oracleDec StmtIn OStmtIn StmtOut OStmtOut}
+    {verifier : FixedOracleVerifier oSpec pSpec roles oracleDec StmtIn OStmtIn StmtOut OStmtOut}
     (reification : Reification verifier)
     (s : StmtIn) (oStmtIn : OracleStatement OStmtIn) (tr : Spec.Transcript pSpec)
     (stmtOut : StmtOut s tr) :
@@ -80,7 +80,7 @@ def output
   let oStmtOut ← reification.reify s oStmtIn tr
   pure ⟨stmtOut, oStmtOut⟩
 
-end OracleVerifier
+end FixedOracleVerifier
 
 namespace OracleReduction
 
@@ -169,4 +169,75 @@ def output
 end OracleReduction
 
 end OracleDecoration
+
+namespace OracleVerifier
+
+/-- Query-level agreement between a statement-indexed oracle verifier's
+output-oracle simulation and a concrete family of output oracles. -/
+def Simulates
+    {ι : Type _} {oSpec : OracleSpec ι}
+    {StmtIn : Type _} {ιₛᵢ : Type _} {OStmtIn : ιₛᵢ → Type _}
+    [∀ i, OracleInterface (OStmtIn i)]
+    {Context : StmtIn → Spec} {Roles : (s : StmtIn) → RoleDecoration (Context s)}
+    {OD : (s : StmtIn) → OracleDecoration (Context s) (Roles s)}
+    {StmtOut : (s : StmtIn) → Spec.Transcript (Context s) → Type _}
+    {ιₛₒ : (s : StmtIn) → (tr : Spec.Transcript (Context s)) → Type _}
+    {OStmtOut : (s : StmtIn) → (tr : Spec.Transcript (Context s)) → ιₛₒ s tr → Type _}
+    [∀ s tr i, OracleInterface (OStmtOut s tr i)]
+    (verifier : Interaction.OracleVerifier oSpec StmtIn OStmtIn Context Roles OD StmtOut OStmtOut)
+    (s : StmtIn) (oStmtIn : OracleStatement OStmtIn) (tr : Spec.Transcript (Context s))
+    (oStmtOut : OracleStatement (OStmtOut s tr)) : Prop :=
+  ∀ i (q : OracleInterface.Query (OStmtOut s tr i)),
+    simulateQ (OracleDecoration.oracleContextImpl (Context s) (Roles s) (OD s) oStmtIn tr)
+      (verifier.simulate s tr ⟨i, q⟩) = pure (OracleInterface.answer (oStmtOut i) q)
+
+/-- Optional materialization of a statement-indexed oracle verifier's output
+oracle family. -/
+structure Reification
+    {ι : Type _} {oSpec : OracleSpec ι}
+    {StmtIn : Type _} {ιₛᵢ : Type _} {OStmtIn : ιₛᵢ → Type _}
+    [∀ i, OracleInterface (OStmtIn i)]
+    {Context : StmtIn → Spec} {Roles : (s : StmtIn) → RoleDecoration (Context s)}
+    {OD : (s : StmtIn) → OracleDecoration (Context s) (Roles s)}
+    {StmtOut : (s : StmtIn) → Spec.Transcript (Context s) → Type _}
+    {ιₛₒ : (s : StmtIn) → (tr : Spec.Transcript (Context s)) → Type _}
+    {OStmtOut : (s : StmtIn) → (tr : Spec.Transcript (Context s)) → ιₛₒ s tr → Type _}
+    [∀ s tr i, OracleInterface (OStmtOut s tr i)]
+    (verifier : Interaction.OracleVerifier oSpec StmtIn OStmtIn Context Roles OD StmtOut OStmtOut) where
+  reify : (s : StmtIn) → OracleStatement OStmtIn →
+    (tr : Spec.Transcript (Context s)) → Option (OracleStatement (OStmtOut s tr))
+  correct : ∀ (s : StmtIn) (oStmtIn : OracleStatement OStmtIn) (tr : Spec.Transcript (Context s))
+      (oStmtOut : OracleStatement (OStmtOut s tr)), reify s oStmtIn tr = some oStmtOut →
+      Simulates verifier s oStmtIn tr oStmtOut
+
+/-- Materialized output of a statement-indexed oracle verifier. -/
+abbrev Output
+    {StmtIn : Type _} {Context : StmtIn → Spec}
+    (StmtOut : (s : StmtIn) → Spec.Transcript (Context s) → Type _)
+    {ιₛₒ : (s : StmtIn) → (tr : Spec.Transcript (Context s)) → Type _}
+    (OStmtOut : (s : StmtIn) → (tr : Spec.Transcript (Context s)) → ιₛₒ s tr → Type _)
+    (s : StmtIn) (tr : Spec.Transcript (Context s)) :=
+  StatementWithOracles (StmtOut s tr) (OStmtOut s tr)
+
+/-- Package a plain output statement together with reified oracle data. -/
+def output
+    {ι : Type _} {oSpec : OracleSpec ι}
+    {StmtIn : Type _} {ιₛᵢ : Type _} {OStmtIn : ιₛᵢ → Type _}
+    [∀ i, OracleInterface (OStmtIn i)]
+    {Context : StmtIn → Spec} {Roles : (s : StmtIn) → RoleDecoration (Context s)}
+    {OD : (s : StmtIn) → OracleDecoration (Context s) (Roles s)}
+    {StmtOut : (s : StmtIn) → Spec.Transcript (Context s) → Type _}
+    {ιₛₒ : (s : StmtIn) → (tr : Spec.Transcript (Context s)) → Type _}
+    {OStmtOut : (s : StmtIn) → (tr : Spec.Transcript (Context s)) → ιₛₒ s tr → Type _}
+    [∀ s tr i, OracleInterface (OStmtOut s tr i)]
+    {verifier : Interaction.OracleVerifier oSpec StmtIn OStmtIn Context Roles OD StmtOut OStmtOut}
+    (reification : Reification verifier)
+    (s : StmtIn) (oStmtIn : OracleStatement OStmtIn) (tr : Spec.Transcript (Context s))
+    (stmtOut : StmtOut s tr) :
+    Option (Output (Context := Context) StmtOut OStmtOut s tr) := do
+  let oStmtOut ← reification.reify s oStmtIn tr
+  pure ⟨stmtOut, oStmtOut⟩
+
+end OracleVerifier
+
 end Interaction

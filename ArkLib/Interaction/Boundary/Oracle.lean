@@ -1290,7 +1290,7 @@ theorem runWithOracleCounterpart_pullbackCounterpart_raw
 end Boundary
 
 namespace OracleDecoration
-namespace OracleVerifier
+namespace FixedOracleVerifier
 
 /-- Reinterpret an inner oracle verifier through a statement boundary and oracle
 access layer.  Input oracle queries are rerouted via `access.simulateIn`;
@@ -1326,9 +1326,9 @@ def pullback
       Boundary.OracleStatementAccess projection
         OuterOStmtIn InnerOStmtIn InnerOStmtOut OuterOStmtOut)
     (verifier :
-      OracleVerifier oSpec pSpec roles od
+      FixedOracleVerifier oSpec pSpec roles od
         InnerStmtIn InnerOStmtIn InnerStmtOut InnerOStmtOut) :
-    OracleVerifier oSpec pSpec roles od
+    FixedOracleVerifier oSpec pSpec roles od
       OuterStmtIn OuterOStmtIn OuterStmtOut OuterOStmtOut where
   iov :=
     Boundary.pullbackCounterpart access.simulateIn
@@ -1354,7 +1354,7 @@ def pullback
       (toOracleSpec pSpec roles od tr)
       (verifier.simulate (stmt.proj outerStmt) tr)
 
-end OracleVerifier
+end FixedOracleVerifier
 
 namespace OracleReduction
 

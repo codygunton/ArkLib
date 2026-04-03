@@ -244,6 +244,88 @@ def run
       prover (reduction.verifier s.stmt []ₒ)
   pure ⟨tr, outP, ⟨stmtOutV, reduction.simulate s.stmt tr⟩⟩
 
+end OracleReduction
+
+end OracleDecoration
+
+namespace OracleVerifier
+
+/-- Run an arbitrary prover strategy against a verifier-only oracle protocol
+surface and package the resulting plain verifier output with transcript-indexed
+oracle access semantics. -/
+def run
+    {ι : Type} {oSpec : OracleSpec ι}
+    {StatementIn : Type} {ιₛᵢ : Type} {OStmtIn : ιₛᵢ → Type}
+    [∀ i, OracleInterface (OStmtIn i)]
+    {Context : StatementIn → Spec}
+    {Roles : (s : StatementIn) → RoleDecoration (Context s)}
+    {OD : (s : StatementIn) → OracleDecoration (Context s) (Roles s)}
+    {StatementOut : (s : StatementIn) → Spec.Transcript (Context s) → Type}
+    {ιₛₒ : (s : StatementIn) → (tr : Spec.Transcript (Context s)) → Type}
+    {OStmtOut : (s : StatementIn) → (tr : Spec.Transcript (Context s)) → ιₛₒ s tr → Type}
+    [∀ s tr i, OracleInterface (OStmtOut s tr i)]
+    (verifier : Interaction.OracleVerifier oSpec StatementIn OStmtIn
+      Context Roles OD StatementOut OStmtOut)
+    (s : StatementWithOracles StatementIn OStmtIn)
+    {OutputP : Spec.Transcript (Context s.stmt) → Type}
+    (prover : Spec.Strategy.withRoles (OracleComp oSpec) (Context s.stmt) (Roles s.stmt) OutputP) :
+    OracleComp oSpec ((tr : Spec.Transcript (Context s.stmt)) × OutputP tr ×
+      (StatementOut s.stmt tr × QueryImpl [OStmtOut s.stmt tr]ₒ
+        (OracleComp
+          ([OStmtIn]ₒ + OracleDecoration.toOracleSpec (Context s.stmt) (Roles s.stmt)
+            (OD s.stmt) tr)))) := do
+  let ⟨tr, outP, stmtOutV⟩ ←
+    OracleDecoration.runWithOracleCounterpart (OracleInterface.simOracle0 OStmtIn s.oracleStmt)
+      (Context s.stmt) (Roles s.stmt) (OD s.stmt) []ₒ (fun q => q.elim)
+      prover (verifier s.stmt []ₒ)
+  pure ⟨tr, outP, ⟨stmtOutV, verifier.simulate s.stmt tr⟩⟩
+
+namespace Continuation
+
+/-- Run an arbitrary prover strategy against a verifier-only oracle continuation
+surface and package the resulting plain verifier output with transcript-indexed
+oracle access semantics. -/
+def run
+    {ι : Type} {oSpec : OracleSpec ι}
+    {SharedIn : Type}
+    {Context : SharedIn → Spec}
+    {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
+    {OD : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
+    {StatementIn : SharedIn → Type}
+    {ιₛᵢ : (shared : SharedIn) → Type}
+    {OStmtIn : (shared : SharedIn) → ιₛᵢ shared → Type}
+    [∀ shared i, OracleInterface (OStmtIn shared i)]
+    {StatementOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type}
+    {ιₛₒ : (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → Type}
+    {OStmtOut :
+      (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type}
+    [∀ shared tr i, OracleInterface (OStmtOut shared tr i)]
+    (verifier : Interaction.OracleVerifier.Continuation oSpec SharedIn Context Roles OD
+      StatementIn OStmtIn StatementOut OStmtOut)
+    (shared : SharedIn)
+    (stmt : StatementIn shared)
+    (inputImpl : QueryImpl [OStmtIn shared]ₒ Id)
+    {OutputP : Spec.Transcript (Context shared) → Type}
+    (prover : Spec.Strategy.withRoles (OracleComp oSpec) (Context shared) (Roles shared) OutputP)
+    {ιₐ : Type} (accSpec : OracleSpec ιₐ) (accImpl : QueryImpl accSpec Id) :
+    OracleComp oSpec ((tr : Spec.Transcript (Context shared)) × OutputP tr ×
+      (StatementOut shared tr × QueryImpl [OStmtOut shared tr]ₒ
+        (OracleComp
+          ([OStmtIn shared]ₒ + OracleDecoration.toOracleSpec
+            (Context shared) (Roles shared) (OD shared) tr)))) := do
+  let ⟨tr, outP, stmtOutV⟩ ←
+    OracleDecoration.runWithOracleCounterpart inputImpl
+      (Context shared) (Roles shared) (OD shared) accSpec accImpl
+      prover (verifier shared accSpec stmt)
+  pure ⟨tr, outP, ⟨stmtOutV, verifier.simulate shared tr⟩⟩
+
+end Continuation
+end OracleVerifier
+
+namespace OracleDecoration
+
+namespace OracleReduction
+
 /-- Execute an oracle reduction honestly, but erase the prover's private witness
 output and retain only the public outgoing statement-with-oracles together with
 the verifier's plain output and transcript-indexed oracle simulation. -/

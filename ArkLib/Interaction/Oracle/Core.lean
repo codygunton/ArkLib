@@ -29,7 +29,7 @@ computation model. It introduces:
   unified as `Counterpart.withMonads` via `toMonadDecoration`.
 - `InteractiveOracleVerifier` — a transcript-indexed challenger whose terminal
   output is a verification function.
-- `OracleVerifier` — batch structure with transcript-dependent `iov` and
+- `FixedOracleVerifier` — fixed-spec batch structure with transcript-dependent `iov` and
   statement/transcript-dependent oracle simulation.
 - `OracleProver` / `OracleReduction` — prover and reduction with oracle statements,
   using the full dependency chain.
@@ -722,9 +722,9 @@ def OracleCounterpart.mapOutput {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
         let ⟨x, ocRest⟩ ← oc
         return ⟨x, mapOutput f (rest x) (rRest x) (odFn x) accSpec ocRest⟩
 
-/-! ## Full oracle verifier (batch structure)
+/-! ## Fixed oracle verifier (batch structure)
 
-The batch `OracleVerifier` bundles:
+The fixed-spec `FixedOracleVerifier` bundles:
 - `iov` — the round-by-round interactive oracle verifier
 - `simulate` — query-level simulation of output oracle queries
 
@@ -735,8 +735,8 @@ Concrete reification of the output oracle data is intentionally *not* part of
 this core structure; it belongs to an optional layer built on top of the oracle
 access semantics. -/
 
-/-- Full oracle verifier with oracle-only output semantics. -/
-structure OracleVerifier {ι : Type} (oSpec : OracleSpec.{0, 0} ι)
+/-- Fixed-spec oracle verifier with oracle-only output semantics. -/
+structure FixedOracleVerifier {ι : Type} (oSpec : OracleSpec.{0, 0} ι)
     (pSpec : Spec.{0}) (roles : RoleDecoration pSpec)
     (oracleDec : OracleDecoration.{0, 0} pSpec roles)
     (StmtIn : Type) {ιₛᵢ : Type} (OStmtIn : ιₛᵢ → Type)
@@ -749,7 +749,7 @@ structure OracleVerifier {ι : Type} (oSpec : OracleSpec.{0, 0} ι)
     QueryImpl [OStmtOut s tr]ₒ
       (OracleComp ([OStmtIn]ₒ + toOracleSpec pSpec roles oracleDec tr))
 
-namespace OracleVerifier
+namespace FixedOracleVerifier
 
 /-- Full oracle-only verifier output: the plain output statement together with
 the query implementation exposing the output-oracle access. -/
@@ -774,13 +774,13 @@ def outputAccess {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
     {ιₛₒ : Type} {OStmtOut : (s : StmtIn) → (tr : Spec.Transcript pSpec) → ιₛₒ → Type}
     [∀ i, OracleInterface.{0, 0} (OStmtIn i)]
     [∀ s tr i, OracleInterface (OStmtOut s tr i)]
-    (verifier : OracleVerifier oSpec pSpec roles oracleDec StmtIn OStmtIn StmtOut OStmtOut)
+    (verifier : FixedOracleVerifier oSpec pSpec roles oracleDec StmtIn OStmtIn StmtOut OStmtOut)
     (s : StmtIn) (tr : Spec.Transcript pSpec) (stmtOut : StmtOut s tr) :
     OutputAccess (pSpec := pSpec) (roles := roles) (oracleDec := oracleDec)
       (StmtIn := StmtIn) (OStmtIn := OStmtIn) (StmtOut := StmtOut) OStmtOut s tr :=
   ⟨stmtOut, verifier.simulate s tr⟩
 
-end OracleVerifier
+end FixedOracleVerifier
 
 /-! ## Oracle prover and oracle reduction -/
 
@@ -904,5 +904,128 @@ abbrev verifierMD
 end OracleReduction
 
 end OracleDecoration
+
+/-- A verifier-only oracle protocol surface, analogous to `Interaction.Verifier`.
+For each input statement it provides verifier interaction plus output-oracle
+query simulation. -/
+structure OracleVerifier {ι : Type} (oSpec : OracleSpec ι)
+    (StatementIn : Type) {ιₛᵢ : Type} (OStmtIn : ιₛᵢ → Type)
+    [∀ i, OracleInterface (OStmtIn i)]
+    (Context : StatementIn → Spec)
+    (Roles : (s : StatementIn) → RoleDecoration (Context s))
+    (OD : (s : StatementIn) → OracleDecoration (Context s) (Roles s))
+    (StatementOut : (s : StatementIn) → Spec.Transcript (Context s) → Type)
+    {ιₛₒ : (s : StatementIn) → (tr : Spec.Transcript (Context s)) → Type}
+    (OStmtOut : (s : StatementIn) → (tr : Spec.Transcript (Context s)) → ιₛₒ s tr → Type)
+    [∀ s tr i, OracleInterface (OStmtOut s tr i)] where
+  toFun : (s : StatementIn) → {ιₐ : Type} → (accSpec : OracleSpec ιₐ) →
+    Spec.Counterpart.withMonads (Context s) (Roles s)
+      (OracleDecoration.toMonadDecoration oSpec OStmtIn (Context s) (Roles s) (OD s) accSpec)
+      (fun tr => StatementOut s tr)
+  simulate : (s : StatementIn) → (tr : Spec.Transcript (Context s)) →
+    QueryImpl [OStmtOut s tr]ₒ
+      (OracleComp ([OStmtIn]ₒ + OracleDecoration.toOracleSpec (Context s) (Roles s) (OD s) tr))
+
+instance
+    {ι : Type} {oSpec : OracleSpec ι}
+    {StatementIn : Type} {ιₛᵢ : Type} {OStmtIn : ιₛᵢ → Type}
+    [∀ i, OracleInterface (OStmtIn i)]
+    {Context : StatementIn → Spec}
+    {Roles : (s : StatementIn) → RoleDecoration (Context s)}
+    {OD : (s : StatementIn) → OracleDecoration (Context s) (Roles s)}
+    {StatementOut : (s : StatementIn) → Spec.Transcript (Context s) → Type}
+    {ιₛₒ : (s : StatementIn) → (tr : Spec.Transcript (Context s)) → Type}
+    {OStmtOut : (s : StatementIn) → (tr : Spec.Transcript (Context s)) → ιₛₒ s tr → Type}
+    [∀ s tr i, OracleInterface (OStmtOut s tr i)] :
+    CoeFun (OracleVerifier oSpec StatementIn OStmtIn Context Roles OD StatementOut OStmtOut)
+      (fun _ => (s : StatementIn) → {ιₐ : Type} → (accSpec : OracleSpec ιₐ) →
+        Spec.Counterpart.withMonads (Context s) (Roles s)
+          (OracleDecoration.toMonadDecoration oSpec OStmtIn (Context s) (Roles s) (OD s) accSpec)
+          (fun tr => StatementOut s tr)) where
+  coe verifier := verifier.toFun
+
+namespace OracleVerifier
+
+/-- A verifier-only oracle continuation surface over shared input. -/
+structure Continuation {ι : Type} (oSpec : OracleSpec ι)
+    (SharedIn : Type)
+    (Context : SharedIn → Spec)
+    (Roles : (shared : SharedIn) → RoleDecoration (Context shared))
+    (OD : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared))
+    (StatementIn : SharedIn → Type)
+    {ιₛᵢ : (shared : SharedIn) → Type}
+    (OStmtIn : (shared : SharedIn) → ιₛᵢ shared → Type)
+    [∀ shared i, OracleInterface (OStmtIn shared i)]
+    (StatementOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type)
+    {ιₛₒ : (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → Type}
+    (OStmtOut :
+      (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type)
+    [∀ shared tr i, OracleInterface (OStmtOut shared tr i)] where
+  toFun : (shared : SharedIn) → {ιₐ : Type} → (accSpec : OracleSpec ιₐ) →
+    (stmt : StatementIn shared) →
+      Spec.Counterpart.withMonads (Context shared) (Roles shared)
+        (OracleDecoration.toMonadDecoration oSpec (OStmtIn shared) (Context shared)
+          (Roles shared) (OD shared) accSpec)
+        (fun tr => StatementOut shared tr)
+  simulate : (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) →
+    QueryImpl [OStmtOut shared tr]ₒ
+      (OracleComp
+        ([OStmtIn shared]ₒ + OracleDecoration.toOracleSpec
+          (Context shared) (Roles shared) (OD shared) tr))
+
+instance
+    {ι : Type} {oSpec : OracleSpec ι}
+    {SharedIn : Type}
+    {Context : SharedIn → Spec}
+    {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
+    {OD : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
+    {StatementIn : SharedIn → Type}
+    {ιₛᵢ : (shared : SharedIn) → Type}
+    {OStmtIn : (shared : SharedIn) → ιₛᵢ shared → Type}
+    [∀ shared i, OracleInterface (OStmtIn shared i)]
+    {StatementOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type}
+    {ιₛₒ : (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → Type}
+    {OStmtOut :
+      (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type}
+    [∀ shared tr i, OracleInterface (OStmtOut shared tr i)] :
+    CoeFun
+      (OracleVerifier.Continuation oSpec SharedIn Context Roles OD StatementIn OStmtIn
+        StatementOut OStmtOut)
+      (fun _ => (shared : SharedIn) → {ιₐ : Type} → (accSpec : OracleSpec ιₐ) →
+        (stmt : StatementIn shared) →
+          Spec.Counterpart.withMonads (Context shared) (Roles shared)
+            (OracleDecoration.toMonadDecoration oSpec (OStmtIn shared) (Context shared)
+              (Roles shared) (OD shared) accSpec)
+            (fun tr => StatementOut shared tr)) where
+  coe verifier := verifier.toFun
+
+end OracleVerifier
+
+namespace OracleDecoration.OracleReduction
+
+/-- Forget the prover and witness bookkeeping of an oracle reduction, keeping
+only the verifier-side interaction and output-oracle simulation. -/
+def toVerifier
+    {ι : Type} {oSpec : OracleSpec ι}
+    {StatementIn : Type} {ιₛᵢ : Type} {OStmtIn : ιₛᵢ → Type}
+    [∀ i, OracleInterface (OStmtIn i)]
+    {WitnessIn : Type}
+    {Context : StatementIn → Spec}
+    {Roles : (s : StatementIn) → RoleDecoration (Context s)}
+    {OD : (s : StatementIn) → OracleDecoration (Context s) (Roles s)}
+    {StatementOut : (s : StatementIn) → Spec.Transcript (Context s) → Type}
+    {ιₛₒ : (s : StatementIn) → (tr : Spec.Transcript (Context s)) → Type}
+    {OStmtOut : (s : StatementIn) → (tr : Spec.Transcript (Context s)) → ιₛₒ s tr → Type}
+    [∀ s tr i, OracleInterface (OStmtOut s tr i)]
+    {WitnessOut : (s : StatementIn) → Spec.Transcript (Context s) → Type}
+    (reduction : OracleReduction oSpec StatementIn OStmtIn WitnessIn
+      Context Roles OD StatementOut OStmtOut WitnessOut) :
+    Interaction.OracleVerifier oSpec StatementIn OStmtIn Context Roles OD StatementOut OStmtOut where
+  toFun s {_} accSpec :=
+    reduction.verifier s accSpec
+  simulate :=
+    reduction.simulate
+
+end OracleDecoration.OracleReduction
 
 end Interaction

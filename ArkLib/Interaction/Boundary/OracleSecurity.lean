@@ -33,7 +33,7 @@ namespace OracleDecoration
 
 /-! ### Verifier-Side Simulation -/
 
-namespace OracleVerifier
+namespace FixedOracleVerifier
 
 /-- If a concrete inner output-oracle family realizes the inner verifier's
 simulation, then materializing that oracle family across the boundary realizes
@@ -71,7 +71,7 @@ theorem simulates_pullback
       Boundary.OracleStatement toStatement
         OuterOStmtIn InnerOStmtIn InnerOStmtOut OuterOStmtOut)
     (verifier :
-      Interaction.OracleDecoration.OracleVerifier
+      Interaction.OracleDecoration.FixedOracleVerifier
         oSpec pSpec roles oracleDec
         InnerStmtIn InnerOStmtIn InnerStmtOut InnerOStmtOut)
     (outer : OuterStmtIn)
@@ -80,14 +80,14 @@ theorem simulates_pullback
     (innerOStmtOut :
       Interaction.OracleStatement (InnerOStmtOut (toStatement.proj outer) tr))
     (hInner :
-      Interaction.OracleDecoration.OracleVerifier.Simulates
+      Interaction.OracleDecoration.FixedOracleVerifier.Simulates
         verifier
         (toStatement.proj outer)
         (boundary.reification.materializeIn outer oStmtIn)
         tr
         innerOStmtOut) :
-    Interaction.OracleDecoration.OracleVerifier.Simulates
-      (Interaction.OracleDecoration.OracleVerifier.pullback
+    Interaction.OracleDecoration.FixedOracleVerifier.Simulates
+      (Interaction.OracleDecoration.FixedOracleVerifier.pullback
         toStatement
         boundary.access
         verifier)
@@ -96,8 +96,8 @@ theorem simulates_pullback
       tr
       (boundary.reification.materializeOut outer oStmtIn tr innerOStmtOut) := by
   intro i q
-  simpa [Interaction.OracleDecoration.OracleVerifier.Simulates,
-    Interaction.OracleDecoration.OracleVerifier.pullback] using
+  simpa [Interaction.OracleDecoration.FixedOracleVerifier.Simulates,
+    Interaction.OracleDecoration.FixedOracleVerifier.pullback] using
     Boundary.OracleStatementReification.pullbackSimulate_materialize
       boundary.access
       boundary.reification
@@ -112,11 +112,11 @@ theorem simulates_pullback
       (by
         intro q'
         rcases q' with ⟨i, q⟩
-        simpa [Interaction.OracleDecoration.OracleVerifier.Simulates,
+        simpa [Interaction.OracleDecoration.FixedOracleVerifier.Simulates,
           OracleDecoration.oracleContextImpl, QueryImpl.add] using hInner i q)
       ⟨i, q⟩
 
-end OracleVerifier
+end FixedOracleVerifier
 
 namespace OracleReduction
 
@@ -537,7 +537,7 @@ private theorem runWithOracleCounterpart_pullbackVerifier
 simulation, then materializing that oracle family across the boundary realizes
 the pulled-back reduction's simulation as well.
 
-This is the reduction analogue of `OracleVerifier.simulates_pullback`: it
+This is the reduction analogue of `FixedOracleVerifier.simulates_pullback`: it
 tracks only the verifier-side oracle semantics, not the full honest execution
 trace. -/
 theorem simulates_pullback
