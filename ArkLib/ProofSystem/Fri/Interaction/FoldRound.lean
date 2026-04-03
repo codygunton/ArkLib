@@ -47,7 +47,7 @@ def foldRoundContinuation {SharedIn : Type} {ι : Type} {oSpec : OracleSpec ι}
       (ιₛₒ := fun _ _ => Fin (i.1.succ + 1))
       (fun _ _ => FoldCodewordPrefix (F := F) (n := n) D x s i.1.succ)
       (fun _ _ => HonestPoly (F := F) s d i.1.succ) where
-  prover _ sWithOracles witness := do
+  prover shared sWithOracles witness := do
     let proverStep :
         Spec.Strategy.withRoles (OracleComp oSpec)
           (foldRoundSpec (F := F) (n := n) D x s i)
@@ -55,8 +55,9 @@ def foldRoundContinuation {SharedIn : Type} {ι : Type} {oSpec : OracleSpec ι}
           (fun _ =>
             HonestProverOutput
               (StatementWithOracles
-                (FoldChallengePrefix (F := F) i.1.succ)
-                (fun _ => FoldCodewordPrefix (F := F) (n := n) D x s i.1.succ))
+                (fun _ => FoldChallengePrefix (F := F) i.1.succ)
+                (fun _ => FoldCodewordPrefix (F := F) (n := n) D x s i.1.succ)
+                shared)
               (HonestPoly (F := F) s d i.1.succ)) := by
       intro α
       let nextPoly : HonestPoly (F := F) s d i.1.succ :=
@@ -75,18 +76,20 @@ def foldRoundContinuation {SharedIn : Type} {ι : Type} {oSpec : OracleSpec ι}
       let nextOutput :
           HonestProverOutput
             (StatementWithOracles
-              (FoldChallengePrefix (F := F) i.1.succ)
-              (fun _ => FoldCodewordPrefix (F := F) (n := n) D x s i.1.succ))
+              (fun _ => FoldChallengePrefix (F := F) i.1.succ)
+              (fun _ => FoldCodewordPrefix (F := F) (n := n) D x s i.1.succ)
+              shared)
             (HonestPoly (F := F) s d i.1.succ) :=
         ⟨⟨nextChallenges, nextCodewords⟩, nextPoly⟩
       simpa [Spec.SyntaxOver.Family, Spec.pairedSyntax, Spec.Participant.focal] using
         (pure <|
           (pure <|
-            (show (cw : Codeword (F := F) s n i.1.succ) ×
+              (show (cw : Codeword (F := F) s n i.1.succ) ×
                 HonestProverOutput
                   (StatementWithOracles
-                    (FoldChallengePrefix (F := F) i.1.succ)
-                    (fun _ => FoldCodewordPrefix (F := F) (n := n) D x s i.1.succ))
+                    (fun _ => FoldChallengePrefix (F := F) i.1.succ)
+                    (fun _ => FoldCodewordPrefix (F := F) (n := n) D x s i.1.succ)
+                    shared)
                   (HonestPoly (F := F) s d i.1.succ) from
               ⟨nextCodeword, nextOutput⟩)) :
           OracleComp oSpec
@@ -94,8 +97,9 @@ def foldRoundContinuation {SharedIn : Type} {ι : Type} {oSpec : OracleSpec ι}
               ((cw : Codeword (F := F) s n i.1.succ) ×
                 HonestProverOutput
                   (StatementWithOracles
-                    (FoldChallengePrefix (F := F) i.1.succ)
-                    (fun _ => FoldCodewordPrefix (F := F) (n := n) D x s i.1.succ))
+                    (fun _ => FoldChallengePrefix (F := F) i.1.succ)
+                    (fun _ => FoldCodewordPrefix (F := F) (n := n) D x s i.1.succ)
+                    shared)
                   (HonestPoly (F := F) s d i.1.succ))))
     pure proverStep
   verifier shared {_} _accSpec prevChallenges := do

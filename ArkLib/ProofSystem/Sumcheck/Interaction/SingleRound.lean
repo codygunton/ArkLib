@@ -365,7 +365,7 @@ theorem roundContinuation_publicEq_stateful
     (prefixTr : Spec.Transcript (Sumcheck.fullSpec R deg prefixLen))
     (sampleChallenge : OracleComp oSpec R)
     (sWithOracles :
-      StatementWithOracles (RoundClaim R) (fun _ => Sumcheck.PolyFamily R deg n)) :
+      StatementWithOracles (fun _ => RoundClaim R) (fun _ => Sumcheck.PolyFamily R deg n) PUnit.unit) :
     (Spec.Strategy.mapOutputWithRoles (fun _ out => out.stmt) ·) <$>
       (roundContinuationStateful (R := R) (deg := deg) D
         (totalVars := n)
@@ -388,7 +388,8 @@ theorem roundContinuationOption_proverEq_stateful
     (prefixTr : Spec.Transcript (Sumcheck.fullSpec R deg prefixLen))
     (sampleChallenge : OracleComp oSpec R)
     (sWithOracles :
-      StatementWithOracles (Option (RoundClaim R)) (fun _ => Sumcheck.PolyFamily R deg n)) :
+      StatementWithOracles (fun _ => Option (RoundClaim R))
+        (fun _ => Sumcheck.PolyFamily R deg n) PUnit.unit) :
     (Spec.Strategy.mapOutputWithRoles
       (fun tr out =>
         ⟨out.stmt,
@@ -411,8 +412,8 @@ theorem roundContinuationOption_proverEq_stateful
             (Spec.Strategy.withRoles (OracleComp oSpec) (roundSpec R deg) (roundRoles R deg)
               (fun _ =>
                 HonestProverOutput
-                  (StatementWithOracles (Option (RoundClaim R))
-                    (fun _ => Sumcheck.PolyFamily R deg n))
+                  (StatementWithOracles (fun _ => Option (RoundClaim R))
+                    (fun _ => Sumcheck.PolyFamily R deg n) PUnit.unit)
                   (Sumcheck.PolyStmt R deg (n - (prefixLen + 1)))))))
       <|
       (roundProverStep_map_honestProverOutputWitness
@@ -429,8 +430,8 @@ theorem roundContinuationOption_proverEq_stateful
                       (sWithOracles.oracleStmt ())).1
           (⟨⟨nextClaim, sWithOracles.oracleStmt⟩, PUnit.unit⟩ :
             HonestProverOutput
-              (StatementWithOracles (Option (RoundClaim R))
-                (fun _ => Sumcheck.PolyFamily R deg n))
+              (StatementWithOracles (fun _ => Option (RoundClaim R))
+                (fun _ => Sumcheck.PolyFamily R deg n) PUnit.unit)
               PUnit)))
 
 /-- A single-round sum-check oracle reduction. The input oracle statement is the
@@ -444,10 +445,11 @@ noncomputable def roundOracleReduction
     OracleReduction oSpec
       (RoundClaim R)
       (fun _ => Sumcheck.PolyFamily R deg (numVars + 1))
-      PUnit
       (fun _ => roundSpec R deg)
       (fun _ => roundRoles R deg)
       (fun _ => roundOracleDecoration R deg)
+      (fun _ => PUnit)
+      (fun _ => PUnit)
       (fun _ _ => Option (RoundClaim R))
       (fun _ _ => Sumcheck.PolyFamily R deg (numVars + 1))
       (fun _ _ => PUnit) :=
@@ -472,10 +474,11 @@ noncomputable def roundOracleReductionStateful
     OracleReduction oSpec
       (RoundClaim R)
       (fun _ => Sumcheck.PolyFamily R deg (numVars + 1))
-      (Sumcheck.PolyStmt R deg (numVars + 1))
       (fun _ => roundSpec R deg)
       (fun _ => roundRoles R deg)
       (fun _ => roundOracleDecoration R deg)
+      (fun _ => PUnit)
+      (fun _ => Sumcheck.PolyStmt R deg (numVars + 1))
       (fun _ _ => Option (RoundClaim R))
       (fun _ _ => Sumcheck.PolyFamily R deg (numVars + 1))
       (fun _ _ => Sumcheck.PolyStmt R deg numVars) :=
@@ -487,47 +490,72 @@ theorem roundOracleReduction_executePublic_eq_stateful
     {m_dom : ℕ} (D : Fin m_dom → R)
     (numVars : ℕ)
     (sampleChallenge : OracleComp oSpec R)
+    (claim : RoundClaim R)
     (s :
-      StatementWithOracles (RoundClaim R)
-        (fun _ => Sumcheck.PolyFamily R deg (numVars + 1))) :
+      StatementWithOracles (fun _ => PUnit)
+        (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)) claim) :
     Interaction.OracleDecoration.OracleReduction.executePublic
       (roundOracleReduction (R := R) (deg := deg) D numVars sampleChallenge)
-      s PUnit.unit =
+      claim s PUnit.unit =
     Interaction.OracleDecoration.OracleReduction.executePublic
       (roundOracleReductionStateful (R := R) (deg := deg) D numVars sampleChallenge)
-      s (s.oracleStmt ()) := by
+      claim s (s.oracleStmt ()) := by
   let prefixTr : Spec.Transcript (Sumcheck.fullSpec R deg 0) := by
     simpa [Sumcheck.fullSpec] using
       (show Spec.Transcript ((roundSpec R deg).replicate 0) from ⟨⟩)
+  let sCont :
+      StatementWithOracles (fun _ => RoundClaim R)
+        (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)) PUnit.unit :=
+    ⟨claim, s.oracleStmt⟩
   have hResidual :
       currentRoundResidual (R := R) (deg := deg)
         (n := numVars + 1) (prefixLen := 0)
         (Nat.succ_pos numVars) prefixTr (s.oracleStmt ()) =
       s.oracleStmt () := by
     simp [currentRoundResidual, currentResidual, currentResidualGo, prefixTr]
-  have hStrategy :
+  have hStrategyCont :
       (Spec.Strategy.mapOutputWithRoles (fun _ out => out.stmt) ·) <$>
         (roundContinuationStateful (R := R) (deg := deg) D
           (totalVars := numVars + 1) numVars sampleChallenge).prover
-          PUnit.unit s (s.oracleStmt ()) =
+          PUnit.unit sCont (s.oracleStmt ()) =
       (Spec.Strategy.mapOutputWithRoles (fun _ out => out.stmt) ·) <$>
         (roundContinuation (R := R) (deg := deg) D
           (n := numVars + 1) (prefixLen := 0)
           (Nat.succ_pos numVars) prefixTr sampleChallenge).prover
-          PUnit.unit s PUnit.unit := by
-    simpa [hResidual] using
+          PUnit.unit sCont PUnit.unit := by
+    simpa [hResidual, sCont] using
         (roundContinuation_publicEq_stateful
         (R := R) (deg := deg) D
         (n := numVars + 1) (prefixLen := 0)
-        (Nat.succ_pos numVars) prefixTr sampleChallenge s)
+        (Nat.succ_pos numVars) prefixTr sampleChallenge sCont)
+  let liftStmt :
+      (tr : Spec.Transcript (roundSpec R deg)) →
+      StatementWithOracles (fun _ => Option (RoundClaim R))
+        (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)) PUnit.unit →
+      StatementWithOracles (fun _ => Option (RoundClaim R))
+        (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)) claim
+    | _, stmtOut => ⟨stmtOut.stmt, stmtOut.oracleStmt⟩
+  have hStrategy :
+      (Spec.Strategy.mapOutputWithRoles liftStmt ·) <$>
+        ((Spec.Strategy.mapOutputWithRoles (fun _ out => out.stmt) ·) <$>
+          (roundContinuation (R := R) (deg := deg) D
+            (n := numVars + 1) (prefixLen := 0)
+            (Nat.succ_pos numVars) prefixTr sampleChallenge).prover
+            PUnit.unit sCont PUnit.unit) =
+      (Spec.Strategy.mapOutputWithRoles liftStmt ·) <$>
+        ((Spec.Strategy.mapOutputWithRoles (fun _ out => out.stmt) ·) <$>
+          (roundContinuationStateful (R := R) (deg := deg) D
+            (totalVars := numVars + 1) numVars sampleChallenge).prover
+            PUnit.unit sCont (s.oracleStmt ())) := by
+    exact congrArg (Functor.map (Spec.Strategy.mapOutputWithRoles liftStmt)) hStrategyCont.symm
   let pack :
       ((tr : Spec.Transcript (roundSpec R deg)) ×
-        StatementWithOracles (Option (RoundClaim R))
-          (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)) ×
+        StatementWithOracles (fun _ => Option (RoundClaim R))
+          (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)) claim ×
         Option (RoundClaim R)) →
       ((tr : Spec.Transcript (roundSpec R deg)) ×
-        StatementWithOracles (Option (RoundClaim R))
-          (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)) ×
+        StatementWithOracles (fun _ => Option (RoundClaim R))
+          (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)) claim ×
         (Option (RoundClaim R) ×
           QueryImpl [Sumcheck.PolyFamily R deg (numVars + 1)]ₒ
             (OracleComp
@@ -550,55 +578,62 @@ theorem roundOracleReduction_executePublic_eq_stateful
           strategy
           ((roundContinuation (R := R) (deg := deg) D
             (n := numVars + 1) (prefixLen := 0)
-            (Nat.succ_pos numVars) prefixTr sampleChallenge).verifier PUnit.unit []ₒ s.stmt)
-  simp [Interaction.OracleDecoration.OracleReduction.executePublic,
-    roundOracleReduction, roundOracleReductionStateful,
-    Interaction.OracleDecoration.OracleReduction.Continuation.fix]
-  change
-    (do
-      let strategy ←
-        (Spec.Strategy.mapOutputWithRoles
-          (fun _ (out : HonestProverOutput
-              (StatementWithOracles (Option (RoundClaim R))
-                (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)))
-              PUnit) => out.stmt) ·) <$>
+            (Nat.succ_pos numVars) prefixTr sampleChallenge).verifier PUnit.unit []ₒ claim)
+  let runTop :=
+    fun stratM =>
+      (do
+        let strategy ← stratM
+        k strategy :
+        OracleComp oSpec
+          ((tr : Spec.Transcript (roundSpec R deg)) ×
+            StatementWithOracles (fun _ => Option (RoundClaim R))
+              (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)) claim ×
+            (Option (RoundClaim R) ×
+              QueryImpl [Sumcheck.PolyFamily R deg (numVars + 1)]ₒ
+                (OracleComp
+                  ([Sumcheck.PolyFamily R deg (numVars + 1)]ₒ +
+                    Interaction.OracleDecoration.toOracleSpec
+                      (roundSpec R deg) (roundRoles R deg)
+                      (roundOracleDecoration R deg) tr)))))
+  have hRun : runTop
+      ((Spec.Strategy.mapOutputWithRoles liftStmt ·) <$>
+        ((Spec.Strategy.mapOutputWithRoles (fun _ out => out.stmt) ·) <$>
           (roundContinuation (R := R) (deg := deg) D
             (n := numVars + 1) (prefixLen := 0)
             (Nat.succ_pos numVars) prefixTr sampleChallenge).prover
-            PUnit.unit s PUnit.unit
-      k strategy) =
-    (do
-      let strategy ←
-        (Spec.Strategy.mapOutputWithRoles
-          (fun _ (out : HonestProverOutput
-              (StatementWithOracles (Option (RoundClaim R))
-                (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)))
-              (Sumcheck.PolyStmt R deg numVars)) => out.stmt) ·) <$>
+            PUnit.unit sCont PUnit.unit)) =
+    runTop
+      ((Spec.Strategy.mapOutputWithRoles liftStmt ·) <$>
+        ((Spec.Strategy.mapOutputWithRoles (fun _ out => out.stmt) ·) <$>
           (roundContinuationStateful (R := R) (deg := deg) D
             (totalVars := numVars + 1) numVars sampleChallenge).prover
-            PUnit.unit s (s.oracleStmt ())
-      k strategy)
-  exact congrArg (fun stratM => do
-    let strategy ← stratM
-    k strategy) hStrategy.symm
+            PUnit.unit sCont (s.oracleStmt ()))) :=
+    congrArg runTop hStrategy
+  simpa [runTop, Interaction.OracleDecoration.OracleReduction.executePublic,
+    roundOracleReduction, roundOracleReductionStateful,
+    Interaction.OracleDecoration.OracleReduction.Continuation.fix,
+    sCont, liftStmt, pack, k] using hRun
 
 theorem roundOracleReduction_execute_eq_stateful
     {ι : Type} {oSpec : OracleSpec ι}
     {m_dom : ℕ} (D : Fin m_dom → R)
     (numVars : ℕ)
     (sampleChallenge : OracleComp oSpec R)
+    (claim : RoundClaim R)
     (s :
-      StatementWithOracles (RoundClaim R)
-        (fun _ => Sumcheck.PolyFamily R deg (numVars + 1))) :
+      StatementWithOracles (fun _ => PUnit)
+        (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)) claim) :
     OracleReduction.mapExecuteWitness
       (oSpec := oSpec)
       (Context := fun _ => roundSpec R deg)
       (Roles := fun _ => roundRoles R deg)
       (OD := fun _ => roundOracleDecoration R deg)
+      (LocalStmt := fun _ => PUnit)
       (StatementOut := fun _ _ => Option (RoundClaim R))
       (OStmtOut := fun _ _ => Sumcheck.PolyFamily R deg (numVars + 1))
       (WitnessOut₁ := fun _ _ => PUnit)
       (WitnessOut₂ := fun _ _ => Sumcheck.PolyStmt R deg numVars)
+      claim
       s
       (fun tr _ =>
         stepResidual (R := R) (deg := deg)
@@ -606,20 +641,24 @@ theorem roundOracleReduction_execute_eq_stateful
           (s.oracleStmt ())) <$>
       OracleReduction.execute
         (roundOracleReduction (R := R) (deg := deg) D numVars sampleChallenge)
-        s PUnit.unit =
+        claim s PUnit.unit =
     OracleReduction.execute
       (roundOracleReductionStateful (R := R) (deg := deg) D numVars sampleChallenge)
-      s (s.oracleStmt ()) := by
+      claim s (s.oracleStmt ()) := by
   let prefixTr : Spec.Transcript (Sumcheck.fullSpec R deg 0) := by
     simpa [Sumcheck.fullSpec] using
       (show Spec.Transcript ((roundSpec R deg).replicate 0) from ⟨⟩)
+  let sCont :
+      StatementWithOracles (fun _ => RoundClaim R)
+        (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)) PUnit.unit :=
+    ⟨claim, s.oracleStmt⟩
   have hResidual :
       currentRoundResidual (R := R) (deg := deg)
         (n := numVars + 1) (prefixLen := 0)
         (Nat.succ_pos numVars) prefixTr (s.oracleStmt ()) =
       s.oracleStmt () := by
     simp [currentRoundResidual, currentResidual, currentResidualGo, prefixTr]
-  have hStrategy :
+  have hStrategyCont :
       (Spec.Strategy.mapOutputWithRoles
         (fun tr out =>
           ⟨out.stmt,
@@ -629,11 +668,11 @@ theorem roundOracleReduction_execute_eq_stateful
         (roundContinuation (R := R) (deg := deg) D
           (n := numVars + 1) (prefixLen := 0)
           (Nat.succ_pos numVars) prefixTr sampleChallenge).prover
-          PUnit.unit s PUnit.unit =
+          PUnit.unit sCont PUnit.unit =
         (roundContinuationStateful (R := R) (deg := deg) D
         (totalVars := numVars + 1) numVars sampleChallenge).prover
-          PUnit.unit s (s.oracleStmt ()) := by
-    simpa [roundContinuation, roundContinuationStateful, hResidual, map_pure,
+          PUnit.unit sCont (s.oracleStmt ()) := by
+    simpa [roundContinuation, roundContinuationStateful, hResidual, sCont, map_pure,
       honestRoundPolyAtPrefix] using
       congrArg
         (fun x =>
@@ -642,8 +681,8 @@ theorem roundOracleReduction_execute_eq_stateful
               (Spec.Strategy.withRoles (OracleComp oSpec) (roundSpec R deg) (roundRoles R deg)
                 (fun _ =>
                   HonestProverOutput
-                    (StatementWithOracles (Option (RoundClaim R))
-                      (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)))
+                    (StatementWithOracles (fun _ => Option (RoundClaim R))
+                      (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)) PUnit.unit)
                     (Sumcheck.PolyStmt R deg numVars)))))
         <|
         (roundProverStep_map_honestProverOutputWitness
@@ -658,53 +697,79 @@ theorem roundOracleReduction_execute_eq_stateful
                     (Nat.succ_pos numVars) prefixTr (s.oracleStmt ())).1
             (⟨⟨nextClaim, s.oracleStmt⟩, PUnit.unit⟩ :
               HonestProverOutput
-                (StatementWithOracles (Option (RoundClaim R))
-                  (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)))
+                (StatementWithOracles (fun _ => Option (RoundClaim R))
+                  (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)) PUnit.unit)
                 PUnit)))
+  let liftOut :
+      (tr : Spec.Transcript (roundSpec R deg)) →
+      HonestProverOutput
+        (StatementWithOracles (fun _ => Option (RoundClaim R))
+          (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)) PUnit.unit)
+        (Sumcheck.PolyStmt R deg numVars) →
+      HonestProverOutput
+        (StatementWithOracles (fun _ => Option (RoundClaim R))
+          (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)) claim)
+        (Sumcheck.PolyStmt R deg numVars)
+    | _, ⟨stmtOut, witOut⟩ => ⟨⟨stmtOut.stmt, stmtOut.oracleStmt⟩, witOut⟩
   let verifier :=
     (roundContinuation (R := R) (deg := deg) D
       (n := numVars + 1) (prefixLen := 0)
-      (Nat.succ_pos numVars) prefixTr sampleChallenge).verifier PUnit.unit []ₒ s.stmt
+      (Nat.succ_pos numVars) prefixTr sampleChallenge).verifier PUnit.unit []ₒ claim
   let simulate :=
     (roundContinuation (R := R) (deg := deg) D
       (n := numVars + 1) (prefixLen := 0)
       (Nat.succ_pos numVars) prefixTr sampleChallenge).simulate PUnit.unit
   let statelessProver :=
+    (Spec.Strategy.mapOutputWithRoles liftOut ·) <$>
+      ((Spec.Strategy.mapOutputWithRoles
+          (fun tr out =>
+            ⟨out.stmt,
+              stepResidual (R := R) (deg := deg)
+                (Sumcheck.roundChallenge R deg tr)
+                (s.oracleStmt ())⟩) ·) <$>
+        ((roundContinuation (R := R) (deg := deg) D
+          (n := numVars + 1) (prefixLen := 0)
+          (Nat.succ_pos numVars) prefixTr sampleChallenge).prover
+          PUnit.unit sCont PUnit.unit))
+  let statefulProver :=
+    (Spec.Strategy.mapOutputWithRoles liftOut ·) <$>
+      ((roundContinuationStateful (R := R) (deg := deg) D
+        (totalVars := numVars + 1) numVars sampleChallenge).prover
+        PUnit.unit sCont (s.oracleStmt ()))
+  have hStrategy :
+      statelessProver = statefulProver := by
+    exact congrArg (Functor.map (Spec.Strategy.mapOutputWithRoles liftOut)) hStrategyCont
+  let verifierStateless :=
     (roundContinuation (R := R) (deg := deg) D
       (n := numVars + 1) (prefixLen := 0)
-      (Nat.succ_pos numVars) prefixTr sampleChallenge).prover
-      PUnit.unit s PUnit.unit
-  let statefulProver :=
+      (Nat.succ_pos numVars) prefixTr sampleChallenge).verifier PUnit.unit []ₒ claim
+  let verifierStateful :=
     (roundContinuationStateful (R := R) (deg := deg) D
-      (totalVars := numVars + 1) numVars sampleChallenge).prover
-      PUnit.unit s (s.oracleStmt ())
-  let fP :
-      ∀ tr,
-        HonestProverOutput
-          (StatementWithOracles (Option (RoundClaim R))
-            (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)))
-          PUnit →
-        HonestProverOutput
-          (StatementWithOracles (Option (RoundClaim R))
-            (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)))
-          (Sumcheck.PolyStmt R deg numVars) :=
-    fun tr out =>
-      ⟨out.stmt,
-        stepResidual (R := R) (deg := deg)
-          (Sumcheck.roundChallenge R deg tr)
-          (s.oracleStmt ())⟩
-  let g :
+      (totalVars := numVars + 1) numVars sampleChallenge).verifier PUnit.unit []ₒ claim
+  have hVerifier : verifierStateless = verifierStateful := by
+    simp [verifierStateless, verifierStateful, roundContinuation, roundContinuationStateful]
+  let simulateStateless :=
+    (roundContinuation (R := R) (deg := deg) D
+      (n := numVars + 1) (prefixLen := 0)
+      (Nat.succ_pos numVars) prefixTr sampleChallenge).simulate PUnit.unit
+  let simulateStateful :=
+    (roundContinuationStateful (R := R) (deg := deg) D
+      (totalVars := numVars + 1) numVars sampleChallenge).simulate PUnit.unit
+  have hSimulate : simulateStateless = simulateStateful := by
+    funext tr
+    simp [simulateStateless, simulateStateful, roundContinuation, roundContinuationStateful]
+  let gStateless :
       Spec.Strategy.withRoles (OracleComp oSpec) (roundSpec R deg) (roundRoles R deg)
         (fun _ =>
           HonestProverOutput
-            (StatementWithOracles (Option (RoundClaim R))
-              (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)))
+            (StatementWithOracles (fun _ => Option (RoundClaim R))
+              (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)) claim)
             (Sumcheck.PolyStmt R deg numVars)) →
       OracleComp oSpec
         ((tr : Spec.Transcript (roundSpec R deg)) ×
           HonestProverOutput
-            (StatementWithOracles (Option (RoundClaim R))
-              (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)))
+            (StatementWithOracles (fun _ => Option (RoundClaim R))
+              (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)) claim)
             (Sumcheck.PolyStmt R deg numVars) ×
           (Option (RoundClaim R) ×
             QueryImpl [Sumcheck.PolyFamily R deg (numVars + 1)]ₒ
@@ -714,112 +779,132 @@ theorem roundOracleReduction_execute_eq_stateful
                     (roundSpec R deg) (roundRoles R deg)
                     (roundOracleDecoration R deg) tr)))) :=
     fun strategy =>
-      (fun a => ⟨a.1, a.2.1, ⟨a.2.2, simulate a.1⟩⟩) <$>
+      (fun a => ⟨a.1, a.2.1, ⟨a.2.2, simulateStateless a.1⟩⟩) <$>
         runWithOracleCounterpart
           (OracleInterface.simOracle0 (Sumcheck.PolyFamily R deg (numVars + 1)) s.oracleStmt)
           (roundSpec R deg) (roundRoles R deg) (roundOracleDecoration R deg)
           []ₒ (fun q => PEmpty.elim q)
           strategy
-          verifier
-  have hRun :
-      ∀ strategy,
-        (fun a =>
-          OracleReduction.mapExecuteWitness
-            (oSpec := oSpec)
-            (Context := fun _ => roundSpec R deg)
-            (Roles := fun _ => roundRoles R deg)
-            (OD := fun _ => roundOracleDecoration R deg)
-            (StatementOut := fun _ _ => Option (RoundClaim R))
-            (OStmtOut := fun _ _ => Sumcheck.PolyFamily R deg (numVars + 1))
-            (WitnessOut₁ := fun _ _ => PUnit)
-            (WitnessOut₂ := fun _ _ => Sumcheck.PolyStmt R deg numVars)
-            s
-            (fun tr _ =>
-              stepResidual (R := R) (deg := deg)
-                (Sumcheck.roundChallenge R deg tr)
-                (s.oracleStmt ()))
-            ⟨a.1, a.2.1, ⟨a.2.2, simulate a.1⟩⟩) <$>
-          runWithOracleCounterpart
-            (OracleInterface.simOracle0 (Sumcheck.PolyFamily R deg (numVars + 1)) s.oracleStmt)
-            (roundSpec R deg) (roundRoles R deg) (roundOracleDecoration R deg)
-            []ₒ (fun q => PEmpty.elim q)
-            strategy
-            verifier =
-        g (Spec.Strategy.mapOutputWithRoles fP strategy) := by
-    intro strategy
-    dsimp [g]
-    rw [runWithOracleCounterpart_mapOutputWithRoles
-      (inputImpl := OracleInterface.simOracle0 (Sumcheck.PolyFamily R deg (numVars + 1)) s.oracleStmt)
-      (spec := roundSpec R deg)
-      (roles := roundRoles R deg)
-      (od := roundOracleDecoration R deg)
-      (accSpec := []ₒ)
-      (accImpl := fun q => PEmpty.elim q)
-      (fP := fP)
-      (strat := strategy)
-      (cpt := verifier)]
-    simp [fP, OracleReduction.mapExecuteWitness]
-  simp [Interaction.OracleDecoration.OracleReduction.execute,
-    OracleReduction.mapExecuteWitness,
-    roundOracleReduction, roundOracleReductionStateful,
-    Interaction.OracleDecoration.OracleReduction.Continuation.fix,
-    statelessProver, statefulProver]
-  calc
-    (do
-      let a ← statelessProver
-      (fun a =>
-          OracleReduction.mapExecuteWitness
-            (oSpec := oSpec)
-            (Context := fun _ => roundSpec R deg)
-            (Roles := fun _ => roundRoles R deg)
-            (OD := fun _ => roundOracleDecoration R deg)
-            (StatementOut := fun _ _ => Option (RoundClaim R))
-            (OStmtOut := fun _ _ => Sumcheck.PolyFamily R deg (numVars + 1))
-            (WitnessOut₁ := fun _ _ => PUnit)
-            (WitnessOut₂ := fun _ _ => Sumcheck.PolyStmt R deg numVars)
-            s
-            (fun tr _ =>
-              stepResidual (R := R) (deg := deg)
-                (Sumcheck.roundChallenge R deg tr)
-                (s.oracleStmt ()))
-            ⟨a.1, a.2.1, ⟨a.2.2, simulate a.1⟩⟩) <$>
+          verifierStateless
+  let gStateful :
+      Spec.Strategy.withRoles (OracleComp oSpec) (roundSpec R deg) (roundRoles R deg)
+        (fun _ =>
+          HonestProverOutput
+            (StatementWithOracles (fun _ => Option (RoundClaim R))
+              (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)) claim)
+            (Sumcheck.PolyStmt R deg numVars)) →
+      OracleComp oSpec
+        ((tr : Spec.Transcript (roundSpec R deg)) ×
+          HonestProverOutput
+            (StatementWithOracles (fun _ => Option (RoundClaim R))
+              (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)) claim)
+            (Sumcheck.PolyStmt R deg numVars) ×
+          (Option (RoundClaim R) ×
+            QueryImpl [Sumcheck.PolyFamily R deg (numVars + 1)]ₒ
+              (OracleComp
+                ([Sumcheck.PolyFamily R deg (numVars + 1)]ₒ +
+                  Interaction.OracleDecoration.toOracleSpec
+                    (roundSpec R deg) (roundRoles R deg)
+                    (roundOracleDecoration R deg) tr)))) :=
+    fun strategy =>
+      (fun a => ⟨a.1, a.2.1, ⟨a.2.2, simulateStateful a.1⟩⟩) <$>
         runWithOracleCounterpart
           (OracleInterface.simOracle0 (Sumcheck.PolyFamily R deg (numVars + 1)) s.oracleStmt)
           (roundSpec R deg) (roundRoles R deg) (roundOracleDecoration R deg)
           []ₒ (fun q => PEmpty.elim q)
-          a
-          verifier) =
+          strategy
+          verifierStateful
+  let runTopStateless :=
+    fun stratM =>
       (do
-        let a ← statelessProver
-        g (Spec.Strategy.mapOutputWithRoles fP a)) := by
-          simp [hRun]
-    _ =
+        let strategy ← stratM
+        gStateless strategy :
+        OracleComp oSpec
+          ((tr : Spec.Transcript (roundSpec R deg)) ×
+            HonestProverOutput
+              (StatementWithOracles (fun _ => Option (RoundClaim R))
+                (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)) claim)
+              (Sumcheck.PolyStmt R deg numVars) ×
+            (Option (RoundClaim R) ×
+              QueryImpl [Sumcheck.PolyFamily R deg (numVars + 1)]ₒ
+                (OracleComp
+                  ([Sumcheck.PolyFamily R deg (numVars + 1)]ₒ +
+                    Interaction.OracleDecoration.toOracleSpec
+                      (roundSpec R deg) (roundRoles R deg)
+                      (roundOracleDecoration R deg) tr)))))
+  let runTopStateful :=
+    fun stratM =>
       (do
-        let strategy ← (fun x => Spec.Strategy.mapOutputWithRoles fP x) <$> statelessProver
-        g strategy) := by
-          simp [bind_assoc, bind_map_left, map_bind]
-    _ =
-      (do
-        let strategy ← statefulProver
-        g strategy) := by
-          exact congrArg (fun stratM => do
-            let strategy ← stratM
-            g strategy) hStrategy
-    _ =
-      (do
-        let strategy ← statefulProver
-        (fun a => ⟨a.1, (a.2.1, a.2.2, (roundContinuationStateful
-          (R := R) (deg := deg) D
-          (totalVars := numVars + 1) numVars sampleChallenge).simulate PUnit.unit a.1)⟩) <$>
-          runWithOracleCounterpart
-            (OracleInterface.simOracle0 (Sumcheck.PolyFamily R deg (numVars + 1)) s.oracleStmt)
-            (roundSpec R deg) (roundRoles R deg) (roundOracleDecoration R deg)
-            []ₒ (fun q => PEmpty.elim q)
-            strategy
-            ((roundContinuationStateful
-              (R := R) (deg := deg) D
-              (totalVars := numVars + 1) numVars sampleChallenge).verifier PUnit.unit []ₒ s.stmt)) := by
-                simp [g, verifier, simulate, roundContinuation, roundContinuationStateful]
+        let strategy ← stratM
+        gStateful strategy :
+        OracleComp oSpec
+          ((tr : Spec.Transcript (roundSpec R deg)) ×
+            HonestProverOutput
+              (StatementWithOracles (fun _ => Option (RoundClaim R))
+                (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)) claim)
+              (Sumcheck.PolyStmt R deg numVars) ×
+            (Option (RoundClaim R) ×
+              QueryImpl [Sumcheck.PolyFamily R deg (numVars + 1)]ₒ
+                (OracleComp
+                  ([Sumcheck.PolyFamily R deg (numVars + 1)]ₒ +
+                    Interaction.OracleDecoration.toOracleSpec
+                      (roundSpec R deg) (roundRoles R deg)
+                      (roundOracleDecoration R deg) tr)))))
+  have hLeft :
+      (OracleReduction.mapExecuteWitness
+        (oSpec := oSpec)
+        (Context := fun _ => roundSpec R deg)
+        (Roles := fun _ => roundRoles R deg)
+        (OD := fun _ => roundOracleDecoration R deg)
+        (LocalStmt := fun _ => PUnit)
+        (StatementOut := fun _ _ => Option (RoundClaim R))
+        (OStmtOut := fun _ _ => Sumcheck.PolyFamily R deg (numVars + 1))
+        (WitnessOut₁ := fun _ _ => PUnit)
+        (WitnessOut₂ := fun _ _ => Sumcheck.PolyStmt R deg numVars)
+        (i := claim)
+        (s := s)
+        (liftWitness := fun tr _ =>
+          stepResidual (R := R) (deg := deg)
+            (Sumcheck.roundChallenge R deg tr)
+            (s.oracleStmt ()))) <$>
+        OracleReduction.execute
+          (roundOracleReduction (R := R) (deg := deg) D numVars sampleChallenge)
+          claim s PUnit.unit =
+      runTopStateless statelessProver := by
+    simpa [runTopStateless, roundOracleReduction,
+      Interaction.OracleDecoration.OracleReduction.Continuation.fix,
+      sCont, liftOut, statelessProver,
+      verifierStateless, simulateStateless, gStateless] using
+      (Interaction.OracleDecoration.OracleReduction.mapExecuteWitness_eq_execute_mappedOutput
+        (reduction :=
+          roundOracleReduction (R := R) (deg := deg) D numVars sampleChallenge)
+        (Context := fun _ => roundSpec R deg)
+        (Roles := fun _ => roundRoles R deg)
+        (OD := fun _ => roundOracleDecoration R deg)
+        (LocalStmt := fun _ => PUnit)
+        (StatementOut := fun _ _ => Option (RoundClaim R))
+        (OStmtOut := fun _ _ => Sumcheck.PolyFamily R deg (numVars + 1))
+        (WitnessOut₁ := fun _ _ => PUnit)
+        (WitnessOut₂ := fun _ _ => Sumcheck.PolyStmt R deg numVars)
+        (i := claim) (s := s) (w := PUnit.unit)
+        (liftWitness := fun tr _ =>
+          stepResidual (R := R) (deg := deg)
+            (Sumcheck.roundChallenge R deg tr)
+            (s.oracleStmt ())))
+  have hRun₁ : runTopStateless statelessProver = runTopStateless statefulProver := by
+    exact congrArg runTopStateless hStrategy
+  have hRun₂ : runTopStateless statefulProver = runTopStateful statefulProver := by
+    simp [runTopStateless, runTopStateful, gStateless, gStateful, hVerifier, hSimulate]
+  have hRight :
+      OracleReduction.execute
+        (roundOracleReductionStateful (R := R) (deg := deg) D numVars sampleChallenge)
+        claim s (s.oracleStmt ()) =
+      runTopStateful statefulProver := by
+    simp [runTopStateful, roundOracleReductionStateful,
+      Interaction.OracleDecoration.OracleReduction.execute,
+      Interaction.OracleDecoration.OracleReduction.Continuation.fix,
+      sCont, liftOut, statefulProver, verifierStateful, simulateStateful, gStateful]
+  exact hLeft.trans <| hRun₁.trans <| hRun₂.trans hRight.symm
 
 /-- The stateless recomputing round reduction and the stateful residual-witness
 round reduction are honestly publicly equivalent: once we relate the stateful
@@ -831,12 +916,12 @@ theorem roundOracleReduction_honestPubliclyEquivalentStateful
     (numVars : ℕ)
     (sampleChallenge : OracleComp oSpec R) :
     Interaction.OracleDecoration.OracleReduction.HonestPubliclyEquivalent
-      (fun s _ => s.oracleStmt ())
+      (fun _ s _ => s.oracleStmt ())
       (roundOracleReduction (R := R) (deg := deg) D numVars sampleChallenge)
       (roundOracleReductionStateful (R := R) (deg := deg) D numVars sampleChallenge) := by
-  intro s _
+  intro claim s _
   exact roundOracleReduction_executePublic_eq_stateful
-    (R := R) (deg := deg) D numVars sampleChallenge s
+    (R := R) (deg := deg) D numVars sampleChallenge claim s
 
 /-- The stateless and stateful single-round sum-check reductions are
 honestly execution-equivalent: after relating the stateful input witness to the
@@ -849,16 +934,16 @@ theorem roundOracleReduction_honestExecutionEquivalentStateful
     (numVars : ℕ)
     (sampleChallenge : OracleComp oSpec R) :
     Interaction.OracleDecoration.OracleReduction.HonestExecutionEquivalent
-      (fun s _ => s.oracleStmt ())
-      (fun s tr _ =>
+      (fun _ s _ => s.oracleStmt ())
+      (fun _ s tr _ =>
         stepResidual (R := R) (deg := deg)
           (Sumcheck.roundChallenge R deg tr)
           (s.oracleStmt ()))
       (roundOracleReduction (R := R) (deg := deg) D numVars sampleChallenge)
       (roundOracleReductionStateful (R := R) (deg := deg) D numVars sampleChallenge) := by
-  intro s _
+  intro claim s _
   exact roundOracleReduction_execute_eq_stateful
-    (R := R) (deg := deg) D numVars sampleChallenge s
+    (R := R) (deg := deg) D numVars sampleChallenge claim s
 
 end
 

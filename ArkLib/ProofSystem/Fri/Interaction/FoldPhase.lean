@@ -192,8 +192,9 @@ private def foldPhaseFinalProverOutput
       OracleReduction.Continuation.Chain.nil) :
     HonestProverOutput
       (StatementWithOracles
-        (FoldChallenges (F := F) (k := k))
-        (fun _ => FoldCodewordOracleFamily (F := F) (n := n) D x s))
+        (fun _ => FoldChallenges (F := F) (k := k))
+        (fun _ => FoldCodewordOracleFamily (F := F) (n := n) D x s)
+        PUnit.unit)
       (HonestPoly (F := F) s d k) :=
   match st with
   | .mk (round := round) (hround := hround) challenges poly =>
@@ -202,8 +203,9 @@ private def foldPhaseFinalProverOutput
         (D := D) (n := n) (x := x) (s := s) (k := k) inputCodeword tr
       let stmtOut :
           StatementWithOracles
-            (FoldChallenges (F := F) (k := k))
-            (fun _ => FoldCodewordOracleFamily (F := F) (n := n) D x s) :=
+            (fun _ => FoldChallenges (F := F) (k := k))
+            (fun _ => FoldCodewordOracleFamily (F := F) (n := n) D x s)
+            PUnit.unit :=
         ⟨challenges, codewords⟩
       let polyOut : HonestPoly (F := F) s d k := by
         simpa [hk] using poly

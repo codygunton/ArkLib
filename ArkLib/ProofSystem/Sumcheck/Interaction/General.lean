@@ -392,10 +392,11 @@ noncomputable def sumcheckReduction
     OracleReduction oSpec
       (RoundClaim R)
       (fun _ => Sumcheck.PolyFamily R deg n)
-      PUnit
       (fun _ => Sumcheck.fullSpec R deg n)
       (fun _ => Sumcheck.fullRoles R deg n)
       (fun _ => fullOD n)
+      (fun _ => PUnit)
+      (fun _ => PUnit)
       (fun _ _ => Option (RoundClaim R))
       (fun _ _ => Sumcheck.PolyFamily R deg n)
       (fun _ _ => PUnit) :=
@@ -412,10 +413,11 @@ noncomputable def sumcheckReductionStateful
     OracleReduction oSpec
       (RoundClaim R)
       (fun _ => Sumcheck.PolyFamily R deg n)
-      (Sumcheck.PolyStmt R deg n)
       (fun _ => Sumcheck.fullSpec R deg n)
       (fun _ => Sumcheck.fullRoles R deg n)
       (fun _ => fullOD n)
+      (fun _ => PUnit)
+      (fun _ => Sumcheck.PolyStmt R deg n)
       (fun _ _ => Option (RoundClaim R))
       (fun _ _ => Sumcheck.PolyFamily R deg n)
       (fun _ _ => Sumcheck.PolyStmt R deg 0) :=
