@@ -422,7 +422,7 @@ second-stage verifier reaches the output language with probability at most `ε�
 then the composed verifier reaches the output language with probability at most
 `ε₁ + ε₂`. -/
 theorem Reduction.soundness_comp
-    {m : Type u → Type u} [Monad m] [Spec.LawfulCommMonad m] [HasEvalSPMF m]
+    {m : Type u → Type u} [Monad m] [LawfulMonad m] [HasEvalSPMF m]
     {StatementIn : Type v} {WitnessIn : Type w}
     {ctx₁ : StatementIn → Spec}
     {roles₁ : (s : StatementIn) → RoleDecoration (ctx₁ s)}
@@ -571,9 +571,9 @@ theorem Reduction.soundness_comp
         (fun z₂ => ⟨Spec.Transcript.append (ctx₁ s) (ctx₂ s) z₁.1 z₂.1, z₂.2.1, z₂.2.2⟩) <$>
           Spec.Strategy.runWithRoles (ctx₂ s z₁.1) (roles₂ s z₁.1) z₁.2.1
             (mappedStep z₁.1 z₁.2.2)
-    have hrun' := Spec.Strategy.runWithRoles_compWithRolesFlat_appendFlat
+    have hrun' := Spec.Strategy.runWithRoles_compWithRolesFlat_appendFlat_pure
       (strat₁ := prefixProver s)
-      (f := fun _ strat₂ => pure strat₂)
+      (f := fun _ strat₂ => strat₂)
       (cpt₁ := reduction1.verifier s)
       (cpt₂ := mappedStep)
     have hmap :
