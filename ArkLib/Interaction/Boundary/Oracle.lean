@@ -1289,20 +1289,23 @@ theorem runWithOracleCounterpart_pullbackCounterpart_raw
 
 end Boundary
 
-namespace OracleDecoration
-namespace FixedOracleVerifier
+namespace OracleVerifier
 
 /-- Reinterpret an inner oracle verifier through a statement boundary and oracle
 access layer.  Input oracle queries are rerouted via `access.simulateIn`;
 output oracle simulation is rerouted via `access.simulateOut`. -/
 def pullback
     {ι : Type} {oSpec : OracleSpec ι}
-    {pSpec : Spec} {roles : RoleDecoration pSpec}
-    {od : OracleDecoration pSpec roles}
     {OuterStmtIn InnerStmtIn : Type}
-    {projection : Boundary.StatementProjection OuterStmtIn InnerStmtIn (fun _ => pSpec)}
-    {InnerStmtOut : InnerStmtIn → Spec.Transcript pSpec → Type}
-    {OuterStmtOut : OuterStmtIn → Spec.Transcript pSpec → Type}
+    {InnerSpec : InnerStmtIn → Spec}
+    {projection : Boundary.StatementProjection OuterStmtIn InnerStmtIn InnerSpec}
+    {InnerRoles : (s : InnerStmtIn) → RoleDecoration (InnerSpec s)}
+    {InnerOD :
+      (s : InnerStmtIn) → OracleDecoration (InnerSpec s) (InnerRoles s)}
+    {InnerStmtOut : (s : InnerStmtIn) → Spec.Transcript (InnerSpec s) → Type}
+    {OuterStmtOut :
+      (outer : OuterStmtIn) →
+        Spec.Transcript (InnerSpec (projection.proj outer)) → Type}
     (stmt :
       Boundary.Statement projection InnerStmtOut OuterStmtOut)
     {Outerιₛᵢ Innerιₛᵢ : Type}
@@ -1310,51 +1313,60 @@ def pullback
     {InnerOStmtIn : Innerιₛᵢ → Type}
     [∀ i, OracleInterface (OuterOStmtIn i)]
     [∀ i, OracleInterface (InnerOStmtIn i)]
-    {Innerιₛₒ : Type}
+    {Innerιₛₒ :
+      (s : InnerStmtIn) →
+      (tr : Spec.Transcript (InnerSpec s)) →
+      Type}
     {InnerOStmtOut :
       (s : InnerStmtIn) →
-      (tr : Spec.Transcript pSpec) →
-      Innerιₛₒ → Type}
-    {Outerιₛₒ : Type}
+      (tr : Spec.Transcript (InnerSpec s)) →
+      Innerιₛₒ s tr → Type}
+    {Outerιₛₒ :
+      (outer : OuterStmtIn) →
+      (tr : Spec.Transcript (InnerSpec (stmt.proj outer))) →
+      Type}
     {OuterOStmtOut :
       (outer : OuterStmtIn) →
-      (tr : Spec.Transcript pSpec) →
-      Outerιₛₒ → Type}
+      (tr : Spec.Transcript (InnerSpec (stmt.proj outer))) →
+      Outerιₛₒ outer tr → Type}
     [∀ s tr i, OracleInterface (InnerOStmtOut s tr i)]
     [∀ outer tr i, OracleInterface (OuterOStmtOut outer tr i)]
     (access :
       Boundary.OracleStatementAccess projection
         OuterOStmtIn InnerOStmtIn InnerOStmtOut OuterOStmtOut)
     (verifier :
-      FixedOracleVerifier oSpec pSpec roles od
-        InnerStmtIn InnerOStmtIn InnerStmtOut InnerOStmtOut) :
-    FixedOracleVerifier oSpec pSpec roles od
-      OuterStmtIn OuterOStmtIn OuterStmtOut OuterOStmtOut where
-  iov :=
+      Interaction.OracleVerifier oSpec
+        InnerStmtIn InnerOStmtIn InnerSpec InnerRoles InnerOD
+        InnerStmtOut InnerOStmtOut) :
+    Interaction.OracleVerifier oSpec
+      OuterStmtIn OuterOStmtIn
+      (fun outer => InnerSpec (stmt.proj outer))
+      (fun outer => InnerRoles (stmt.proj outer))
+      (fun outer => InnerOD (stmt.proj outer))
+      OuterStmtOut OuterOStmtOut where
+  toFun outer {_} accSpec :=
     Boundary.pullbackCounterpart access.simulateIn
-      pSpec
-      roles
-      od
-      (fun tr verifyInner outerStmt => do
-        let stmtOut ← simulateQ
-          (Boundary.OracleStatementAccess.routeInputQueries
-            (oSpec := oSpec)
-            access.simulateIn
-            (toOracleSpec pSpec roles od tr))
-          (verifyInner (stmt.proj outerStmt))
-        pure (stmt.lift outerStmt tr stmtOut))
-      (ιₐ := PEmpty)
-      []ₒ
-      verifier.iov
+      (InnerSpec (stmt.proj outer))
+      (InnerRoles (stmt.proj outer))
+      (InnerOD (stmt.proj outer))
+      (fun tr stmtOut => stmt.lift outer tr stmtOut)
+      accSpec
+      (verifier (stmt.proj outer) accSpec)
   simulate outerStmt tr :=
     Boundary.OracleStatementAccess.pullbackSimulate
       (access := access)
       outerStmt
       tr
-      (toOracleSpec pSpec roles od tr)
+      (OracleDecoration.toOracleSpec
+        (InnerSpec (stmt.proj outerStmt))
+        (InnerRoles (stmt.proj outerStmt))
+        (InnerOD (stmt.proj outerStmt))
+        tr)
       (verifier.simulate (stmt.proj outerStmt) tr)
 
-end FixedOracleVerifier
+end OracleVerifier
+
+namespace OracleDecoration
 
 namespace OracleReduction
 

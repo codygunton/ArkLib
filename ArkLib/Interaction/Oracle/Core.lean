@@ -29,7 +29,7 @@ computation model. It introduces:
   unified as `Counterpart.withMonads` via `toMonadDecoration`.
 - `InteractiveOracleVerifier` — a transcript-indexed challenger whose terminal
   output is a verification function.
-- `FixedOracleVerifier` — fixed-spec batch structure with transcript-dependent `iov` and
+- `OracleVerifier` — statement-indexed verifier-side interaction together with
   statement/transcript-dependent oracle simulation.
 - `OracleProver` / `OracleReduction` — prover and reduction with oracle statements,
   using the full dependency chain.
@@ -721,66 +721,6 @@ def OracleCounterpart.mapOutput {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
       fun oc => do
         let ⟨x, ocRest⟩ ← oc
         return ⟨x, mapOutput f (rest x) (rRest x) (odFn x) accSpec ocRest⟩
-
-/-! ## Fixed oracle verifier (batch structure)
-
-The fixed-spec `FixedOracleVerifier` bundles:
-- `iov` — the round-by-round interactive oracle verifier
-- `simulate` — query-level simulation of output oracle queries
-
-The `simulate` field is **transcript-dependent** in the W-type model: the oracle
-spec available depends on the path through the interaction tree.
-
-Concrete reification of the output oracle data is intentionally *not* part of
-this core structure; it belongs to an optional layer built on top of the oracle
-access semantics. -/
-
-/-- Fixed-spec oracle verifier with oracle-only output semantics. -/
-structure FixedOracleVerifier {ι : Type} (oSpec : OracleSpec.{0, 0} ι)
-    (pSpec : Spec.{0}) (roles : RoleDecoration pSpec)
-    (oracleDec : OracleDecoration.{0, 0} pSpec roles)
-    (StmtIn : Type) {ιₛᵢ : Type} (OStmtIn : ιₛᵢ → Type)
-    (StmtOut : StmtIn → Spec.Transcript pSpec → Type)
-    {ιₛₒ : Type} (OStmtOut : (s : StmtIn) → (tr : Spec.Transcript pSpec) → ιₛₒ → Type)
-    [∀ i, OracleInterface.{0, 0} (OStmtIn i)]
-    [∀ s tr i, OracleInterface (OStmtOut s tr i)] where
-  iov : InteractiveOracleVerifier oSpec pSpec roles oracleDec StmtIn OStmtIn StmtOut
-  simulate : (s : StmtIn) → (tr : Spec.Transcript pSpec) →
-    QueryImpl [OStmtOut s tr]ₒ
-      (OracleComp ([OStmtIn]ₒ + toOracleSpec pSpec roles oracleDec tr))
-
-namespace FixedOracleVerifier
-
-/-- Full oracle-only verifier output: the plain output statement together with
-the query implementation exposing the output-oracle access. -/
-abbrev OutputAccess
-    {pSpec : Spec.{0}} {roles : RoleDecoration pSpec}
-    {oracleDec : OracleDecoration.{0, 0} pSpec roles}
-    {StmtIn : Type} {ιₛᵢ : Type} {OStmtIn : ιₛᵢ → Type}
-    {StmtOut : StmtIn → Spec.Transcript pSpec → Type}
-    {ιₛₒ : Type} (OStmtOut : (s : StmtIn) → (tr : Spec.Transcript pSpec) → ιₛₒ → Type)
-    [∀ i, OracleInterface.{0, 0} (OStmtIn i)] [∀ s tr i, OracleInterface (OStmtOut s tr i)]
-    (s : StmtIn) (tr : Spec.Transcript pSpec) :=
-  StmtOut s tr × QueryImpl [OStmtOut s tr]ₒ
-    (OracleComp ([OStmtIn]ₒ + toOracleSpec pSpec roles oracleDec tr))
-
-/-- Package a verifier's plain output statement together with the verifier's
-output-oracle query access. -/
-def outputAccess {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
-    {pSpec : Spec.{0}} {roles : RoleDecoration pSpec}
-    {oracleDec : OracleDecoration.{0, 0} pSpec roles}
-    {StmtIn : Type} {ιₛᵢ : Type} {OStmtIn : ιₛᵢ → Type}
-    {StmtOut : StmtIn → Spec.Transcript pSpec → Type}
-    {ιₛₒ : Type} {OStmtOut : (s : StmtIn) → (tr : Spec.Transcript pSpec) → ιₛₒ → Type}
-    [∀ i, OracleInterface.{0, 0} (OStmtIn i)]
-    [∀ s tr i, OracleInterface (OStmtOut s tr i)]
-    (verifier : FixedOracleVerifier oSpec pSpec roles oracleDec StmtIn OStmtIn StmtOut OStmtOut)
-    (s : StmtIn) (tr : Spec.Transcript pSpec) (stmtOut : StmtOut s tr) :
-    OutputAccess (pSpec := pSpec) (roles := roles) (oracleDec := oracleDec)
-      (StmtIn := StmtIn) (OStmtIn := OStmtIn) (StmtOut := StmtOut) OStmtOut s tr :=
-  ⟨stmtOut, verifier.simulate s tr⟩
-
-end FixedOracleVerifier
 
 /-! ## Oracle prover and oracle reduction -/
 
