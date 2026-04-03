@@ -36,7 +36,8 @@ is mathematically forced in protocols like sumcheck and FRI.
 - `Concurrent/` — binary structural parallelism, frontiers, residuals,
   finite traces and execution summaries, per-party observation profiles,
   scheduler/control ownership, current local frontier views, and structural
-  independence / commuting residuals / interleaving equivalence
+  independence / commuting residuals / interleaving equivalence / stepwise
+  scheduler policies
 - `TwoParty/` — sender/receiver roles, `withRoles`, `Counterpart`
 - `Reduction.lean` — prover, verifier, reduction
 - `Oracle/` — oracle decoration, path-dependent oracle access

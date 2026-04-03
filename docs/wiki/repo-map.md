@@ -15,7 +15,7 @@ ArkLib/
   ToVCVio/            bridge layer to VCV-io
   Interaction/        `Spec` (W-type protocols), concurrent specs/frontiers/traces/
                       execution/profiles/control/current-view/independence/interleaving,
-                      generic syntax/execution,
+                      policy, generic syntax/execution,
                       two-party roles, native multiparty
                       local views and profiles (`Basic/`, `Concurrent/`, `TwoParty/`,
                       `Multiparty/`)

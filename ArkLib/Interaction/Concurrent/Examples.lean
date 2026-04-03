@@ -6,6 +6,7 @@ Authors: Quang Dao
 import ArkLib.Interaction.Concurrent.Execution
 import ArkLib.Interaction.Concurrent.Interleaving
 import ArkLib.Interaction.Concurrent.Independence
+import ArkLib.Interaction.Concurrent.Policy
 
 /-!
 # Concurrent interaction examples
@@ -21,6 +22,7 @@ The examples are intentionally focused on:
 * the combined current local view of the next frontier event.
 * execution traces, controller paths, and observed local traces.
 * interleaving equivalence under commuting independent steps.
+* executable scheduler and controller policies over finite traces.
 
 They are meant to exercise the current expressivity surface before later layers
 such as fairness or richer execution semantics are added.
@@ -262,6 +264,44 @@ example :
     Trace.Equiv.length_eq
       (.swap (Independent.left_right (.move (4, true)) (.move false)) (Trace.doneOfNotLive rfl) :
         Trace.Equiv leftThenRight rightThenLeft) = rfl := rfl
+
+/-- When both sides of a live `par` are available, prefer the left branch. -/
+def preferLeft : StepPolicy Party
+  | .par _ _, .par _ leftControl rightControl, event =>
+      match leftControl.isLive, rightControl.isLive, event with
+      | true, true, .left _ => true
+      | true, true, .right _ => false
+      | _, _, _ => true
+  | _, _, _ => true
+
+/-- When both sides of a live `par` are available, prefer the right branch. -/
+def preferRight : StepPolicy Party
+  | .par _ _, .par _ leftControl rightControl, event =>
+      match leftControl.isLive, rightControl.isLive, event with
+      | true, true, .left _ => false
+      | true, true, .right _ => true
+      | _, _, _ => true
+  | _, _, _ => true
+
+example : Trace.respects preferLeft inFlightControl deliveryThenAck = true := rfl
+
+example : Trace.respects preferLeft inFlightControl ackThenDelivery = false := rfl
+
+example : Trace.respects preferRight inFlightControl ackThenDelivery = true := rfl
+
+example : Trace.respects preferRight inFlightControl deliveryThenAck = false := rfl
+
+example :
+    Trace.respects (StepPolicy.byScheduler (fun | .adv => true | _ => false))
+      inFlightControl deliveryThenAck = true := rfl
+
+example :
+    Trace.respects (StepPolicy.byController (fun | .bob => false | _ => true))
+      inFlightControl deliveryThenAck = false := rfl
+
+example :
+    Trace.respects (StepPolicy.byController (fun | .bob => false | _ => true))
+      inFlightControl ackThenDelivery = true := rfl
 
 /-- A three-way concurrent system used to illustrate recursive independence
 inside one branch of a larger parallel spec. -/

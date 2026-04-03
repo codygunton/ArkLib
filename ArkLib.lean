@@ -107,6 +107,7 @@ import ArkLib.Interaction.Concurrent.Execution
 import ArkLib.Interaction.Concurrent.Frontier
 import ArkLib.Interaction.Concurrent.Independence
 import ArkLib.Interaction.Concurrent.Interleaving
+import ArkLib.Interaction.Concurrent.Policy
 import ArkLib.Interaction.Concurrent.Profile
 import ArkLib.Interaction.Concurrent.Spec
 import ArkLib.Interaction.Concurrent.Trace
