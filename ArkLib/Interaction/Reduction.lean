@@ -109,10 +109,25 @@ whether `StatementOut` includes `Option` for accept/reject semantics. -/
 abbrev Verifier (m : Type u → Type u)
     (StatementIn : Type v)
     (Context : StatementIn → Spec)
-    (Roles : (s : StatementIn) → RoleDecoration (Context s))
-    (StatementOut : (s : StatementIn) → Spec.Transcript (Context s) → Type u) :=
+  (Roles : (s : StatementIn) → RoleDecoration (Context s))
+  (StatementOut : (s : StatementIn) → Spec.Transcript (Context s) → Type u) :=
   (s : StatementIn) → Spec.Counterpart m (Context s) (Roles s)
     (fun tr => StatementOut s tr)
+
+namespace Verifier
+
+/-- A verifier over a shared input together with verifier-local statement state.
+This is the verifier-side surface of `Reduction.Continuation`. -/
+abbrev Continuation (m : Type u → Type u)
+    (SharedIn : Type v)
+    (Context : SharedIn → Spec)
+    (Roles : (shared : SharedIn) → RoleDecoration (Context shared))
+    (StatementIn : SharedIn → Type w)
+    (StatementOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type u) :=
+  (shared : SharedIn) → (stmt : StatementIn shared) →
+    Spec.Counterpart m (Context shared) (Roles shared) (fun tr => StatementOut shared tr)
+
+end Verifier
 
 /-- A verifier whose receiver nodes are public-coin in the strong replayable
 sense captured by `Spec.PublicCoinCounterpart`.
@@ -403,6 +418,26 @@ def Verifier.run {m : Type u → Type u} [Monad m]
     (prover : Spec.Strategy.withRoles m (Context s) (Roles s) OutputP) :
     m ((tr : Spec.Transcript (Context s)) × OutputP tr × StatementOut s tr) :=
   Spec.Strategy.runWithRoles (Context s) (Roles s) prover (v s)
+
+namespace Verifier.Continuation
+
+/-- Run a prover strategy against a verifier continuation instantiated at a
+shared input and verifier-local statement. -/
+def run {m : Type u → Type u} [Monad m]
+    {SharedIn : Type v}
+    {Context : SharedIn → Spec}
+    {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
+    {StatementIn : SharedIn → Type w}
+    {StatementOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type u}
+    (v : Verifier.Continuation m SharedIn Context Roles StatementIn StatementOut)
+    (shared : SharedIn)
+    (stmt : StatementIn shared)
+    {OutputP : Spec.Transcript (Context shared) → Type u}
+    (prover : Spec.Strategy.withRoles m (Context shared) (Roles shared) OutputP) :
+    m ((tr : Spec.Transcript (Context shared)) × OutputP tr × StatementOut shared tr) :=
+  Spec.Strategy.runWithRoles (Context shared) (Roles shared) prover (v shared stmt)
+
+end Verifier.Continuation
 
 /-! ## Sequential composition -/
 

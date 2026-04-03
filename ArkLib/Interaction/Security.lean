@@ -394,6 +394,27 @@ theorem Reduction.perfectCompleteness_comp
 
 namespace Verifier
 
+/-- Soundness for a verifier continuation over a shared input and verifier-local
+statement state. -/
+def Continuation.soundness
+    {m : Type u → Type u} [Monad m] [HasEvalSPMF m]
+    {SharedIn : Type v}
+    {Context : SharedIn → Spec}
+    {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
+    {StatementIn : SharedIn → Type w}
+    {StatementOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type u}
+    (verifier : Verifier.Continuation m SharedIn Context Roles StatementIn StatementOut)
+    (langIn : ∀ shared, Set (StatementIn shared))
+    (langOut : ∀ (shared : SharedIn) (tr : Spec.Transcript (Context shared)),
+      Set (StatementOut shared tr))
+    (ε : ℝ≥0∞) : Prop :=
+  ∀ (shared : SharedIn),
+  ∀ {OutputP : Spec.Transcript (Context shared) → Type u},
+  ∀ (prover : Spec.Strategy.withRoles m (Context shared) (Roles shared) OutputP),
+  ∀ (stmt : StatementIn shared), stmt ∉ langIn shared →
+    Pr[fun z => z.2.2 ∈ langOut shared z.1
+      | Verifier.Continuation.run verifier shared stmt prover] ≤ ε
+
 /-- A verifier satisfies **soundness** with error `ε` if for all malicious
 provers and invalid inputs, the probability that the verifier produces an
 output in `langOut` is at most `ε`. The output language `langOut` specifies
@@ -418,42 +439,42 @@ def soundness
     Pr[fun z => z.2.2 ∈ langOut s z.1
       | Verifier.run verifier s (prover s)] ≤ ε
 
-/-- Soundness composes: if the first verifier only reaches the middle language
-with probability at most `ε₁` on invalid inputs, and outside that language the
-second-stage verifier reaches the output language with probability at most `ε₂`,
-then the composed verifier reaches the output language with probability at most
-`ε₁ + ε₂`. -/
+/-- Soundness composes at the verifier level. -/
 theorem soundness_comp
     {m : Type u → Type u} [Monad m] [LawfulMonad m] [HasEvalSPMF m]
-    {StatementIn : Type v} {WitnessIn : Type w}
+    {StatementIn : Type v}
     {ctx₁ : StatementIn → Spec}
     {roles₁ : (s : StatementIn) → RoleDecoration (ctx₁ s)}
-    {StmtMid WitMid : (s : StatementIn) → Spec.Transcript (ctx₁ s) → Type u}
+    {StmtMid : (s : StatementIn) → Spec.Transcript (ctx₁ s) → Type u}
     {ctx₂ : (s : StatementIn) → Spec.Transcript (ctx₁ s) → Spec}
     {roles₂ : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) →
       RoleDecoration (ctx₂ s tr₁)}
-    {StmtOut WitOut : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) →
+    {StmtOut : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) →
       Spec.Transcript (ctx₂ s tr₁) → Type u}
     {langIn : Set StatementIn}
     {langMid : ∀ (s : StatementIn) (tr₁ : Spec.Transcript (ctx₁ s)),
       Set (StmtMid s tr₁)}
     {langOut : ∀ (s : StatementIn) (tr₁ : Spec.Transcript (ctx₁ s))
       (tr₂ : Spec.Transcript (ctx₂ s tr₁)), Set (StmtOut s tr₁ tr₂)}
-    (reduction1 : Reduction m StatementIn WitnessIn ctx₁ roles₁ StmtMid WitMid)
-    (reduction2 : Reduction.Continuation m
+    (verifier1 : Verifier m StatementIn ctx₁ roles₁ StmtMid)
+    (verifier2 : Verifier.Continuation m
       ((s : StatementIn) × Spec.Transcript (ctx₁ s))
       (fun shared => ctx₂ shared.1 shared.2)
       (fun shared => roles₂ shared.1 shared.2)
       (fun shared => StmtMid shared.1 shared.2)
-      (fun shared => WitMid shared.1 shared.2)
-      (fun shared tr₂ => StmtOut shared.1 shared.2 tr₂)
-      (fun shared tr₂ => WitOut shared.1 shared.2 tr₂))
+      (fun shared tr₂ => StmtOut shared.1 shared.2 tr₂))
     {ε₁ ε₂ : ℝ≥0∞}
-    (h₁ : reduction1.verifier.soundness langIn langMid ε₁)
-    (h₂ : ∀ (s : StatementIn) (tr₁ : Spec.Transcript (ctx₁ s)),
-      Verifier.soundness (reduction2.verifier ⟨s, tr₁⟩) (langMid s tr₁)
-        (fun _ tr₂ => langOut s tr₁ tr₂) ε₂) :
-    (Reduction.comp reduction1 reduction2).verifier.soundness langIn
+    (h₁ : Verifier.soundness verifier1 langIn langMid ε₁)
+    (h₂ : Verifier.Continuation.soundness verifier2
+      (fun shared => langMid shared.1 shared.2)
+      (fun shared tr₂ => langOut shared.1 shared.2 tr₂)
+      ε₂) :
+    Verifier.soundness
+      (fun s =>
+      Spec.Counterpart.append
+        (verifier1 s)
+        (fun tr₁ sMid => verifier2 ⟨s, tr₁⟩ sMid))
+      langIn
       (fun s tr =>
         {sOut | Spec.Transcript.liftAppendPred (ctx₁ s) (ctx₂ s) (StmtOut s)
           (fun tr₁ tr₂ sOut => sOut ∈ langOut s tr₁ tr₂) tr sOut})
@@ -471,7 +492,7 @@ theorem soundness_comp
         Spec.Strategy.withRoles m (ctx₂ s tr₁) (roles₂ s tr₁)
           (fun tr₂ => OutputP s (Spec.Transcript.append (ctx₁ s) (ctx₂ s) tr₁ tr₂)) ×
         StmtMid s tr₁) :=
-    Spec.Strategy.runWithRoles (ctx₁ s) (roles₁ s) (prefixProver s) (reduction1.verifier s)
+    Spec.Strategy.runWithRoles (ctx₁ s) (roles₁ s) (prefixProver s) (verifier1 s)
   let my :
       ((tr₁ : Spec.Transcript (ctx₁ s)) ×
         Spec.Strategy.withRoles m (ctx₂ s tr₁) (roles₂ s tr₁)
@@ -490,7 +511,7 @@ theorem soundness_comp
           z₂.2.1,
           Spec.Transcript.packAppend (ctx₁ s) (ctx₂ s) (StmtOut s) z₁.1 z₂.1 z₂.2.2⟩
       packOut <$> Spec.Strategy.runWithRoles (ctx₂ s z₁.1) (roles₂ s z₁.1) z₁.2.1
-        (reduction2.verifier ⟨s, z₁.1⟩ z₁.2.2)
+        (verifier2 ⟨s, z₁.1⟩ z₁.2.2)
   let bad₁ :
       ((tr₁ : Spec.Transcript (ctx₁ s)) ×
         Spec.Strategy.withRoles m (ctx₂ s tr₁) (roles₂ s tr₁)
@@ -536,16 +557,22 @@ theorem soundness_comp
     have hmy :
         my ⟨tr₁, strat₂, sMid⟩ =
           packOut <$> Spec.Strategy.runWithRoles (ctx₂ s tr₁) (roles₂ s tr₁) strat₂
-            (reduction2.verifier ⟨s, tr₁⟩ sMid) := by
+            (verifier2 ⟨s, tr₁⟩ sMid) := by
       simp [my, packOut]
-    simpa [bad₁, hmy, hpack, prover₂, probEvent_map] using
-      h₂ s tr₁ prover₂ sMid hz₁
+    simpa [Continuation.soundness, bad₁, hmy, hpack, prover₂, probEvent_map] using
+      h₂ ⟨s, tr₁⟩ strat₂ sMid hz₁
   have hbind : Pr[inLangOut | mx >>= my] ≤ ε₁ + ε₂ := by
     simpa using
       (probEvent_bind_le_add (mx := mx) (my := my)
         (p := bad₁) (q := fun z => ¬ inLangOut z) h₁_bad h₂_bad)
   have hrun :
-      Verifier.run ((Reduction.comp reduction1 reduction2).verifier) s (prover s) = mx >>= my := by
+      Verifier.run
+          (fun s =>
+            Spec.Counterpart.append
+              (verifier1 s)
+              (fun tr₁ sMid => verifier2 ⟨s, tr₁⟩ sMid))
+          s (prover s) =
+        mx >>= my := by
     let mappedStep :
         (tr₁ : Spec.Transcript (ctx₁ s)) → StmtMid s tr₁ →
         Spec.Counterpart m (ctx₂ s tr₁) (roles₂ s tr₁)
@@ -556,12 +583,16 @@ theorem soundness_comp
         Spec.Counterpart.mapOutput
           (fun tr₂ sOut =>
             Spec.Transcript.packAppend (ctx₁ s) (ctx₂ s) (StmtOut s) tr₁ tr₂ sOut)
-          (reduction2.verifier ⟨s, tr₁⟩ sMid)
-    have hverifier : (Reduction.comp reduction1 reduction2).verifier s =
-        Spec.Counterpart.appendFlat (reduction1.verifier s) mappedStep := by
-      simp only [Reduction.comp, mappedStep]
+          (verifier2 ⟨s, tr₁⟩ sMid)
+    have hverifier :
+        (fun s =>
+          Spec.Counterpart.append
+            (verifier1 s)
+            (fun tr₁ sMid => verifier2 ⟨s, tr₁⟩ sMid)) s =
+        Spec.Counterpart.appendFlat (verifier1 s) mappedStep := by
+      simp only [mappedStep]
       exact Spec.Counterpart.append_eq_appendFlat_mapOutput
-        (reduction1.verifier s) (fun tr₁ sMid => reduction2.verifier ⟨s, tr₁⟩ sMid)
+        (verifier1 s) (fun tr₁ sMid => verifier2 ⟨s, tr₁⟩ sMid)
     let myMapped :
         ((tr₁ : Spec.Transcript (ctx₁ s)) ×
           Spec.Strategy.withRoles m (ctx₂ s tr₁) (roles₂ s tr₁)
@@ -576,7 +607,7 @@ theorem soundness_comp
     have hrun' := Spec.Strategy.runWithRoles_compWithRolesFlat_appendFlat_pure
       (strat₁ := prefixProver s)
       (f := fun _ strat₂ => strat₂)
-      (cpt₁ := reduction1.verifier s)
+      (cpt₁ := verifier1 s)
       (cpt₂ := mappedStep)
     have hmap :
         myMapped = my := by
@@ -592,17 +623,20 @@ theorem soundness_comp
           Spec.Strategy.runWithRoles (ctx₂ s tr₁) (roles₂ s tr₁) strat₂ (mappedStep tr₁ sMid) =
             (fun z => ⟨z.1, z.2.1, packStmt z.1 z.2.2⟩) <$>
               Spec.Strategy.runWithRoles (ctx₂ s tr₁) (roles₂ s tr₁) strat₂
-                (reduction2.verifier ⟨s, tr₁⟩ sMid) := by
+                (verifier2 ⟨s, tr₁⟩ sMid) := by
         simpa [mappedStep, packStmt, Spec.Strategy.mapOutputWithRoles_id] using
           (Spec.Strategy.runWithRoles_mapOutputWithRoles_mapOutput
-            (fP := fun _ outP => outP) (fC := packStmt) strat₂
-            (reduction2.verifier ⟨s, tr₁⟩ sMid))
+            (fP := fun _ outP => outP) (fC := packStmt) strat₂ (verifier2 ⟨s, tr₁⟩ sMid))
       simp [myMapped, my, hrunMap, packStmt]
     calc
-      Verifier.run ((Reduction.comp reduction1 reduction2).verifier) s (prover s) =
+      Verifier.run
+          (fun s =>
+            Spec.Counterpart.append
+              (verifier1 s)
+              (fun tr₁ sMid => verifier2 ⟨s, tr₁⟩ sMid))
+          s (prover s) =
           mx >>= myMapped := by
-        rw [Verifier.run, hverifier]
-        simpa [prefixProver, mx, myMapped,
+        simpa [Verifier.run, hverifier, prefixProver, mx, myMapped,
           Spec.Strategy.compWithRolesFlat_splitPrefixWithRoles] using hrun'
       _ = mx >>= my := by
         refine congrArg (fun k => mx >>= k) hmap
@@ -640,6 +674,36 @@ instance
         StatementOut s tr → WitnessOut s tr → WitnessIn) where
   coe E := E.toFun
 
+namespace Continuation
+
+/-- A straightline extractor for a continuation interaction. It sees the shared
+input, verifier-local input statement, public transcript, and both terminal
+outputs, and reconstructs an input witness for that continuation instance. -/
+structure Straightline
+    (SharedIn : Type v)
+    (StatementIn WitnessIn : SharedIn → Type w)
+    (Context : SharedIn → Spec)
+    (StatementOut WitnessOut :
+      (shared : SharedIn) → Spec.Transcript (Context shared) → Type u) where
+  toFun : ∀ (shared : SharedIn) (_stmt : StatementIn shared)
+      (tr : Spec.Transcript (Context shared)),
+      StatementOut shared tr → WitnessOut shared tr → WitnessIn shared
+
+instance
+    {SharedIn : Type v}
+    {StatementIn WitnessIn : SharedIn → Type w}
+    {Context : SharedIn → Spec}
+    {StatementOut WitnessOut :
+      (shared : SharedIn) → Spec.Transcript (Context shared) → Type u} :
+    CoeFun
+      (Straightline SharedIn StatementIn WitnessIn Context StatementOut WitnessOut)
+      (fun _ => ∀ (shared : SharedIn) (_stmt : StatementIn shared)
+        (tr : Spec.Transcript (Context shared)),
+        StatementOut shared tr → WitnessOut shared tr → WitnessIn shared) where
+  coe E := E.toFun
+
+end Continuation
+
 end Extractor
 
 namespace Verifier
@@ -668,6 +732,97 @@ def knowledgeSoundness
       (z.2.2, z.2.1) ∈ relOut s z.1 ∧
       (s, extractor s z.1 z.2.2 z.2.1) ∉ relIn
       | Verifier.run verifier s (prover s)] ≤ ε
+
+namespace Continuation
+
+/-- Knowledge soundness for a verifier continuation. The extractor may depend
+on the shared input and verifier-local input statement, and must recover a
+valid witness whenever the output pair lands in `relOut`. -/
+def knowledgeSoundness
+    {m : Type u → Type u} [Monad m] [HasEvalSPMF m]
+    {SharedIn : Type v}
+    {Context : SharedIn → Spec}
+    {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
+    {StatementIn WitnessIn : SharedIn → Type w}
+    {StatementOut WitnessOut :
+      (shared : SharedIn) → Spec.Transcript (Context shared) → Type u}
+    (verifier : Verifier.Continuation m SharedIn Context Roles StatementIn StatementOut)
+    (relIn : ∀ shared, Set (StatementIn shared × WitnessIn shared))
+    (relOut : ∀ (shared : SharedIn) (tr : Spec.Transcript (Context shared)),
+      Set (StatementOut shared tr × WitnessOut shared tr))
+    (ε : ℝ≥0∞) : Prop :=
+  ∃ extractor :
+      Extractor.Continuation.Straightline
+        SharedIn StatementIn WitnessIn Context StatementOut WitnessOut,
+  ∀ (shared : SharedIn)
+      (stmt : StatementIn shared)
+      (prover : Spec.Strategy.withRoles m (Context shared) (Roles shared)
+        (WitnessOut shared)),
+      Pr[fun z =>
+        (z.2.2, z.2.1) ∈ relOut shared z.1 ∧
+          (stmt, extractor shared stmt z.1 z.2.2 z.2.1) ∉ relIn shared
+        | Verifier.Continuation.run verifier shared stmt prover] ≤ ε
+
+/-- Continuation knowledge soundness implies continuation soundness under a
+transcript-indexed choice of accepting witness. -/
+theorem knowledgeSoundness_implies_soundness
+    {m : Type u → Type u} [Monad m] [LawfulMonad m] [HasEvalSPMF m]
+    {SharedIn : Type v}
+    {Context : SharedIn → Spec}
+    {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
+    {StatementIn WitnessIn : SharedIn → Type w}
+    {StatementOut WitnessOut :
+      (shared : SharedIn) → Spec.Transcript (Context shared) → Type u}
+    {verifier : Verifier.Continuation m SharedIn Context Roles StatementIn StatementOut}
+    {relIn : ∀ shared, Set (StatementIn shared × WitnessIn shared)}
+    {relOut : ∀ (shared : SharedIn) (tr : Spec.Transcript (Context shared)),
+      Set (StatementOut shared tr × WitnessOut shared tr)}
+    {ε : ℝ≥0∞}
+    (hKS : knowledgeSoundness verifier relIn relOut ε)
+    (langIn : ∀ shared, Set (StatementIn shared))
+    (hLang : ∀ shared stmt, stmt ∉ langIn shared → ∀ w, (stmt, w) ∉ relIn shared)
+    (langOut : ∀ (shared : SharedIn) (tr : Spec.Transcript (Context shared)),
+      Set (StatementOut shared tr))
+    (acceptWitness : ∀ (shared : SharedIn) (tr : Spec.Transcript (Context shared)),
+      WitnessOut shared tr)
+    (hLangOut : ∀ shared tr sOut,
+      sOut ∈ langOut shared tr → (sOut, acceptWitness shared tr) ∈ relOut shared tr) :
+    soundness verifier langIn langOut ε := by
+  rcases hKS with ⟨extractor, hKS⟩
+  intro shared OutputP prover stmt hs
+  let proverKS :
+      Spec.Strategy.withRoles m (Context shared) (Roles shared) (WitnessOut shared) :=
+    Spec.Strategy.mapOutputWithRoles
+      (fun tr _ => acceptWitness shared tr) prover
+  have hrun :
+      Verifier.Continuation.run verifier shared stmt proverKS =
+        (fun z => ⟨z.1, acceptWitness shared z.1, z.2.2⟩) <$>
+          Verifier.Continuation.run verifier shared stmt prover := by
+    simpa [Verifier.Continuation.run, proverKS, Spec.Counterpart.mapOutput_id] using
+      (Spec.Strategy.runWithRoles_mapOutputWithRoles_mapOutput
+        (fP := fun tr (_ : OutputP tr) => acceptWitness shared tr)
+        (fC := fun _ sOut => sOut)
+        prover (verifier shared stmt))
+  let badFromAccept :
+      ((tr : Spec.Transcript (Context shared)) × OutputP tr × StatementOut shared tr) → Prop :=
+    fun z =>
+      (z.2.2, acceptWitness shared z.1) ∈ relOut shared z.1 ∧
+        (stmt, extractor shared stmt z.1 z.2.2 (acceptWitness shared z.1)) ∉ relIn shared
+  have hKS' :
+      Pr[badFromAccept | Verifier.Continuation.run verifier shared stmt prover] ≤ ε := by
+    simpa [badFromAccept, hrun, proverKS, probEvent_map] using
+      hKS shared stmt proverKS
+  have hmono :
+      Pr[fun z => z.2.2 ∈ langOut shared z.1
+          | Verifier.Continuation.run verifier shared stmt prover] ≤
+        Pr[badFromAccept | Verifier.Continuation.run verifier shared stmt prover] := by
+    apply probEvent_mono
+    intro z _ hz
+    exact ⟨hLangOut shared z.1 z.2.2 hz,
+      hLang shared stmt hs (extractor shared stmt z.1 z.2.2 (acceptWitness shared z.1))⟩
+  exact le_trans hmono hKS'
+
+end Continuation
 
 /-- Knowledge soundness implies soundness: if an extractor exists, then the
 verifier is also sound, provided accepted verifier outputs admit a witness
