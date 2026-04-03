@@ -847,7 +847,155 @@ theorem IsSound.bound_terminalProb
     Pr[fun z => tree.terminalGood z.1 (tree.follow z.1 claim)
       | Spec.Strategy.runWithRoles spec roles prover
           (randomChallenger sample spec roles)] ≤ tree.maxPathError := by
-  sorry
+  classical
+  induction tree with
+  | done good =>
+      simpa [ClaimTree.follow, ClaimTree.terminalGood, ClaimTree.maxPathError,
+        Spec.Strategy.runWithRoles_done] using hBad
+  | @sender _ X rest rRest good NextClaim next advance ih =>
+      rcases hSound with ⟨hStayBad, hChildrenSound⟩
+      let mx :
+          ProbComp ((x : X) × Spec.Strategy.withRoles ProbComp (rest x) (rRest x)
+            (fun tr => OutputP ⟨x, tr⟩)) := prover
+      let event :
+          ((tr : Spec.Transcript (Spec.node X rest)) × OutputP tr × PUnit) → Prop :=
+        fun z => ClaimTree.terminalGood (.sender good NextClaim next advance) z.1
+          (ClaimTree.follow (.sender good NextClaim next advance) z.1 claim)
+      let my :
+          ((x : X) × Spec.Strategy.withRoles ProbComp (rest x) (rRest x)
+            (fun tr => OutputP ⟨x, tr⟩)) →
+            ProbComp ((tr : Spec.Transcript (Spec.node X rest)) × OutputP tr × PUnit) :=
+        fun xc =>
+          let addPrefix :
+              ((tr : Spec.Transcript (rest xc.1)) × (fun tr => OutputP ⟨xc.1, tr⟩) tr × PUnit) →
+                ((tr : Spec.Transcript (Spec.node X rest)) × OutputP tr × PUnit) :=
+            fun z => ⟨⟨xc.1, z.1⟩, z.2.1, z.2.2⟩
+          addPrefix <$>
+            Spec.Strategy.runWithRoles (rest xc.1) (rRest xc.1) xc.2
+              (randomChallenger sample (rest xc.1) (rRest xc.1))
+      have hChild :
+          ∀ xc, Pr[event | my xc] ≤ ⨆ x, (next x).maxPathError := by
+        intro xc
+        let addPrefix :
+            ((tr : Spec.Transcript (rest xc.1)) × (fun tr => OutputP ⟨xc.1, tr⟩) tr × PUnit) →
+              ((tr : Spec.Transcript (Spec.node X rest)) × OutputP tr × PUnit) :=
+          fun z => ⟨⟨xc.1, z.1⟩, z.2.1, z.2.2⟩
+        have hEvent :
+            event ∘ addPrefix =
+              fun z =>
+                (next xc.1).terminalGood z.1
+                  ((next xc.1).follow z.1 (advance claim xc.1)) := by
+          funext z
+          cases z
+          rfl
+        have hChild' :
+            Pr[event | my xc] ≤ (next xc.1).maxPathError := by
+          simpa [my, addPrefix, hEvent, probEvent_map] using
+            (ih xc.1 (hChildrenSound xc.1) xc.2
+              (hStayBad claim hBad xc.1))
+        exact le_trans hChild' (le_iSup (fun x => (next x).maxPathError) xc.1)
+      have hbind :
+          Pr[event | mx >>= my] ≤ ⨆ x, (next x).maxPathError := by
+        rw [probEvent_bind_eq_tsum]
+        calc
+          ∑' xc, Pr[= xc | mx] * Pr[event | my xc]
+              ≤ ∑' xc, Pr[= xc | mx] * (⨆ x, (next x).maxPathError) := by
+                refine ENNReal.tsum_le_tsum fun xc => ?_
+                exact mul_le_mul' le_rfl (hChild xc)
+          _ = (∑' xc, Pr[= xc | mx]) * (⨆ x, (next x).maxPathError) := by
+                rw [ENNReal.tsum_mul_right]
+          _ ≤ 1 * (⨆ x, (next x).maxPathError) := by
+                exact mul_le_mul' tsum_probOutput_le_one le_rfl
+          _ = ⨆ x, (next x).maxPathError := by simp
+      have hrun :
+          Spec.Strategy.runWithRoles _ _ prover (randomChallenger sample _ _) = mx >>= my := by
+        simpa [mx, my, randomChallenger, Spec.Strategy.runWithRoles_sender, bind_assoc]
+      simpa [ClaimTree.maxPathError, hrun]
+        using hbind
+  | @receiver _ X rest rRest good error NextClaim next advance ih =>
+      rcases hSound with ⟨hStep, hChildrenSound⟩
+      let event :
+          ((tr : Spec.Transcript (Spec.node X rest)) × OutputP tr × PUnit) → Prop :=
+        fun z => ClaimTree.terminalGood (.receiver good error NextClaim next advance) z.1
+          (ClaimTree.follow (.receiver good error NextClaim next advance) z.1 claim)
+      let p : _ → Prop :=
+        fun x => ¬ (next x).good (advance claim x)
+      let my :
+          (x : X) → ProbComp ((tr : Spec.Transcript (Spec.node X rest)) × OutputP tr × PUnit) :=
+        fun x =>
+          let childRun :
+              Spec.Strategy.withRoles ProbComp (rest x) (rRest x) (fun tr => OutputP ⟨x, tr⟩) →
+                ProbComp ((tr : Spec.Transcript (Spec.node X rest)) × OutputP tr × PUnit) :=
+            fun nextProver =>
+              let addPrefix :
+                  ((tr : Spec.Transcript (rest x)) × (fun tr => OutputP ⟨x, tr⟩) tr × PUnit) →
+                    ((tr : Spec.Transcript (Spec.node X rest)) × OutputP tr × PUnit) :=
+                fun z => ⟨⟨x, z.1⟩, z.2.1, z.2.2⟩
+              addPrefix <$>
+                Spec.Strategy.runWithRoles (rest x) (rRest x) nextProver
+                  (randomChallenger sample (rest x) (rRest x))
+          prover x >>= childRun
+      have h₁ : Pr[fun x => ¬ p x | sample _] ≤ error := by
+        simpa [p] using hStep claim hBad
+      have h₂ :
+          ∀ x ∈ support (sample _), p x → Pr[event | my x] ≤ ⨆ x, (next x).maxPathError := by
+        intro x _ hp
+        let childRun :
+            Spec.Strategy.withRoles ProbComp (rest x) (rRest x) (fun tr => OutputP ⟨x, tr⟩) →
+              ProbComp ((tr : Spec.Transcript (Spec.node X rest)) × OutputP tr × PUnit) :=
+          fun nextProver =>
+            let addPrefix :
+                ((tr : Spec.Transcript (rest x)) × (fun tr => OutputP ⟨x, tr⟩) tr × PUnit) →
+                  ((tr : Spec.Transcript (Spec.node X rest)) × OutputP tr × PUnit) :=
+              fun z => ⟨⟨x, z.1⟩, z.2.1, z.2.2⟩
+            addPrefix <$>
+              Spec.Strategy.runWithRoles (rest x) (rRest x) nextProver
+                (randomChallenger sample (rest x) (rRest x))
+        have hChildRun :
+            ∀ nextProver ∈ support (prover x), Pr[event | childRun nextProver] ≤
+              (next x).maxPathError := by
+          intro nextProver hxProver
+          let addPrefix :
+              ((tr : Spec.Transcript (rest x)) × (fun tr => OutputP ⟨x, tr⟩) tr × PUnit) →
+                ((tr : Spec.Transcript (Spec.node X rest)) × OutputP tr × PUnit) :=
+            fun z => ⟨⟨x, z.1⟩, z.2.1, z.2.2⟩
+          have hEvent :
+              event ∘ addPrefix =
+                fun z =>
+                  (next x).terminalGood z.1
+                    ((next x).follow z.1 (advance claim x)) := by
+            funext z
+            cases z
+            rfl
+          simpa [childRun, addPrefix, hEvent, probEvent_map] using
+            (ih x (hChildrenSound x) nextProver hp)
+        have hChild :
+            Pr[event | my x] ≤ (next x).maxPathError := by
+          rw [show my x = prover x >>= childRun by rfl, probEvent_bind_eq_tsum]
+          calc
+            ∑' nextProver, Pr[= nextProver | prover x] * Pr[event | childRun nextProver]
+                ≤ ∑' nextProver, Pr[= nextProver | prover x] * (next x).maxPathError := by
+                  refine ENNReal.tsum_le_tsum fun nextProver => ?_
+                  by_cases hxProver : nextProver ∈ support (prover x)
+                  · exact mul_le_mul' le_rfl (hChildRun nextProver hxProver)
+                  · simp [probOutput_eq_zero_of_not_mem_support hxProver]
+            _ = (∑' nextProver, Pr[= nextProver | prover x]) * (next x).maxPathError := by
+                  rw [ENNReal.tsum_mul_right]
+            _ ≤ 1 * (next x).maxPathError := by
+                  exact mul_le_mul' tsum_probOutput_le_one le_rfl
+            _ = (next x).maxPathError := by simp
+        exact le_trans hChild (le_iSup (fun x => (next x).maxPathError) x)
+      have hbind :
+          Pr[event | sample _ >>= my] ≤ error + ⨆ x, (next x).maxPathError := by
+        simpa using
+          (probEvent_bind_le_add (mx := sample _) (my := my)
+            (p := p) (q := fun z => ¬ event z) h₁
+            (fun x hx hp => by simpa using h₂ x hx hp))
+      have hrun :
+          Spec.Strategy.runWithRoles _ _ prover (randomChallenger sample _ _) =
+            sample _ >>= my := by
+        simpa [my, randomChallenger, Spec.Strategy.runWithRoles_receiver, bind_assoc]
+      simpa [ClaimTree.maxPathError, hrun] using hbind
 
 end ClaimTree
 
@@ -903,7 +1051,23 @@ theorem soundness_of_rbrSoundness
       Pr[fun z => langOut s z.1
         | Spec.Strategy.runWithRoles pSpec roles prover
             (randomChallenger sample pSpec roles)] ≤ ε := by
-  sorry
+  rcases h with ⟨Claim, tree, root, hSound, hRootBad, hErr, hTerm⟩
+  intro OutputP prover s hs
+  have hmono :
+      Pr[fun z => langOut s z.1
+        | Spec.Strategy.runWithRoles pSpec roles prover
+            (randomChallenger sample pSpec roles)] ≤
+        Pr[fun z => (tree s).terminalGood z.1 ((tree s).follow z.1 (root s))
+          | Spec.Strategy.runWithRoles pSpec roles prover
+              (randomChallenger sample pSpec roles)] := by
+    refine probEvent_mono ?_
+    intro z _ hz
+    exact hTerm s z.1 hz
+  exact le_trans hmono <|
+    le_trans
+      (ClaimTree.IsSound.bound_terminalProb sample (tree s) (hSound s) prover (claim := root s)
+        (hRootBad s hs))
+      (hErr s)
 
 /-! ## Knowledge claim tree
 
@@ -927,7 +1091,8 @@ inductive KnowledgeClaimTree : (spec : Spec) → (roles : RoleDecoration spec) �
       (NextClaim : X → Type u)
       (next : (x : X) → KnowledgeClaimTree (rest x) (rRest x) (NextClaim x))
       (advance : Claim → (x : X) → NextClaim x)
-      (extractMid : (x : X) → NextClaim x → Claim) :
+      (extractMid : (x : X) → NextClaim x → Claim)
+      (extractAdvance : ∀ claim x, extractMid x (advance claim x) = claim) :
       KnowledgeClaimTree (.node X rest) ⟨.sender, rRest⟩ Claim
   | receiver
       {Claim : Type u} {X : Type u} {rest : X → Spec} {rRest : ∀ x, RoleDecoration (rest x)}
@@ -936,7 +1101,8 @@ inductive KnowledgeClaimTree : (spec : Spec) → (roles : RoleDecoration spec) �
       (NextClaim : X → Type u)
       (next : (x : X) → KnowledgeClaimTree (rest x) (rRest x) (NextClaim x))
       (advance : Claim → (x : X) → NextClaim x)
-      (extractMid : (x : X) → NextClaim x → Claim) :
+      (extractMid : (x : X) → NextClaim x → Claim)
+      (extractAdvance : ∀ claim x, extractMid x (advance claim x) = claim) :
       KnowledgeClaimTree (.node X rest) ⟨.receiver, rRest⟩ Claim
 
 namespace KnowledgeClaimTree
@@ -946,18 +1112,23 @@ def good {spec : Spec} {roles : RoleDecoration spec} {Claim : Type u}
     (tree : KnowledgeClaimTree spec roles Claim) : Claim → Prop :=
   match tree with
   | .done g => g
-  | .sender g _ _ _ _ => g
-  | .receiver g _ _ _ _ _ => g
+  | .sender g _ _ _ _ _ => g
+  | .receiver g _ _ _ _ _ _ => g
 
 /-- Forget the extraction data to get a plain `ClaimTree`. -/
 def toClaimTree {spec : Spec} {roles : RoleDecoration spec} {Claim : Type u}
     (tree : KnowledgeClaimTree spec roles Claim) : ClaimTree spec roles Claim :=
   match tree with
   | .done g => .done g
-  | .sender g nc next adv _ =>
+  | .sender g nc next adv _ _ =>
       .sender g nc (fun x => (next x).toClaimTree) adv
-  | .receiver g err nc next adv _ =>
+  | .receiver g err nc next adv _ _ =>
       .receiver g err nc (fun x => (next x).toClaimTree) adv
+
+@[simp] theorem toClaimTree_good {spec : Spec} {roles : RoleDecoration spec} {Claim : Type u}
+    (tree : KnowledgeClaimTree spec roles Claim) :
+    tree.toClaimTree.good = tree.good := by
+  cases tree <;> rfl
 
 /-- The claim type at the terminal of a transcript path (via `toClaimTree`). -/
 def Terminal {spec : Spec} {roles : RoleDecoration spec} {Claim : Type u}
@@ -991,10 +1162,10 @@ def IsKnowledgeSound {m : Type u → Type u} [Monad m] [HasEvalSPMF m]
     (tree : KnowledgeClaimTree spec roles Claim) : Prop :=
   match tree with
   | .done _ => True
-  | .sender good _ next _advance extractMid =>
+  | .sender good _ next _advance extractMid _extractAdvance =>
       (∀ x (nc : _), (next x).good nc → good (extractMid x nc)) ∧
       (∀ x, (next x).IsKnowledgeSound sample)
-  | .receiver good error _ next advance _extractMid =>
+  | .receiver good error _ next advance _extractMid _extractAdvance =>
       (∀ claim, ¬ good claim →
         Pr[fun x => (next x).good (advance claim x) | sample _] ≤ error) ∧
       (∀ x, (next x).IsKnowledgeSound sample)
@@ -1008,7 +1179,27 @@ theorem isKnowledgeSound_implies_isSound
     {tree : KnowledgeClaimTree spec roles Claim}
     (h : tree.IsKnowledgeSound sample) :
     tree.toClaimTree.IsSound sample := by
-  sorry
+  induction tree with
+  | done good =>
+      trivial
+  | @sender _ X rest rRest good NextClaim next advance extractMid extractAdvance ih =>
+      rcases h with ⟨hBack, hChildren⟩
+      refine ⟨?_, ?_⟩
+      · intro claim hBad x hGoodChild
+        have hGoodChild' : (next x).good (advance claim x) := by
+          simpa using hGoodChild
+        have hParent : good (extractMid x (advance claim x)) :=
+          hBack x (advance claim x) hGoodChild'
+        have : good claim := by
+          simpa [extractAdvance claim x] using hParent
+        exact hBad this
+      · intro x
+        exact ih x (hChildren x)
+  | @receiver _ X rest rRest good error NextClaim next advance extractMid extractAdvance ih =>
+      rcases h with ⟨hStep, hChildren⟩
+      refine ⟨?_, fun x => ih x (hChildren x)⟩
+      intro claim hBad
+      simpa using hStep claim hBad
 
 /-- Bound on the terminal probability for knowledge claim trees, via the
 underlying `ClaimTree.IsSound.bound_terminalProb`. -/
@@ -1023,7 +1214,12 @@ theorem IsKnowledgeSound.bound_terminalProb
     Pr[fun z => tree.terminalGood z.1 (tree.follow z.1 claim)
       | Spec.Strategy.runWithRoles spec roles prover
           (randomChallenger sample spec roles)] ≤ tree.maxPathError := by
-  sorry
+  have hBad' : ¬ tree.toClaimTree.good claim := by
+    simpa using hBad
+  simpa [KnowledgeClaimTree.terminalGood, KnowledgeClaimTree.follow,
+    KnowledgeClaimTree.maxPathError] using
+    ClaimTree.IsSound.bound_terminalProb sample tree.toClaimTree
+      (isKnowledgeSound_implies_isSound hSound) prover (claim := claim) hBad'
 
 end KnowledgeClaimTree
 
@@ -1076,25 +1272,73 @@ theorem rbrKnowledgeSoundness_implies_rbrSoundness
     (hLangOut : ∀ s tr, langOut s tr → ∃ pOut, pOut ∈ relOut s tr)
     {εMax : ℝ≥0∞} (hε : ∀ s, ε s ≤ εMax) :
     rbrSoundness (roles := roles) sample langIn langOut εMax := by
-  sorry
+  rcases h with ⟨Claim, tree, root, extract, hSound, hErr, hRoot, hTerm⟩
+  refine ⟨Claim, fun s => (tree s).toClaimTree, root, ?_⟩
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · intro s
+    exact KnowledgeClaimTree.isKnowledgeSound_implies_isSound (hSound s)
+  · intro s hs
+    intro hGood
+    have hGood' : (tree s).good (root s) := by
+      simpa using hGood
+    exact hLang s hs (extract s (root s)) ((hRoot s (root s)).mp hGood')
+  · intro s
+    exact le_trans (hErr s) (hε s)
+  · intro s tr hLangOut'
+    rcases hLangOut s tr hLangOut' with ⟨pOut, hpOut⟩
+    exact hTerm s tr pOut hpOut
 
 /-- Round-by-round knowledge soundness implies plain knowledge soundness
 (for a fixed protocol spec). -/
 theorem rbrKnowledgeSoundness_implies_knowledgeSoundness
     {pSpec : Spec} {roles : RoleDecoration pSpec}
     {StatementIn : Type v} {WitnessIn : Type w}
-    {StatementOut WitnessOut : (s : StatementIn) → Spec.Transcript pSpec → Type}
+    {WitnessOut : (s : StatementIn) → Spec.Transcript pSpec → Type}
     {sample : (T : Type) → ProbComp T}
     {relIn : Set (StatementIn × WitnessIn)}
     {relOut : ∀ (s : StatementIn) (tr : Spec.Transcript pSpec),
-      Set (StatementOut s tr × WitnessOut s tr)}
+      Set (PUnit × WitnessOut s tr)}
     {ε : StatementIn → ℝ≥0∞}
     (h : rbrKnowledgeSoundness (pSpec := pSpec) (roles := roles)
       sample relIn relOut ε)
-    (verifier : Verifier ProbComp StatementIn (fun _ => pSpec) (fun _ => roles) StatementOut)
     {εMax : ℝ≥0∞} (hε : ∀ s, ε s ≤ εMax) :
-    knowledgeSoundness verifier relIn relOut εMax := by
-  sorry
+    knowledgeSoundness
+      (fun _ : StatementIn => randomChallenger sample pSpec roles)
+      relIn relOut εMax := by
+  rcases h with ⟨Claim, tree, root, extract, hSound, hErr, hRoot, hTerm⟩
+  refine ⟨{ toFun := fun s _ _ _ => extract s (root s) }, ?_⟩
+  intro prover s
+  by_cases hIn : (s, extract s (root s)) ∈ relIn
+  · have hZero :
+        Pr[fun z =>
+          (z.2.2, z.2.1) ∈ relOut s z.1 ∧
+            (s, extract s (root s)) ∉ relIn
+          | Spec.Strategy.runWithRoles pSpec roles (prover s)
+              (randomChallenger sample pSpec roles)] = 0 := by
+        rw [probEvent_eq_zero_iff]
+        intro z _ hz
+        exact hz.2 hIn
+    exact hZero.le.trans bot_le
+  · have hBadRoot : ¬ (tree s).good (root s) := by
+      intro hGood
+      exact hIn ((hRoot s (root s)).mp hGood)
+    have hmono :
+        Pr[fun z =>
+          (z.2.2, z.2.1) ∈ relOut s z.1 ∧ (s, extract s (root s)) ∉ relIn
+          | Spec.Strategy.runWithRoles pSpec roles (prover s)
+              (randomChallenger sample pSpec roles)] ≤
+          Pr[fun z => (tree s).terminalGood z.1 ((tree s).follow z.1 (root s))
+            | Spec.Strategy.runWithRoles pSpec roles (prover s)
+                (randomChallenger sample pSpec roles)] := by
+      refine probEvent_mono ?_
+      intro z _ hz
+      exact hTerm s z.1 ⟨z.2.2, z.2.1⟩ hz.1
+    exact le_trans hmono <|
+      le_trans
+        (KnowledgeClaimTree.IsKnowledgeSound.bound_terminalProb sample (tree s)
+          (hSound s) (prover s)
+          (claim := root s) hBadRoot)
+        (le_trans (hErr s) (hε s))
 
 end Interaction
 
