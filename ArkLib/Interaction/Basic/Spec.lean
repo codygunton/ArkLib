@@ -34,10 +34,10 @@ is mathematically forced in protocols like sumcheck and FRI.
 - `Basic/` — spec, node contexts, decoration, generic shapes, strategy,
   composition (this layer)
 - `Concurrent/` — structural concurrent source syntax, frontiers and residuals,
-  dynamic `Process` / `Machine` / `Tree` frontends, finite traces and
-  execution summaries, per-party observation profiles, scheduler/control
-  ownership, current local frontier views, and structural independence /
-  commuting residuals / interleaving equivalence / stepwise scheduler policies
+  structural frontier traces and true-concurrency refinements, dynamic
+  `Process` / `Machine` / `Tree` frontends, generic process executions and
+  policies, per-party observation profiles, scheduler/control ownership, and
+  current local frontier views
 - `TwoParty/` — sender/receiver roles, `withRoles`, `Counterpart`
 - `Reduction.lean` — prover, verifier, reduction
 - `Oracle/` — oracle decoration, path-dependent oracle access

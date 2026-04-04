@@ -25,7 +25,7 @@ Main definitions:
 
 * `NodeSemantics Party X` records, at one sequential interaction node with move
   space `X`, both:
-  * the party currently controlling that node, if any; and
+  * the controller path contribution of each chosen move; and
   * the per-party local views of the node's chosen move.
 * `Step Party P` is one finite sequential interaction episode whose completion
   yields the next residual process state `P`.
@@ -51,18 +51,19 @@ sequential interaction node whose move space is `X`.
 
 It packages two orthogonal pieces of information:
 
-* `controller?` is the party currently controlling the node, when such a
-  distinguished controller is part of the intended semantics;
+* `controllers x` is the controller-path contribution associated to choosing
+  the move `x : X`;
 * `views` assigns to each party its local view of the chosen move `x : X`.
 
-The controller and the local views are intentionally stored separately.
-Many natural systems align them so that the controlling party has local view
-`active`, but this file does not force that relationship definitionally.
+The controller-path contribution and the local views are intentionally stored
+separately. Many natural systems align them so that the first controller in
+`controllers x` has local view `active`, but this file does not force that
+relationship definitionally.
 Any desired coherence law can be imposed later as a separate well-formedness
 predicate.
 -/
 structure NodeSemantics (Party : Type u) (X : Type w) where
-  controller? : Option Party := none
+  controllers : X → List Party := fun _ => []
   views : Party → Multiparty.LocalView X
 
 /-- The realized node context of per-node controller and local-view metadata. -/
@@ -92,23 +93,11 @@ structure Step (Party : Type u) (P : Type v) where
 namespace Step
 
 /--
-`controller? step` is the party currently controlling the root node of the
-sequential step, when such a controller is recorded there.
-
-At `Spec.done`, there is no current node and therefore no current controller.
--/
-def controller? {Party : Type u} {P : Type v} (step : Step Party P) : Option Party :=
-  match step.spec, step.semantics with
-  | .done, _ => none
-  | .node _ _, ⟨node, _⟩ => node.controller?
-
-/--
 `controllerPath step tr` is the sequence of recorded controllers along the
 concrete transcript `tr` through the sequential step `step`.
 
-At each visited node, if the attached `NodeSemantics` stores a controller, that
-party is appended to the path.
-Nodes with `controller? = none` contribute no element.
+At each visited node, the path contribution `node.controllers x` associated to
+the chosen move `x` is prepended to the recursively computed tail path.
 -/
 def controllerPath {Party : Type u} {P : Type v} (step : Step Party P) :
     Interaction.Spec.Transcript step.spec → List Party := by
@@ -119,12 +108,21 @@ def controllerPath {Party : Type u} {P : Type v} (step : Step Party P) :
       List Party
     | .done, _, _ => []
     | .node _ rest, ⟨node, restSemantics⟩, ⟨x, tail⟩ =>
-        let tailPath := go (restSemantics x) tail
-        match node.controller? with
-        | some controller => controller :: tailPath
-        | none => tailPath
+        node.controllers x ++ go (restSemantics x) tail
   intro tr
   exact go step.semantics tr
+
+/--
+`currentController? step tr` is the first controller, if any, on the concrete
+controller path exposed by the transcript `tr`.
+
+Unlike the earlier tree-specific concurrent execution layer, the current
+controller of a process step may in general depend on the chosen transcript of
+that step protocol itself.
+-/
+def currentController? {Party : Type u} {P : Type v} (step : Step Party P)
+    (tr : Interaction.Spec.Transcript step.spec) : Option Party :=
+  step.controllerPath tr |>.head?
 end Step
 
 /--

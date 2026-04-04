@@ -6,9 +6,9 @@ Authors: Quang Dao
 import ArkLib.Interaction.Concurrent.Frontier
 
 /-!
-# Finite concurrent traces
+# Structural frontier traces
 
-This file defines finite traces of concurrent interaction specs.
+This file defines finite traces of the **structural** concurrent source syntax.
 
 For sequential `Interaction.Spec`, a `Transcript` records one complete root-to-
 leaf play through a tree whose next move family is always unique.
@@ -21,10 +21,13 @@ scheduler linearization**:
 * continue with the residual spec after that event;
 * repeat until reaching a quiescent residual with no enabled frontier events.
 
-So `Trace` is the finite interleaving-level execution object associated to the
-concurrent core. If a later true-concurrency layer adds independence or partial-
-order semantics, those refinements should be layered over these linear traces
-rather than replacing the basic execution story here.
+So `Trace` is the finite interleaving-level linearization object associated to
+the structural tree frontend. The dynamic concurrent execution API now lives
+over `Concurrent.Process` in `Concurrent/Execution`.
+
+If a later true-concurrency layer adds independence or partial-order
+semantics, those refinements should be layered over these structural
+linearizations rather than replacing the basic tree frontend story here.
 -/
 
 universe u
@@ -33,7 +36,8 @@ namespace Interaction
 namespace Concurrent
 
 /--
-`Trace S` is a finite execution trace of the concurrent spec `S`.
+`Trace S` is a finite structural linearization trace of the concurrent spec
+`S`.
 
 It records one scheduler-chosen linearization of frontier events, ending when
 the residual concurrent spec becomes quiescent, meaning its frontier type is

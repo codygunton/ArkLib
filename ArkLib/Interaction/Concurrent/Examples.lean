@@ -7,6 +7,7 @@ import ArkLib.Interaction.Concurrent.Execution
 import ArkLib.Interaction.Concurrent.Interleaving
 import ArkLib.Interaction.Concurrent.Independence
 import ArkLib.Interaction.Concurrent.Policy
+import ArkLib.Interaction.Concurrent.Tree
 
 /-!
 # Concurrent interaction examples
@@ -20,7 +21,7 @@ The examples are intentionally focused on:
 * per-party observation profiles over concurrently live components.
 * scheduler ownership versus atomic payload ownership;
 * the combined current local view of the next frontier event.
-* execution traces, controller paths, and observed local traces.
+* process executions, controller paths, and observed local traces.
 * interleaving equivalence under commuting independent steps.
 * executable scheduler and controller policies over finite traces.
 
@@ -178,43 +179,51 @@ example :
     Current.observe Party.adv afterDelivery afterDeliveryProfile (.right (.move false)) =
       PUnit.unit := rfl
 
-/-- A concrete trace where the adversary schedules delivery first and the
+/-- A concrete structural trace where the adversary schedules delivery first and the
 remaining acknowledgement second. -/
 def deliveryThenAck : Trace inFlight :=
   .step (.left (.move (7, true)))
     (.step (.right (.move false)) (Trace.doneOfNotLive rfl))
 
-example :
-    Trace.currentControllers inFlightControl deliveryThenAck = [some .adv, some .bob] := rfl
+/-- The dynamic process compiled from the structural tree frontend. -/
+def inFlightProcess : Process Party :=
+  Tree.toProcess (Party := Party)
+
+/-- The packaged initial structural state of the in-flight system. -/
+def inFlightState : Tree.State Party :=
+  Tree.init inFlightControl inFlightProfile
+
+/-- The process execution induced by `deliveryThenAck`. -/
+def deliveryThenAckExec :
+    Process.Trace inFlightProcess inFlightState :=
+  Tree.ofLinearization inFlightControl inFlightProfile deliveryThenAck
 
 example :
-    Trace.schedulers inFlightControl deliveryThenAck = [some .adv, none] := rfl
+    Process.Trace.currentControllers deliveryThenAckExec = [some .adv, some .bob] := rfl
 
 example :
-    Trace.controllerPaths inFlightControl deliveryThenAck = [[.adv, .alice], [.bob]] := rfl
+    Process.Trace.controllerPaths deliveryThenAckExec = [[.adv, .alice], [.bob]] := rfl
 
 example :
-    ObservedTrace.ofTrace Party.adv inFlightControl inFlightProfile deliveryThenAck =
-      .step (Front.left (.move (7, true)))
-        (.step (show Current.ObsType Party.adv afterDelivery afterDeliveryProfile from PUnit.unit)
-          .done) := rfl
+    (Step.observe Party.adv inFlightState.currentStep
+      (inFlightState.transcriptOfEvent (.left (.move (7, true))))).length = 1 := rfl
+
+def afterDeliveryState : Tree.State Party :=
+  Tree.init afterDelivery afterDeliveryProfile
 
 example :
-    ObservedTrace.ofTrace Party.alice inFlightControl inFlightProfile deliveryThenAck =
-      .step (show PLift (Sum (Nat × Bool) PUnit) from ⟨Sum.inl (7, true)⟩)
-        (.step (show Current.ObsType Party.alice afterDelivery afterDeliveryProfile from PUnit.unit)
-          .done) := rfl
+    (Step.observe Party.alice inFlightState.currentStep
+      (inFlightState.transcriptOfEvent (.left (.move (7, true))))).length = 1 := rfl
 
 example :
-    ObservedTrace.ofTrace Party.bob inFlightControl inFlightProfile deliveryThenAck =
-      .step (show PLift (Sum (Nat × Bool) Bool) from ⟨Sum.inl (7, true)⟩)
-        (.step (Front.right (.move false)) .done) := rfl
+    ((Step.observe Party.bob afterDeliveryState.currentStep
+      (afterDeliveryState.transcriptOfEvent (.right (.move false)))).length = 1) := rfl
 
 example :
-    (ObservedTrace.ofTrace Party.bob inFlightControl inFlightProfile deliveryThenAck).length =
+    (Process.ObservedTrace.ofTrace Party.bob inFlightProcess deliveryThenAckExec).length =
       2 := rfl
 
-/-- A concrete trace where the adversary schedules the acknowledgement before
+/-- A concrete structural trace where the adversary schedules the acknowledgement before
 the delivery event. -/
 def ackThenDelivery : Trace inFlight :=
   .step (.right (.move true))
@@ -226,20 +235,27 @@ def afterAck : Control Party (.par delivery .done) :=
 def afterAckProfile : Profile Party (.par delivery .done) :=
   Profile.residual inFlightProfile (.right (.move true))
 
-example :
-    Trace.currentControllers inFlightControl ackThenDelivery = [some .adv, some .alice] := rfl
+/-- The process execution induced by `ackThenDelivery`. -/
+def ackThenDeliveryExec :
+    Process.Trace inFlightProcess inFlightState :=
+  Tree.ofLinearization inFlightControl inFlightProfile ackThenDelivery
 
 example :
-    Trace.schedulers inFlightControl ackThenDelivery = [some .adv, none] := rfl
+    Process.Trace.currentControllers ackThenDeliveryExec = [some .adv, some .alice] := rfl
 
 example :
-    Trace.controllerPaths inFlightControl ackThenDelivery = [[.adv, .bob], [.alice]] := rfl
+    Process.Trace.controllerPaths ackThenDeliveryExec = [[.adv, .bob], [.alice]] := rfl
 
 example :
-    ObservedTrace.ofTrace Party.adv inFlightControl inFlightProfile ackThenDelivery =
-      .step (Front.right (.move true))
-        (.step (show Current.ObsType Party.adv afterAck afterAckProfile from ⟨(9 : Nat)⟩)
-          .done) := rfl
+    ((Step.observe Party.adv inFlightState.currentStep
+      (inFlightState.transcriptOfEvent (.right (.move true)))).length = 1) := rfl
+
+def afterAckState : Tree.State Party :=
+  Tree.init afterAck afterAckProfile
+
+example :
+    (Step.observe Party.adv afterAckState.currentStep
+      (afterAckState.transcriptOfEvent (.left (.move (9, false))))).length = 1 := rfl
 
 def deliveryEvent : Front inFlight :=
   .left (.move (4, true))
@@ -266,42 +282,50 @@ example :
         Trace.Equiv leftThenRight rightThenLeft) = rfl := rfl
 
 /-- When both sides of a live `par` are available, prefer the left branch. -/
-def preferLeft : StepPolicy Party
-  | .par _ _, .par _ leftControl rightControl, event =>
-      match leftControl.isLive, rightControl.isLive, event with
-      | true, true, .left _ => true
-      | true, true, .right _ => false
-      | _, _, _ => true
-  | _, _, _ => true
+def preferLeft : Process.StepPolicy inFlightProcess :=
+  fun {p} tr =>
+    match p with
+    | ⟨.par _ _, .par _ leftControl rightControl, _⟩ =>
+        match tr with
+        | ⟨event, _⟩ =>
+            match leftControl.isLive, rightControl.isLive, event with
+            | true, true, .left _ => true
+            | true, true, .right _ => false
+            | _, _, _ => true
+    | _ => true
 
 /-- When both sides of a live `par` are available, prefer the right branch. -/
-def preferRight : StepPolicy Party
-  | .par _ _, .par _ leftControl rightControl, event =>
-      match leftControl.isLive, rightControl.isLive, event with
-      | true, true, .left _ => false
-      | true, true, .right _ => true
-      | _, _, _ => true
-  | _, _, _ => true
+def preferRight : Process.StepPolicy inFlightProcess :=
+  fun {p} tr =>
+    match p with
+    | ⟨.par _ _, .par _ leftControl rightControl, _⟩ =>
+        match tr with
+        | ⟨event, _⟩ =>
+            match leftControl.isLive, rightControl.isLive, event with
+            | true, true, .left _ => false
+            | true, true, .right _ => true
+            | _, _, _ => true
+    | _ => true
 
-example : Trace.respects preferLeft inFlightControl deliveryThenAck = true := rfl
+example : Process.Trace.respects preferLeft deliveryThenAckExec = true := rfl
 
-example : Trace.respects preferLeft inFlightControl ackThenDelivery = false := rfl
+example : Process.Trace.respects preferLeft ackThenDeliveryExec = false := rfl
 
-example : Trace.respects preferRight inFlightControl ackThenDelivery = true := rfl
+example : Process.Trace.respects preferRight ackThenDeliveryExec = true := rfl
 
-example : Trace.respects preferRight inFlightControl deliveryThenAck = false := rfl
-
-example :
-    Trace.respects (StepPolicy.byScheduler (fun | .adv => true | _ => false))
-      inFlightControl deliveryThenAck = true := rfl
-
-example :
-    Trace.respects (StepPolicy.byController (fun | .bob => false | _ => true))
-      inFlightControl deliveryThenAck = false := rfl
+example : Process.Trace.respects preferRight deliveryThenAckExec = false := rfl
 
 example :
-    Trace.respects (StepPolicy.byController (fun | .bob => false | _ => true))
-      inFlightControl ackThenDelivery = true := rfl
+    Process.Trace.respects (Process.StepPolicy.byController (fun | .adv => true | _ => false))
+      deliveryThenAckExec = false := rfl
+
+example :
+    Process.Trace.respects (Process.StepPolicy.byController (fun | .bob => false | _ => true))
+      deliveryThenAckExec = false := rfl
+
+example :
+    Process.Trace.respects (Process.StepPolicy.byController (fun | .bob => false | _ => true))
+      ackThenDeliveryExec = true := rfl
 
 /-- A three-way concurrent system used to illustrate recursive independence
 inside one branch of a larger parallel spec. -/

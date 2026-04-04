@@ -13,9 +13,10 @@ ArkLib/
   ProofSystem/        protocol families and higher-level proofs
   ToMathlib/          local additions not upstreamed to Mathlib
   ToVCVio/            bridge layer to VCV-io
-  Interaction/        `Spec` (W-type protocols), concurrent structural specs/frontiers,
-                      dynamic process/machine/tree frontends, traces/execution,
-                      profiles/control/current-view/independence/interleaving/policy,
+  Interaction/        `Spec` (W-type protocols), concurrent structural
+                      specs/frontiers/linearizations, dynamic process/machine/tree
+                      frontends, generic process execution/policy, profiles/control/
+                      current-view/independence/interleaving,
                       generic syntax/execution,
                       two-party roles, native multiparty
                       local views and profiles (`Basic/`, `Concurrent/`, `TwoParty/`,

@@ -4,29 +4,26 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Quang Dao
 -/
 import ArkLib.Interaction.Concurrent.Current
-import ArkLib.Interaction.Concurrent.Process
+import ArkLib.Interaction.Concurrent.Execution
 
 /-!
 # Structural-tree frontend for dynamic processes
 
-This file turns the existing structural concurrent syntax into a frontend for
-the new dynamic `Concurrent.Process` core.
+This file turns the structural concurrent syntax into a frontend for the
+dynamic `Concurrent.Process` core.
 
-The current structural tree layer provides:
+The present frontend keeps one important design choice from the original
+structural execution story: one process step corresponds to exactly one
+scheduled structural frontier event. The dynamic process step therefore uses a
+single move type `Front S`, but its node semantics record:
 
-* `Concurrent.Spec` — a finite syntax of atomic nodes and binary `par`;
-* `Front` / `residual` — the current frontier view of enabled events;
-* `Control` — structural control ownership over current frontier choices;
-* `Profile` — structural per-party local views of frontier events;
-* `Current` — the combined current controller and local view of the next
-  frontier event.
+* the full controller path `Control.controllers control event` associated to
+  each chosen frontier event `event`; and
+* the current local view `Current.view me control profile` of that same
+  frontier event for each party `me`.
 
-This frontend compiles such a structural residual state into a one-step process:
-one process step corresponds to one scheduled frontier event of the current
-structural spec.
-
-So the structural tree language remains an important source language, but it is
-no longer the semantic center of the concurrent layer.
+So the structural tree language remains an important source language, but the
+dynamic process core is now the semantic center.
 -/
 
 universe u
@@ -35,18 +32,11 @@ namespace Interaction
 namespace Concurrent
 namespace Tree
 
-private def liftView {X : Type (u + 1)} :
-    Multiparty.LocalView X → Multiparty.LocalView (ULift.{0, u + 1} X)
-  | .active => .active
-  | .observe => .observe
-  | .hidden => .hidden
-  | .quotient Obs toObs => .quotient Obs (fun x => toObs x.down)
-
 /--
 `State Party` is one structural concurrent residual state packaged together
 with its control tree and observation profile.
 
-This is the exact data needed to view the current structural tree as one state
+This is the exact structural data needed to view the current tree as one state
 of a dynamic `Concurrent.Process`.
 -/
 structure State (Party : Type u) where
@@ -60,24 +50,39 @@ namespace State
 `currentStep st` is the one-step process view of the structural residual state
 `st`.
 
-Its sequential interaction shape is a single node whose move type is the
-current frontier `Front st.spec`. The node semantics are exactly the current
-controller and current per-party local views computed by `Concurrent.Current`.
-Completing that one-node step advances to the residual structural state after
-the chosen frontier event.
+Its move type is the current structural frontier `Front st.spec`. The
+controller-path contribution of each move is exactly
+`Control.controllers st.control`, and the local view of that move is exactly
+`Current.view me st.control st.profile`.
 -/
 def currentStep {Party : Type u} [DecidableEq Party] (st : State Party) :
     Step Party (State Party) :=
-  { spec := .node (ULift.{0, u + 1} (Front st.spec)) (fun _ => .done)
+  { spec := .node (Front st.spec) (fun _ => .done)
     semantics :=
-      ⟨{ controller? := Current.controller? st.control
-         views := fun me => liftView (Current.view me st.control st.profile) },
+      ⟨{ controllers := Control.controllers st.control
+         views := fun me => Current.view me st.control st.profile },
         fun _ => PUnit.unit⟩
     next := fun
       | ⟨event, _⟩ =>
-          { spec := residual event.down
-            control := Control.residual st.control event.down
-            profile := Profile.residual st.profile event.down } }
+          { spec := residual event
+            control := Control.residual st.control event
+            profile := Profile.residual st.profile event } }
+
+/--
+`eventOfTranscript st tr` forgets the trivial `done` tail of the process step
+transcript and recovers the scheduled structural frontier event.
+-/
+def eventOfTranscript {Party : Type u} [DecidableEq Party] (st : State Party) :
+    Interaction.Spec.Transcript st.currentStep.spec → Front st.spec
+  | ⟨event, _⟩ => event
+
+/--
+`transcriptOfEvent st event` re-expresses a structural frontier event as the
+corresponding one-step process transcript.
+-/
+def transcriptOfEvent {Party : Type u} [DecidableEq Party] (st : State Party) :
+    Front st.spec → Interaction.Spec.Transcript st.currentStep.spec
+  | event => ⟨event, PUnit.unit⟩
 
 end State
 
@@ -86,7 +91,7 @@ end State
 `Concurrent.Process` core.
 
 Each process state is one packaged structural residual state, and each process
-step is the current one-node frontier interaction produced by `State.currentStep`.
+step is the current frontier interaction produced by `State.currentStep`.
 -/
 def toProcess {Party : Type u} [DecidableEq Party] : Process Party where
   Proc := State Party
@@ -97,6 +102,23 @@ frontend process. -/
 def init {Party : Type u} {spec : Concurrent.Spec}
     (control : Control Party spec) (profile : Profile Party spec) : State Party :=
   { spec := spec, control := control, profile := profile }
+
+/--
+`ofLinearization control profile trace` converts a structural frontier trace
+into the corresponding dynamic process execution trace of `Tree.toProcess`.
+-/
+def ofLinearization {Party : Type u} [DecidableEq Party] :
+    {spec : Concurrent.Spec} →
+      (control : Control Party spec) →
+      (profile : Profile Party spec) →
+      Concurrent.Trace spec →
+      Process.Trace (toProcess (Party := Party)) (init control profile)
+  | _, control, profile, .done h =>
+      .done (fun tr => h ((init control profile).eventOfTranscript tr))
+  | _, control, profile, .step event tail =>
+      .step
+        ((init control profile).transcriptOfEvent event)
+        (ofLinearization (Control.residual control event) (Profile.residual profile event) tail)
 
 end Tree
 end Concurrent
