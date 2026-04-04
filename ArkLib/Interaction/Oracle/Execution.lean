@@ -37,7 +37,7 @@ abbrev liftAppendOracleIdx
     (spec₁ : Spec) (spec₂ : Spec.Transcript spec₁ → Spec)
     (ιₛ : (tr₁ : Spec.Transcript spec₁) → Spec.Transcript (spec₂ tr₁) → Type) :
     Spec.Transcript (spec₁.append spec₂) → Type :=
-  Spec.Transcript.liftAppendFamily spec₁ spec₂ ιₛ
+  Spec.Transcript.liftAppend spec₁ spec₂ ιₛ
 
 /-- Lift a transcript-split oracle statement family to the fused append
 transcript. -/
@@ -47,65 +47,9 @@ abbrev liftAppendOracleFamily
     (OStmt :
       (tr₁ : Spec.Transcript spec₁) → (tr₂ : Spec.Transcript (spec₂ tr₁)) → ιₛ tr₁ tr₂ → Type) :
     (tr : Spec.Transcript (spec₁.append spec₂)) → liftAppendOracleIdx spec₁ spec₂ ιₛ tr → Type :=
-  fun tr =>
+  fun tr i =>
     let split := Spec.Transcript.split spec₁ spec₂ tr
-    OStmt split.1 split.2
-
-/-- Pack an oracle-family index from the split append view into the fused append
-view. -/
-private def packLiftAppendOracleIdx
-    (spec₁ : Spec) (spec₂ : Spec.Transcript spec₁ → Spec)
-    (ιₛ : (tr₁ : Spec.Transcript spec₁) → Spec.Transcript (spec₂ tr₁) → Type)
-    (tr₁ : Spec.Transcript spec₁) (tr₂ : Spec.Transcript (spec₂ tr₁))
-    (i : ιₛ tr₁ tr₂) :
-    liftAppendOracleIdx spec₁ spec₂ ιₛ (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂) :=
-  cast (Eq.symm <| Spec.Transcript.liftAppendFamily_append spec₁ spec₂ ιₛ tr₁ tr₂) i
-
-/-- Unpack an oracle-family index on the fused append transcript back to the
-split append view. -/
-private def unpackLiftAppendOracleIdx
-    (spec₁ : Spec) (spec₂ : Spec.Transcript spec₁ → Spec)
-    (ιₛ : (tr₁ : Spec.Transcript spec₁) → Spec.Transcript (spec₂ tr₁) → Type)
-    (tr₁ : Spec.Transcript spec₁) (tr₂ : Spec.Transcript (spec₂ tr₁))
-    (i : liftAppendOracleIdx spec₁ spec₂ ιₛ (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)) :
-    ιₛ tr₁ tr₂ :=
-  cast (Spec.Transcript.liftAppendFamily_append spec₁ spec₂ ιₛ tr₁ tr₂) i
-
-/-- Pack a query to the split append oracle family into a query to the fused
-append oracle family. -/
-private def packLiftAppendOracleQuery
-    (spec₁ : Spec) (spec₂ : Spec.Transcript spec₁ → Spec)
-    (ιₛ : (tr₁ : Spec.Transcript spec₁) → Spec.Transcript (spec₂ tr₁) → Type)
-    (OStmt :
-      (tr₁ : Spec.Transcript spec₁) → (tr₂ : Spec.Transcript (spec₂ tr₁)) → ιₛ tr₁ tr₂ → Type)
-    [∀ tr₁ tr₂ i, OracleInterface (OStmt tr₁ tr₂ i)]
-    (tr₁ : Spec.Transcript spec₁) (tr₂ : Spec.Transcript (spec₂ tr₁))
-    (i : ιₛ tr₁ tr₂) (q : OracleInterface.Query (OStmt tr₁ tr₂ i)) :
-    ([liftAppendOracleFamily spec₁ spec₂ ιₛ OStmt
-      (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)]ₒ).Domain := by
-  simpa [OracleInterface.toOracleSpec, liftAppendOracleFamily, liftAppendOracleIdx] using
-    (cast
-      (congrArg (fun p => ([OStmt p.1 p.2]ₒ).Domain)
-        (Eq.symm <| Spec.Transcript.split_append spec₁ spec₂ tr₁ tr₂))
-      (show ([OStmt tr₁ tr₂]ₒ).Domain from ⟨i, q⟩))
-
-/-- Unpack a query to the fused append oracle family back to a query to the split
-append oracle family. -/
-private def unpackLiftAppendOracleQuery
-    (spec₁ : Spec) (spec₂ : Spec.Transcript spec₁ → Spec)
-    (ιₛ : (tr₁ : Spec.Transcript spec₁) → Spec.Transcript (spec₂ tr₁) → Type)
-    (OStmt :
-      (tr₁ : Spec.Transcript spec₁) → (tr₂ : Spec.Transcript (spec₂ tr₁)) → ιₛ tr₁ tr₂ → Type)
-    [∀ tr₁ tr₂ i, OracleInterface (OStmt tr₁ tr₂ i)]
-    (tr₁ : Spec.Transcript spec₁) (tr₂ : Spec.Transcript (spec₂ tr₁))
-    (qOut : ([liftAppendOracleFamily spec₁ spec₂ ιₛ OStmt
-      (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)]ₒ).Domain) :
-    ([OStmt tr₁ tr₂]ₒ).Domain := by
-  simpa [OracleInterface.toOracleSpec, liftAppendOracleFamily, liftAppendOracleIdx] using
-    (cast
-      (congrArg (fun p => ([OStmt p.1 p.2]ₒ).Domain)
-        (Spec.Transcript.split_append spec₁ spec₂ tr₁ tr₂))
-      qOut)
+    OStmt split.1 split.2 (Spec.Transcript.unliftAppend spec₁ spec₂ ιₛ tr i)
 
 /-- View a fused append-oracle query as a query to the split append oracle family
 without first rewriting the transcript back to `append tr₁ tr₂`. -/
@@ -119,7 +63,23 @@ def splitLiftAppendOracleQuery
     (qOut : ([liftAppendOracleFamily spec₁ spec₂ ιₛ OStmt tr]ₒ).Domain) :
     let split := Spec.Transcript.split spec₁ spec₂ tr
     ([OStmt split.1 split.2]ₒ).Domain := by
-  simpa [OracleInterface.toOracleSpec, liftAppendOracleFamily, liftAppendOracleIdx] using qOut
+  exact ⟨Spec.Transcript.unliftAppend spec₁ spec₂ ιₛ tr qOut.1, qOut.2⟩
+
+/-- View an answer to the split append oracle family as an answer to the fused
+append oracle family. -/
+def answerSplitLiftAppendQuery
+    (spec₁ : Spec) (spec₂ : Spec.Transcript spec₁ → Spec)
+    (ιₛ : (tr₁ : Spec.Transcript spec₁) → Spec.Transcript (spec₂ tr₁) → Type)
+    (OStmt :
+      (tr₁ : Spec.Transcript spec₁) → (tr₂ : Spec.Transcript (spec₂ tr₁)) → ιₛ tr₁ tr₂ → Type)
+    [∀ tr₁ tr₂ i, OracleInterface (OStmt tr₁ tr₂ i)]
+    (tr : Spec.Transcript (spec₁.append spec₂))
+    (qOut : ([liftAppendOracleFamily spec₁ spec₂ ιₛ OStmt tr]ₒ).Domain) :
+    ([OStmt (Spec.Transcript.split spec₁ spec₂ tr).1
+      (Spec.Transcript.split spec₁ spec₂ tr).2]ₒ).Range
+        (splitLiftAppendOracleQuery spec₁ spec₂ ιₛ OStmt tr qOut) →
+    ([liftAppendOracleFamily spec₁ spec₂ ιₛ OStmt tr]ₒ).Range qOut
+  | a => a
 
 /-- Accumulated oracle spec after traversing `spec` along transcript `tr`,
 starting from `accSpec`. At sender nodes, adds the node's oracle interface spec.
@@ -438,6 +398,8 @@ def mapExecuteWitness
         (OracleComp
           ([OStmtIn i]ₒ + toOracleSpec (Context i) (Roles i)
             (oracleDeco i) tr)))) :=
+  let _ := oSpec
+  let _ := s
   fun ⟨tr, out, view⟩ => ⟨tr, ⟨out.stmt, liftWitness tr out.wit⟩, view⟩
 
 /-- Forget the private honest-prover witness component of an executed oracle
@@ -472,6 +434,8 @@ def forgetExecuteWitness
         (OracleComp
           ([OStmtIn i]ₒ + toOracleSpec (Context i) (Roles i)
             (oracleDeco i) tr)))) :=
+  let _ := oSpec
+  let _ := s
   fun ⟨tr, out, view⟩ => ⟨tr, out.stmt, view⟩
 
 /-- Two oracle reductions with the same public interface are *honestly

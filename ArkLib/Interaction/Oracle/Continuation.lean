@@ -1090,11 +1090,9 @@ private def compFlat {ι : Type} {oSpec : OracleSpec ι}
             OracleStatement
               (liftAppendOracleFamily (ctx₁ s) (ctx₂ s)
                 (ιₛₒ s) (OStmtOut s) tr) := by
-          simpa [split, liftAppendOracleFamily, liftAppendOracleIdx] using
-            (Spec.Transcript.packAppend
-              (ctx₁ s) (ctx₂ s)
-              (fun tr₁ tr₂ => OracleStatement (OStmtOut s tr₁ tr₂))
-              split.1 split.2 splitStmtOracle.oracleStmt)
+          intro i
+          exact splitStmtOracle.oracleStmt
+            (Spec.Transcript.unliftAppend (ctx₁ s) (ctx₂ s) (ιₛₒ s) tr i)
         exact ⟨⟨stmtOut, oracleOut⟩, splitOuter.2⟩)
       strat
   verifier s {ιₐ} accSpec _ := by
@@ -1224,12 +1222,9 @@ def comp {ι : Type} {oSpec : OracleSpec ι}
             OracleStatement
               (liftAppendOracleFamily (ctx₁ shared) (ctx₂ shared)
                 (ιₛₒ shared) (OStatementOut shared) tr) := by
-          simpa [split, liftAppendOracleFamily, liftAppendOracleIdx] using
-            (Spec.Transcript.packAppend
-              (ctx₁ shared) (ctx₂ shared)
-              (fun tr₁ tr₂ =>
-                OracleStatement (OStatementOut shared tr₁ tr₂))
-              split.1 split.2 splitStmtOracle.oracleStmt)
+          intro i
+          exact splitStmtOracle.oracleStmt
+            (Spec.Transcript.unliftAppend (ctx₁ shared) (ctx₂ shared) (ιₛₒ shared) tr i)
         ⟨⟨stmtOut, oracleOut⟩, splitOuter.2⟩)
       strat
   verifier shared {ιₐ} accSpec stmt := by

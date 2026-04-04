@@ -104,6 +104,181 @@ abbrev Output
   StatementWithOracles
     (fun _ => StatementOut shared tr) (fun _ => OStatementOut shared tr) shared
 
+/-- Answer a fused append-oracle query using a split concrete output oracle
+statement. This is the response-level bridge used by reified composition
+theorems. -/
+def answerSplitLiftAppendQuery
+    {SharedIn : Type _}
+    {ctx₁ : SharedIn → Spec}
+    {ctx₂ : (shared : SharedIn) → Spec.Transcript (ctx₁ shared) → Spec}
+    {ιₛₒ : (shared : SharedIn) → (tr₁ : Spec.Transcript (ctx₁ shared)) →
+      (tr₂ : Spec.Transcript (ctx₂ shared tr₁)) → Type _}
+    {OStatementOut :
+      (shared : SharedIn) → (tr₁ : Spec.Transcript (ctx₁ shared)) →
+      (tr₂ : Spec.Transcript (ctx₂ shared tr₁)) → ιₛₒ shared tr₁ tr₂ → Type _}
+    [∀ shared tr₁ tr₂ i, OracleInterface (OStatementOut shared tr₁ tr₂ i)]
+    (shared : SharedIn)
+    (tr₁ : Spec.Transcript (ctx₁ shared))
+    (tr₂ : Spec.Transcript (ctx₂ shared tr₁))
+    (oStatementOut : OracleStatement (OStatementOut shared tr₁ tr₂))
+    (qOut :
+      ([liftAppendOracleFamily (ctx₁ shared) (ctx₂ shared)
+        (ιₛₒ shared) (OStatementOut shared)
+        (Spec.Transcript.append (ctx₁ shared) (ctx₂ shared) tr₁ tr₂)]ₒ).Domain) :
+    ([liftAppendOracleFamily (ctx₁ shared) (ctx₂ shared)
+      (ιₛₒ shared) (OStatementOut shared)
+      (Spec.Transcript.append (ctx₁ shared) (ctx₂ shared) tr₁ tr₂)]ₒ).Range qOut := by
+  sorry
+
+/-- Query-level concrete simulation theorem for binary sequential oracle
+composition. This is the reified bridge at the public `comp.simulate`
+boundary: each fused output query to the composed simulator is answered exactly
+as the routed split concrete suffix oracle statement answers it. -/
+theorem simulateQ_compConcrete
+    {ι : Type _} {oSpec : OracleSpec ι}
+    {SharedIn : Type _}
+    {StatementIn : SharedIn → Type _}
+    {ιₛᵢ : SharedIn → Type _}
+    {OStatementIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
+    [∀ shared i, OracleInterface (OStatementIn shared i)]
+    {WitnessIn : SharedIn → Type _}
+    {ctx₁ : SharedIn → Spec}
+    {roles₁ : (shared : SharedIn) → RoleDecoration (ctx₁ shared)}
+    {oracleDeco₁ : (shared : SharedIn) → OracleDecoration (ctx₁ shared) (roles₁ shared)}
+    {StatementMid : (shared : SharedIn) → Spec.Transcript (ctx₁ shared) → Type _}
+    {ιₛₘ : (shared : SharedIn) → (tr₁ : Spec.Transcript (ctx₁ shared)) → Type _}
+    {OStatementMid :
+      (shared : SharedIn) → (tr₁ : Spec.Transcript (ctx₁ shared)) →
+      ιₛₘ shared tr₁ → Type _}
+    [∀ shared tr₁ i, OracleInterface (OStatementMid shared tr₁ i)]
+    {WitnessMid : (shared : SharedIn) → Spec.Transcript (ctx₁ shared) → Type _}
+    {ctx₂ : (shared : SharedIn) → Spec.Transcript (ctx₁ shared) → Spec}
+    {roles₂ : (shared : SharedIn) → (tr₁ : Spec.Transcript (ctx₁ shared)) →
+      RoleDecoration (ctx₂ shared tr₁)}
+    {oracleDeco₂ : (shared : SharedIn) → (tr₁ : Spec.Transcript (ctx₁ shared)) →
+      OracleDecoration (ctx₂ shared tr₁) (roles₂ shared tr₁)}
+    {StatementOut : (shared : SharedIn) → (tr₁ : Spec.Transcript (ctx₁ shared)) →
+      Spec.Transcript (ctx₂ shared tr₁) → Type _}
+    {ιₛₒ : (shared : SharedIn) → (tr₁ : Spec.Transcript (ctx₁ shared)) →
+      (tr₂ : Spec.Transcript (ctx₂ shared tr₁)) → Type _}
+    {OStatementOut :
+      (shared : SharedIn) → (tr₁ : Spec.Transcript (ctx₁ shared)) →
+      (tr₂ : Spec.Transcript (ctx₂ shared tr₁)) → ιₛₒ shared tr₁ tr₂ → Type _}
+    [∀ shared tr₁ tr₂ i, OracleInterface (OStatementOut shared tr₁ tr₂ i)]
+    {WitnessOut : (shared : SharedIn) → (tr₁ : Spec.Transcript (ctx₁ shared)) →
+      Spec.Transcript (ctx₂ shared tr₁) → Type _}
+    (reduction1 : OracleReduction oSpec SharedIn ctx₁ roles₁ oracleDeco₁
+      StatementIn OStatementIn WitnessIn StatementMid OStatementMid WitnessMid)
+    (reduction2 : OracleReduction oSpec
+      (Sigma fun shared : SharedIn => Spec.Transcript (ctx₁ shared))
+      (fun st => ctx₂ st.1 st.2)
+      (fun st => roles₂ st.1 st.2)
+      (fun st => oracleDeco₂ st.1 st.2)
+      (fun st => StatementMid st.1 st.2)
+      (fun st => OStatementMid st.1 st.2)
+      (fun st => WitnessMid st.1 st.2)
+      (fun st tr₂ => StatementOut st.1 st.2 tr₂)
+      (fun st tr₂ => OStatementOut st.1 st.2 tr₂)
+      (fun st tr₂ => WitnessOut st.1 st.2 tr₂))
+    (shared : SharedIn)
+    (stmt : StatementIn shared)
+    (oStatementIn : OracleStatement (OStatementIn shared))
+    (tr₁ : Spec.Transcript (ctx₁ shared))
+    (oStatementMid : OracleStatement (OStatementMid shared tr₁))
+    (tr₂ : Spec.Transcript (ctx₂ shared tr₁))
+    (oStatementOut : OracleStatement (OStatementOut shared tr₁ tr₂))
+    (hMid : SimulatesConcrete reduction1 shared oStatementIn tr₁ oStatementMid)
+    (hOut : SimulatesConcrete
+      (freezeSharedToPUnit reduction2 ⟨shared, tr₁⟩)
+      PUnit.unit oStatementMid tr₂ oStatementOut) :
+    let composed : OracleReduction oSpec SharedIn
+      (fun shared => (ctx₁ shared).append (ctx₂ shared))
+      (fun shared => Spec.Decoration.append (roles₁ shared) (roles₂ shared))
+      (fun shared => Role.Refine.append (oracleDeco₁ shared) (fun tr => oracleDeco₂ shared tr))
+      StatementIn OStatementIn WitnessIn
+      (fun shared => Spec.Transcript.liftAppend (ctx₁ shared) (ctx₂ shared) (StatementOut shared))
+      (fun shared tr =>
+        liftAppendOracleFamily (ctx₁ shared) (ctx₂ shared) (ιₛₒ shared) (OStatementOut shared) tr)
+      (fun shared => Spec.Transcript.liftAppend (ctx₁ shared) (ctx₂ shared) (WitnessOut shared)) :=
+      OracleReduction.comp reduction1 reduction2
+    ∀ (qOut :
+      ([liftAppendOracleFamily (ctx₁ shared) (ctx₂ shared)
+        (ιₛₒ shared) (OStatementOut shared)
+        (Spec.Transcript.append (ctx₁ shared) (ctx₂ shared) tr₁ tr₂)]ₒ).Domain),
+      simulateQ
+        (OracleDecoration.oracleContextImpl
+          ((ctx₁ shared).append (ctx₂ shared))
+          (Spec.Decoration.append (roles₁ shared) (roles₂ shared))
+          (Role.Refine.append (oracleDeco₁ shared) (fun tr => oracleDeco₂ shared tr))
+          oStatementIn
+          (Spec.Transcript.append (ctx₁ shared) (ctx₂ shared) tr₁ tr₂))
+        (composed.simulate shared
+          (Spec.Transcript.append (ctx₁ shared) (ctx₂ shared) tr₁ tr₂) qOut) =
+      pure
+        (answerSplitLiftAppendQuery
+          (ctx₁ := ctx₁) (ctx₂ := ctx₂)
+          (ιₛₒ := ιₛₒ) (OStatementOut := OStatementOut)
+          shared tr₁ tr₂ oStatementOut qOut) := by
+  dsimp
+  intro qOut
+  let reduction1Fixed := promoteStatementToShared reduction1 shared
+  let reduction2Fixed :
+      (stmt : StatementIn shared) → (tr₁ : Spec.Transcript (ctx₁ shared)) →
+        OracleReduction oSpec
+          PUnit
+          (fun _ => ctx₂ shared tr₁)
+          (fun _ => roles₂ shared tr₁)
+          (fun _ => oracleDeco₂ shared tr₁)
+          (fun _ => StatementMid shared tr₁)
+          (fun _ => OStatementMid shared tr₁)
+          (fun _ => WitnessMid shared tr₁)
+          (fun _ tr₂ => StatementOut shared tr₁ tr₂)
+          (fun _ tr₂ => OStatementOut shared tr₁ tr₂)
+          (fun _ tr₂ => WitnessOut shared tr₁ tr₂) :=
+    fun _ tr₁ => freezeSharedToPUnit reduction2 ⟨shared, tr₁⟩
+  have hMid' :
+      ∀ i (q : OracleInterface.Query (OStatementMid shared tr₁ i)),
+        simulateQ
+          (OracleDecoration.oracleContextImpl
+            (ctx₁ shared) (roles₁ shared) (oracleDeco₁ shared) oStatementIn tr₁)
+          (reduction1Fixed.simulate stmt tr₁ ⟨i, q⟩) =
+        pure (OracleInterface.answer (oStatementMid i) q) := by
+    simpa [reduction1Fixed, promoteStatementToShared, SimulatesConcrete,
+      OracleDecoration.OutputRealizes, OracleDecoration.oracleContextImpl] using hMid
+  have hOut' :
+      ∀ i (q : OracleInterface.Query (OStatementOut shared tr₁ tr₂ i)),
+        simulateQ
+          (QueryImpl.add
+            (OracleInterface.simOracle0 (OStatementMid shared tr₁) oStatementMid)
+            (OracleDecoration.answerQuery
+              (ctx₂ shared tr₁) (roles₂ shared tr₁) (oracleDeco₂ shared tr₁) tr₂))
+          ((reduction2Fixed stmt tr₁).simulate PUnit.unit tr₂ ⟨i, q⟩) =
+        pure (OracleInterface.answer (oStatementOut i) q) := by
+    simpa [reduction2Fixed, freezeSharedToPUnit, SimulatesConcrete,
+      OracleDecoration.OutputRealizes, OracleDecoration.oracleContextImpl] using hOut
+  let qSplit : ([OStatementOut shared tr₁ tr₂]ₒ).Domain :=
+    cast
+      (congrArg (fun p => ([OStatementOut shared p.1 p.2]ₒ).Domain)
+        (Spec.Transcript.split_append (ctx₁ shared) (ctx₂ shared) tr₁ tr₂))
+      (splitLiftAppendOracleQuery
+        (ctx₁ shared) (ctx₂ shared) (ιₛₒ shared) (OStatementOut shared)
+        (Spec.Transcript.append (ctx₁ shared) (ctx₂ shared) tr₁ tr₂) qOut)
+  have hFlat :=
+    simulate_compFlat
+      (reduction1 := reduction1Fixed)
+      (reduction2 := reduction2Fixed)
+      stmt tr₁ tr₂ oStatementIn
+      (OracleInterface.simOracle0 (OStatementMid shared tr₁) oStatementMid)
+      (OracleInterface.simOracle0 (OStatementOut shared tr₁ tr₂) oStatementOut)
+      hMid' hOut'
+      qSplit.1 qSplit.2
+  dsimp [OracleReduction.comp] at hFlat ⊢
+  -- Remaining gap: the public `comp.simulate` wrapper casts the routed nested
+  -- simulator from the split view back to the fused append oracle family.
+  -- `hFlat` proves the routed nested simulator itself; finishing this theorem
+  -- amounts to transporting that equality across the final cast wrapper.
+  sorry
+
 /-- Package a plain output statement together with reified output-oracle data. -/
 def output
     {ι : Type _} {oSpec : OracleSpec ι}
