@@ -260,7 +260,7 @@ end OracleDecoration
 namespace OracleVerifier
 
 /-- Concrete reified input language for verifier-side oracle semantics. -/
-abbrev InputLanguage
+abbrev ReifiedInputLanguage
     {SharedIn : Type _}
     (StatementIn : SharedIn → Type _)
     {ιₛᵢ : SharedIn → Type _}
@@ -268,7 +268,7 @@ abbrev InputLanguage
   ∀ shared, Set (StatementWithOracles StatementIn OStatementIn shared)
 
 /-- Concrete reified output language for verifier-side oracle semantics. -/
-abbrev OutputLanguage
+abbrev ReifiedOutputLanguage
     {SharedIn : Type _}
     {Context : SharedIn → Spec}
     (StatementOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type _)
@@ -281,7 +281,7 @@ abbrev OutputLanguage
 
 /-- Concrete reified witness-bearing input relation for verifier-side oracle
 knowledge soundness. -/
-abbrev InputRelationSet
+abbrev ReifiedInputRelation
     {SharedIn : Type _}
     (StatementIn : SharedIn → Type _)
     {ιₛᵢ : SharedIn → Type _}
@@ -291,7 +291,7 @@ abbrev InputRelationSet
 
 /-- Concrete reified witness-bearing output relation for verifier-side oracle
 knowledge soundness. -/
-abbrev OutputRelationSet
+abbrev ReifiedOutputRelation
     {SharedIn : Type _}
     {Context : SharedIn → Spec}
     (StatementOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type _)
@@ -402,14 +402,14 @@ def output
 /-- Turn a concrete input language into the canonical relative validity
 predicate by existentially quantifying over concrete oracle statements
 realizing the input implementation. -/
-def validInputOfLanguage
+def inputLanguageOfReifiedLanguage
     {SharedIn : Type _}
     {StatementIn : SharedIn → Type _}
     {ιₛᵢ : SharedIn → Type _}
     {OStatementIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
     [∀ shared i, OracleInterface (OStatementIn shared i)]
-    (langIn : InputLanguage StatementIn OStatementIn) :
-    OracleVerifier.ValidInput
+    (langIn : ReifiedInputLanguage StatementIn OStatementIn) :
+    OracleVerifier.InputLanguage
       (StatementIn := StatementIn) (OStatementIn := OStatementIn) :=
   fun shared stmt inputImpl =>
     ∃ oStatementIn : OracleStatement (OStatementIn shared),
@@ -419,7 +419,7 @@ def validInputOfLanguage
 /-- Turn a concrete output language into the canonical relative output validity
 predicate by existentially quantifying over concrete output oracle statements
 realizing the output behavior. -/
-def validOutputOfLanguage
+def outputLanguageOfReifiedLanguage
     {SharedIn : Type _}
     {Context : SharedIn → Spec}
     {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
@@ -432,9 +432,9 @@ def validOutputOfLanguage
     {OStatementOut :
       (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type _}
     [∀ shared tr i, OracleInterface (OStatementOut shared tr i)]
-    (langOut : OutputLanguage
+    (langOut : ReifiedOutputLanguage
       (Context := Context) (StatementOut := StatementOut) (OStatementOut := OStatementOut)) :
-    OracleVerifier.ValidOutput
+    OracleVerifier.OutputLanguage
       (Context := Context) (Roles := Roles) (OD := OD) (StatementOut := StatementOut)
       (OStatementIn := OStatementIn) (OStatementOut := OStatementOut) :=
   fun shared inputImpl tr stmtOut outputImpl =>
@@ -447,14 +447,14 @@ def validOutputOfLanguage
 
 /-- Turn a concrete witness-bearing input relation into the canonical relative
 input relation. -/
-def inputRelationOfRelation
+def inputRelationOfReifiedRelation
     {SharedIn : Type _}
     {StatementIn : SharedIn → Type _}
     {ιₛᵢ : SharedIn → Type _}
     {OStatementIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
     [∀ shared i, OracleInterface (OStatementIn shared i)]
     {WitnessIn : SharedIn → Type _}
-    (relIn : InputRelationSet StatementIn OStatementIn WitnessIn) :
+    (relIn : ReifiedInputRelation StatementIn OStatementIn WitnessIn) :
     OracleVerifier.InputRelation
       (StatementIn := StatementIn) (OStatementIn := OStatementIn) WitnessIn :=
   fun shared stmt inputImpl wit =>
@@ -464,7 +464,7 @@ def inputRelationOfRelation
 
 /-- Turn a concrete witness-bearing output relation into the canonical relative
 output relation. -/
-def outputRelationOfRelation
+def outputRelationOfReifiedRelation
     {SharedIn : Type _}
     {Context : SharedIn → Spec}
     {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
@@ -478,7 +478,7 @@ def outputRelationOfRelation
       (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type _}
     [∀ shared tr i, OracleInterface (OStatementOut shared tr i)]
     {WitnessOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type _}
-    (relOut : OutputRelationSet
+    (relOut : ReifiedOutputRelation
       (Context := Context) (StatementOut := StatementOut)
       (OStatementOut := OStatementOut) (WitnessOut := WitnessOut)) :
     OracleVerifier.OutputRelation
@@ -511,14 +511,14 @@ def reifiedSoundness
     [∀ shared tr i, OracleInterface (OStatementOut shared tr i)]
     (verifier : Interaction.OracleVerifier oSpec SharedIn Context Roles OD
       StatementIn OStatementIn StatementOut OStatementOut) :
-    InputLanguage StatementIn OStatementIn →
-    OutputLanguage
+    ReifiedInputLanguage StatementIn OStatementIn →
+    ReifiedOutputLanguage
       (Context := Context) (StatementOut := StatementOut) (OStatementOut := OStatementOut) →
     ENNReal → Prop
   | langIn, langOut, ε =>
       OracleVerifier.soundness verifier
-        (validInputOfLanguage langIn)
-        (validOutputOfLanguage
+        (inputLanguageOfReifiedLanguage langIn)
+        (outputLanguageOfReifiedLanguage
           (Context := Context) (Roles := Roles) (OD := OD)
           (StatementOut := StatementOut) langOut)
         ε
@@ -544,15 +544,15 @@ def reifiedKnowledgeSoundness
     {WitnessOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type _}
     (verifier : Interaction.OracleVerifier oSpec SharedIn Context Roles OD
       StatementIn OStatementIn StatementOut OStatementOut) :
-    InputRelationSet StatementIn OStatementIn WitnessIn →
-    OutputRelationSet
+    ReifiedInputRelation StatementIn OStatementIn WitnessIn →
+    ReifiedOutputRelation
       (Context := Context) (StatementOut := StatementOut)
       (OStatementOut := OStatementOut) (WitnessOut := WitnessOut) →
     ENNReal → Prop
   | relIn, relOut, ε =>
       OracleVerifier.knowledgeSoundness verifier
-        (inputRelationOfRelation relIn)
-        (outputRelationOfRelation
+        (inputRelationOfReifiedRelation relIn)
+        (outputRelationOfReifiedRelation
           (Context := Context) (Roles := Roles) (OD := OD)
           (StatementOut := StatementOut) relOut)
         ε

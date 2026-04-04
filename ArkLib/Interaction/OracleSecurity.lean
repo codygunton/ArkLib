@@ -26,7 +26,7 @@ Concrete oracle materialization is intentionally pushed outward into
 - `OracleDecoration.OutputRealizes`
 - `OracleReduction.InputRelation` / `OracleReduction.OutputRelation`
 - `OracleReduction.completeness`
-- `OracleVerifier.ValidInput` / `OracleVerifier.ValidOutput`
+- `OracleVerifier.InputLanguage` / `OracleVerifier.OutputLanguage`
 - `OracleVerifier.soundness`
 - `OracleVerifier.knowledgeSoundness`
 
@@ -364,9 +364,9 @@ abbrev OutputImpl
     (Context := Context) (Roles := Roles) (OD := OD)
     (OStatementIn := OStatementIn) (OStatementOut := OStatementOut)
 
-/-- Relative validity predicate for verifier inputs, stated on the explicit
+/-- Relative input language for verifier inputs, stated on the explicit
 statement and the input-oracle behavior. -/
-abbrev ValidInput
+abbrev InputLanguage
     {SharedIn : Type _}
     {StatementIn : SharedIn → Type _}
     {ιₛᵢ : SharedIn → Type _}
@@ -377,9 +377,9 @@ abbrev ValidInput
   InputImpl OStatementIn shared →
   Prop
 
-/-- Relative validity predicate for verifier outputs, stated on the explicit
+/-- Relative output language for verifier outputs, stated on the explicit
 output statement and the output-oracle behavior. -/
-abbrev ValidOutput
+abbrev OutputLanguage
     {SharedIn : Type _}
     {Context : SharedIn → Spec}
     {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
@@ -460,15 +460,15 @@ def Accepts
     [∀ shared tr i, OracleInterface (OStatementOut shared tr i)]
     (verifier : Interaction.OracleVerifier oSpec SharedIn Context Roles OD
       StatementIn OStatementIn StatementOut OStatementOut)
-    (validOut :
-      ValidOutput (Context := Context) (Roles := Roles) (OD := OD)
+    (langOut :
+      OutputLanguage (Context := Context) (Roles := Roles) (OD := OD)
         (StatementOut := StatementOut)
         (OStatementIn := OStatementIn) (OStatementOut := OStatementOut))
     (shared : SharedIn)
     (inputImpl : InputImpl OStatementIn shared)
     (tr : Spec.Transcript (Context shared))
     (stmtOut : StatementOut shared tr) : Prop :=
-  validOut shared inputImpl tr stmtOut (verifier.simulate shared tr)
+  langOut shared inputImpl tr stmtOut (verifier.simulate shared tr)
 
 /-- Soundness for a verifier-only oracle protocol, with the relative
 oracle-behavior view as the canonical formulation. -/
@@ -489,9 +489,9 @@ def soundness
     [∀ shared tr i, OracleInterface (OStatementOut shared tr i)]
     (verifier : Interaction.OracleVerifier oSpec SharedIn Context Roles OD
       StatementIn OStatementIn StatementOut OStatementOut)
-    (validIn : ValidInput (StatementIn := StatementIn) (OStatementIn := OStatementIn))
-    (validOut :
-      ValidOutput (Context := Context) (Roles := Roles) (OD := OD)
+    (langIn : InputLanguage (StatementIn := StatementIn) (OStatementIn := OStatementIn))
+    (langOut :
+      OutputLanguage (Context := Context) (Roles := Roles) (OD := OD)
         (StatementOut := StatementOut)
         (OStatementIn := OStatementIn) (OStatementOut := OStatementOut))
     (ε : ℝ≥0∞) : Prop :=
@@ -501,8 +501,8 @@ def soundness
       (prover : Spec.Strategy.withRoles (OracleComp oSpec) (Context shared)
         (Roles shared) OutputP)
       {ιₐ : Type _} (accSpec : OracleSpec ιₐ) (accImpl : QueryImpl accSpec Id),
-      ¬ validIn shared stmt inputImpl →
-        Pr[fun z => Accepts verifier validOut shared inputImpl z.1 z.2.2.1
+      ¬ langIn shared stmt inputImpl →
+        Pr[fun z => Accepts verifier langOut shared inputImpl z.1 z.2.2.1
           | OracleVerifier.run verifier shared stmt inputImpl prover accSpec accImpl] ≤ ε
 
 /-- Knowledge soundness for a verifier-only oracle protocol, phrased against
