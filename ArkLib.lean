@@ -119,6 +119,7 @@ import ArkLib.Interaction.Concurrent.Interleaving
 import ArkLib.Interaction.Concurrent.Liveness
 import ArkLib.Interaction.Concurrent.Machine
 import ArkLib.Interaction.Concurrent.Observation
+import ArkLib.Interaction.Concurrent.OpenTheory
 import ArkLib.Interaction.Concurrent.Policy
 import ArkLib.Interaction.Concurrent.Process
 import ArkLib.Interaction.Concurrent.Profile
