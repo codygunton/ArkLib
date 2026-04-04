@@ -508,7 +508,9 @@ theorem soundness_comp
         Spec.Transcript.liftAppend (ctx₁ shared) (ctx₂ shared) (StmtOut shared) tr) → Prop :=
     fun z =>
       let splitTr := Spec.Transcript.split (ctx₁ shared) (ctx₂ shared) z.1
-      let sOut := Spec.Transcript.unliftAppend (ctx₁ shared) (ctx₂ shared) (StmtOut shared) z.1 z.2.2
+      let sOut :=
+        Spec.Transcript.unliftAppend
+          (ctx₁ shared) (ctx₂ shared) (StmtOut shared) z.1 z.2.2
       sOut ∈ langOut shared splitTr.1 splitTr.2
   have h₁_bad : Pr[fun z₁ => ¬ bad₁ z₁ | mx] ≤ ε₁ := by
     simpa [mx, bad₁, prefixProver, Verifier.soundness] using
@@ -594,7 +596,8 @@ theorem soundness_comp
           OutputP tr ×
           Spec.Transcript.liftAppend (ctx₁ shared) (ctx₂ shared) (StmtOut shared) tr) :=
       fun z₁ =>
-        (fun z₂ => ⟨Spec.Transcript.append (ctx₁ shared) (ctx₂ shared) z₁.1 z₂.1, z₂.2.1, z₂.2.2⟩) <$>
+        (fun z₂ =>
+          ⟨Spec.Transcript.append (ctx₁ shared) (ctx₂ shared) z₁.1 z₂.1, z₂.2.1, z₂.2.2⟩) <$>
           Spec.Strategy.runWithRoles (ctx₂ shared z₁.1) (roles₂ shared z₁.1) z₁.2.1
             (mappedStep z₁.1 z₁.2.2)
     have hrun' := Spec.Strategy.runWithRoles_compWithRolesFlat_appendFlat_pure
@@ -957,7 +960,7 @@ theorem IsSound.bound_terminalProb
           _ = ⨆ x, (next x).maxPathError := by simp
       have hrun :
           Spec.Strategy.runWithRoles _ _ prover (randomChallenger sample _ _) = mx >>= my := by
-        simpa [mx, my, randomChallenger, Spec.Strategy.runWithRoles_sender, bind_assoc]
+        simp [mx, my, randomChallenger, Spec.Strategy.runWithRoles_sender, bind_assoc]
       simpa [ClaimTree.maxPathError, hrun]
         using hbind
   | @receiver _ X rest rRest good error NextClaim next advance ih =>
@@ -1042,7 +1045,7 @@ theorem IsSound.bound_terminalProb
       have hrun :
           Spec.Strategy.runWithRoles _ _ prover (randomChallenger sample _ _) =
             sample _ >>= my := by
-        simpa [my, randomChallenger, Spec.Strategy.runWithRoles_receiver, bind_assoc]
+        simp [my, randomChallenger, Spec.Strategy.runWithRoles_receiver, bind_assoc]
       simpa [ClaimTree.maxPathError, hrun] using hbind
 
 end ClaimTree
@@ -1342,8 +1345,7 @@ theorem rbrKnowledgeSoundness_implies_rbrSoundness
   refine ⟨?_, ?_, ?_, ?_⟩
   · intro shared stmt
     exact KnowledgeClaimTree.isKnowledgeSound_implies_isSound (hSound shared stmt)
-  · intro shared stmt hs
-    intro hGood
+  · intro shared stmt hs hGood
     have hGood' : (tree shared stmt).good (root shared stmt) := by
       simpa using hGood
     exact hLang shared stmt hs (extract shared stmt (root shared stmt))

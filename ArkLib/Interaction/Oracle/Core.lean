@@ -778,7 +778,8 @@ structure OracleReduction {ι : Type} (oSpec : OracleSpec ι)
   simulate : (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) →
     QueryImpl [OStatementOut shared tr]ₒ
       (OracleComp
-        ([OStatementIn shared]ₒ + toOracleSpec (Context shared) (Roles shared) (oracleDeco shared) tr))
+        ([OStatementIn shared]ₒ +
+          toOracleSpec (Context shared) (Roles shared) (oracleDeco shared) tr))
 
 namespace OracleReduction
 
@@ -800,7 +801,8 @@ abbrev VerifierOutput
     (shared : SharedIn) (tr : Spec.Transcript (Context shared)) :=
   StatementOut shared tr × QueryImpl [OStatementOut shared tr]ₒ
     (OracleComp
-      ([OStatementIn shared]ₒ + toOracleSpec (Context shared) (Roles shared) (oracleDeco shared) tr))
+      ([OStatementIn shared]ₒ +
+        toOracleSpec (Context shared) (Roles shared) (oracleDeco shared) tr))
 
 /-- Package the verifier's plain output statement together with the verifier's
 output-oracle query access. -/

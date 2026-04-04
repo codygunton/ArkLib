@@ -637,7 +637,8 @@ theorem Strategy.runWithRoles_compWithRolesFlat_appendFlat
             ((tr : Spec.Transcript ((Spec.node _ rest).append s₂)) × OutputP tr × OutputC tr) :=
           fun a => ⟨⟨xc.1, a.1⟩, a.2.1, a.2.2⟩
         let lhsSwap :
-            m ((tr : Spec.Transcript ((Spec.node _ rest).append s₂)) × OutputP tr × OutputC tr) := do
+            m ((tr : Spec.Transcript ((Spec.node _ rest).append s₂)) × OutputP tr × OutputC tr) :=
+          do
               let strat₂ ← Strategy.compWithRolesFlat xc.2 (fun tr₁ mid => f ⟨xc.1, tr₁⟩ mid)
               let cNext ← cpt₁ xc.1
               addPrefix <$>
@@ -647,7 +648,8 @@ theorem Strategy.runWithRoles_compWithRolesFlat_appendFlat
                   strat₂
                   (Counterpart.appendFlat cNext (fun p o => cpt₂ ⟨xc.1, p⟩ o))
         let rhsSwap :
-            m ((tr : Spec.Transcript ((Spec.node _ rest).append s₂)) × OutputP tr × OutputC tr) := do
+            m ((tr : Spec.Transcript ((Spec.node _ rest).append s₂)) × OutputP tr × OutputC tr) :=
+          do
               let cNext ← cpt₁ xc.1
               let strat₂ ← Strategy.compWithRolesFlat xc.2 (fun tr₁ mid => f ⟨xc.1, tr₁⟩ mid)
               addPrefix <$>
@@ -705,7 +707,9 @@ theorem Strategy.runWithRoles_compWithRolesFlat_appendFlat
               let ⟨tr₁, mid, out₁⟩ ← Strategy.runWithRoles (rest xc.1) (rRest xc.1) xc.2 cNext
               let strat₂ ← f ⟨xc.1, tr₁⟩ mid
               let ⟨tr₂, outP, outC⟩ ←
-                Strategy.runWithRoles (s₂ ⟨xc.1, tr₁⟩) (r₂ ⟨xc.1, tr₁⟩) strat₂ (cpt₂ ⟨xc.1, tr₁⟩ out₁)
+                Strategy.runWithRoles
+                  (s₂ ⟨xc.1, tr₁⟩) (r₂ ⟨xc.1, tr₁⟩) strat₂
+                  (cpt₂ ⟨xc.1, tr₁⟩ out₁)
               pure ⟨⟨xc.1, Spec.Transcript.append (rest xc.1) (fun p => s₂ ⟨xc.1, p⟩) tr₁ tr₂⟩,
                 outP, outC⟩
         have hbody : lhsBody = rhsBody := by
@@ -932,7 +936,9 @@ theorem Strategy.runWithRoles_compWithRoles_append
               let ⟨tr₁, mid, out₁⟩ ← Strategy.runWithRoles (rest xc.1) (rRest xc.1) xc.2 cNext
               let strat₂ ← f ⟨xc.1, tr₁⟩ mid
               let ⟨tr₂, outP, outC⟩ ←
-                Strategy.runWithRoles (s₂ ⟨xc.1, tr₁⟩) (r₂ ⟨xc.1, tr₁⟩) strat₂ (cpt₂ ⟨xc.1, tr₁⟩ out₁)
+                Strategy.runWithRoles
+                  (s₂ ⟨xc.1, tr₁⟩) (r₂ ⟨xc.1, tr₁⟩) strat₂
+                  (cpt₂ ⟨xc.1, tr₁⟩ out₁)
               pure ⟨⟨xc.1, Spec.Transcript.append (rest xc.1) (fun p => s₂ ⟨xc.1, p⟩) tr₁ tr₂⟩,
                 Spec.Transcript.packAppend (rest xc.1) (fun p => s₂ ⟨xc.1, p⟩)
                   (fun tr₁ tr₂ => FP ⟨xc.1, tr₁⟩ tr₂) tr₁ tr₂ outP,

@@ -174,8 +174,9 @@ def outputRelationOfRelation
       StatementWithOracles
           (fun _ => StatementOut shared tr) (fun _ => OStatementOut shared tr) shared →
         WitnessOut shared tr → Prop) :
-    OracleReduction.OutputRelation
-      (Context := Context) (Roles := Roles) (oracleDeco := oracleDeco) (StatementOut := StatementOut)
+  OracleReduction.OutputRelation
+      (Context := Context) (Roles := Roles) (oracleDeco := oracleDeco)
+      (StatementOut := StatementOut)
       (OStatementIn := OStatementIn) (OStatementOut := OStatementOut) WitnessOut :=
   fun shared inputImpl tr stmtOut outputImpl witOut =>
     ∃ oStatementOut : OracleStatement (OStatementOut shared tr),
@@ -217,7 +218,8 @@ def reifiedCompleteness
   OracleReduction.completeness reduction
     (inputRelationOfRelation relIn)
     (outputRelationOfRelation
-      (Context := Context) (Roles := Roles) (oracleDeco := oracleDeco) (StatementOut := StatementOut) relOut)
+      (Context := Context) (Roles := Roles) (oracleDeco := oracleDeco)
+      (StatementOut := StatementOut) relOut)
     ε
 
 /-- Concrete-view perfect completeness, derived from the canonical relative
@@ -251,7 +253,8 @@ def reifiedPerfectCompleteness
   OracleReduction.perfectCompleteness reduction
     (inputRelationOfRelation relIn)
     (outputRelationOfRelation
-      (Context := Context) (Roles := Roles) (oracleDeco := oracleDeco) (StatementOut := StatementOut) relOut)
+      (Context := Context) (Roles := Roles) (oracleDeco := oracleDeco)
+      (StatementOut := StatementOut) relOut)
 
 end OracleReduction
 
@@ -435,7 +438,8 @@ def outputLanguageOfReifiedLanguage
     (langOut : ReifiedOutputLanguage
       (Context := Context) (StatementOut := StatementOut) (OStatementOut := OStatementOut)) :
     OracleVerifier.OutputLanguage
-      (Context := Context) (Roles := Roles) (oracleDeco := oracleDeco) (StatementOut := StatementOut)
+      (Context := Context) (Roles := Roles) (oracleDeco := oracleDeco)
+      (StatementOut := StatementOut)
       (OStatementIn := OStatementIn) (OStatementOut := OStatementOut) :=
   fun shared inputImpl tr stmtOut outputImpl =>
     ∃ oStatementOut : OracleStatement (OStatementOut shared tr),
@@ -482,7 +486,8 @@ def outputRelationOfReifiedRelation
       (Context := Context) (StatementOut := StatementOut)
       (OStatementOut := OStatementOut) (WitnessOut := WitnessOut)) :
     OracleVerifier.OutputRelation
-      (Context := Context) (Roles := Roles) (oracleDeco := oracleDeco) (StatementOut := StatementOut)
+      (Context := Context) (Roles := Roles) (oracleDeco := oracleDeco)
+      (StatementOut := StatementOut)
       (OStatementIn := OStatementIn) (OStatementOut := OStatementOut) WitnessOut :=
   fun shared inputImpl tr stmtOut outputImpl witOut =>
     ∃ oStatementOut : OracleStatement (OStatementOut shared tr),

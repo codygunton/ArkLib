@@ -231,8 +231,9 @@ def runConcrete
       (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type}
     [∀ shared tr i, OracleInterface (OStatementOut shared tr i)]
     {WitnessOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type}
-    (reduction : OracleReduction oSpec SharedIn Context Roles oracleDeco StatementIn OStatementIn WitnessIn
-      StatementOut OStatementOut WitnessOut)
+    (reduction :
+      OracleReduction oSpec SharedIn Context Roles oracleDeco StatementIn OStatementIn WitnessIn
+        StatementOut OStatementOut WitnessOut)
     (shared : SharedIn)
     (s : StatementWithOracles StatementIn OStatementIn shared)
     {OutputP : Spec.Transcript (Context shared) → Type}
@@ -273,8 +274,8 @@ def run
       (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type}
     [∀ shared tr i, OracleInterface (OStatementOut shared tr i)]
     (verifier :
-      @Interaction.OracleVerifier ι oSpec SharedIn Context Roles oracleDeco StatementIn ιₛᵢ OStatementIn
-        (by infer_instance) StatementOut ιₛₒ OStatementOut
+      @Interaction.OracleVerifier ι oSpec SharedIn Context Roles oracleDeco StatementIn ιₛᵢ
+        OStatementIn (by infer_instance) StatementOut ιₛₒ OStatementOut
         (by infer_instance))
     (shared : SharedIn)
     (stmt : StatementIn shared)
@@ -316,8 +317,9 @@ def executePublicConcrete
       (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type}
     [∀ shared tr i, OracleInterface (OStatementOut shared tr i)]
     {WitnessOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type}
-    (reduction : OracleReduction oSpec SharedIn Context Roles oracleDeco StatementIn OStatementIn WitnessIn
-      StatementOut OStatementOut WitnessOut)
+    (reduction :
+      OracleReduction oSpec SharedIn Context Roles oracleDeco StatementIn OStatementIn WitnessIn
+        StatementOut OStatementOut WitnessOut)
     (shared : SharedIn) (s : StatementWithOracles StatementIn OStatementIn shared)
     (w : WitnessIn shared) :
     OracleComp oSpec ((tr : Spec.Transcript (Context shared)) ×
@@ -362,7 +364,8 @@ def HonestPubliclyEquivalent
     (reduction₂ : OracleReduction oSpec Input Context Roles oracleDeco LocalStmt OStmtIn WitnessIn₂
       StatementOut OStmtOut WitnessOut₂) : Prop :=
   ∀ (i : Input) (s : StatementWithOracles LocalStmt OStmtIn i) (w : WitnessIn₁ i),
-    reduction₁.executePublicConcrete i s w = reduction₂.executePublicConcrete i s (liftWitness i s w)
+    reduction₁.executePublicConcrete i s w =
+      reduction₂.executePublicConcrete i s (liftWitness i s w)
 
 /-- Execute an oracle reduction honestly and package the verifier's plain output
 with transcript-dependent oracle access semantics. -/
@@ -401,7 +404,7 @@ def executeConcrete
 /-- Map the private honest-prover witness component of an executed oracle
 reduction while leaving its public transcript/output view unchanged. -/
 def mapExecuteWitness
-    {ι : Type} {oSpec : OracleSpec ι}
+    {ι : Type} {_oSpec : OracleSpec ι}
     {Input : Type} {ιₛᵢ : Input → Type}
     {OStmtIn : (i : Input) → ιₛᵢ i → Type}
     [∀ i j, OracleInterface (OStmtIn i j)]
@@ -415,7 +418,7 @@ def mapExecuteWitness
     [∀ i tr j, OracleInterface (OStmtOut i tr j)]
     {WitnessOut₁ WitnessOut₂ : (i : Input) → Spec.Transcript (Context i) → Type}
     (i : Input)
-    (s : StatementWithOracles LocalStmt OStmtIn i)
+    (_s : StatementWithOracles LocalStmt OStmtIn i)
     (liftWitness : (tr : Spec.Transcript (Context i)) →
       WitnessOut₁ i tr → WitnessOut₂ i tr) :
     ((tr : Spec.Transcript (Context i)) ×
@@ -439,7 +442,7 @@ def mapExecuteWitness
 /-- Forget the private honest-prover witness component of an executed oracle
 reduction, keeping only its public transcript/output view. -/
 def forgetExecuteWitness
-    {ι : Type} {oSpec : OracleSpec ι}
+    {ι : Type} {_oSpec : OracleSpec ι}
     {Input : Type} {ιₛᵢ : Input → Type}
     {OStmtIn : (i : Input) → ιₛᵢ i → Type}
     [∀ i j, OracleInterface (OStmtIn i j)]
@@ -453,7 +456,7 @@ def forgetExecuteWitness
     [∀ i tr j, OracleInterface (OStmtOut i tr j)]
     {WitnessOut : (i : Input) → Spec.Transcript (Context i) → Type}
     (i : Input)
-    (s : StatementWithOracles LocalStmt OStmtIn i) :
+    (_s : StatementWithOracles LocalStmt OStmtIn i) :
     ((tr : Spec.Transcript (Context i)) ×
       HonestProverOutput
         (StatementWithOracles (fun _ => StatementOut i tr) (fun _ => OStmtOut i tr) i)
@@ -698,7 +701,7 @@ theorem OracleReduction.mapExecuteWitness_eq_execute_mappedOutput
                 ([OStmtIn i]ₒ + toOracleSpec (Context i) (Roles i)
                   (oracleDeco i) tr)))))) := by
         simp [OracleReduction.executeConcrete, OracleReduction.mapExecuteWitness,
-          runWithOracleCounterpart_mapOutputWithRoles, bind_assoc, Functor.map_map]
+          runWithOracleCounterpart_mapOutputWithRoles, Functor.map_map]
 
 /-- Mapping the verifier-side output of a monadic counterpart before execution
 is equivalent to executing first and then mapping the verifier component of the

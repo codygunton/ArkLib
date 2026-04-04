@@ -1126,7 +1126,7 @@ theorem runWithOracleCounterpart_pullbackCounterpart
                 | inl q => rfl
                 | inr q => rfl
             | inr q => rfl
-          simp [OracleDecoration.runWithOracleCounterpart, routeInner, hInnerEval, contInner,
+          simp only [OracleDecoration.runWithOracleCounterpart, routeInner, hInnerEval, contInner,
             prefixMap, map_bind, bind_pure_comp, Functor.map_map]
           refine congrArg
             (fun k => simulateQ routeEval cpt >>= k) ?_

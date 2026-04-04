@@ -248,7 +248,9 @@ instance
     [∀ shared tr i, OracleInterface (OStatementOut shared tr i)]
     {WitnessOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type _} :
     CoeFun
-      (Straightline (SharedIn := SharedIn) (Context := Context) (Roles := Roles) (oracleDeco := oracleDeco)
+      (Straightline
+        (SharedIn := SharedIn) (Context := Context) (Roles := Roles)
+        (oracleDeco := oracleDeco)
         (StatementIn := StatementIn) (OStatementIn := OStatementIn)
         (WitnessIn := WitnessIn) (StatementOut := StatementOut)
         (OStatementOut := OStatementOut) (WitnessOut := WitnessOut))

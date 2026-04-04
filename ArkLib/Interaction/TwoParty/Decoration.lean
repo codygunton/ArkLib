@@ -130,7 +130,7 @@ theorem withPairedMonads_map_fst :
       RoleDecoration.withMonads roles stratDeco
   | .done, _, _, _ => rfl
   | .node _ rest, ⟨role, rRest⟩, ⟨bmS, mRestS⟩, ⟨bmC, mRestC⟩ => by
-      simp [RoleDecoration.withPairedMonads, RoleDecoration.withMonads,
+      simp only [RoleDecoration.withPairedMonads, RoleDecoration.withMonads,
         RoleDecoration.monadsOver, RoleDecoration.pairedMonadsOver,
         RolePairedMonadContext.fst]
       apply Prod.ext
@@ -149,7 +149,7 @@ theorem withPairedMonads_map_snd :
       RoleDecoration.withMonads roles cptDeco
   | .done, _, _, _ => rfl
   | .node _ rest, ⟨role, rRest⟩, ⟨bmS, mRestS⟩, ⟨bmC, mRestC⟩ => by
-      simp [RoleDecoration.withPairedMonads, RoleDecoration.withMonads,
+      simp only [RoleDecoration.withPairedMonads, RoleDecoration.withMonads,
         RoleDecoration.monadsOver, RoleDecoration.pairedMonadsOver,
         RolePairedMonadContext.snd]
       apply Prod.ext

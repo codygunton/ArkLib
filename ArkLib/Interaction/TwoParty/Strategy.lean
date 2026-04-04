@@ -105,7 +105,7 @@ private theorem SyntaxOver.family_forAgent {Agent : Type u} {Γ : Node.Context}
       SyntaxOver.Family syn agent spec ctxs Out
   | .done, _, _ => rfl
   | .node _ next, ⟨γ, ctxs⟩, Out => by
-      simp [SyntaxOver.Family, SyntaxOver.forAgent]
+      simp only [SyntaxOver.Family, SyntaxOver.forAgent]
       congr 1
       funext x
       exact SyntaxOver.family_forAgent syn agent (spec := next x) (ctxs := ctxs x)
@@ -194,7 +194,7 @@ private def counterpartMonadicSyntax :
 private def counterpartMonadicShape :
     ShapeOver.{u, 0, u, u + 1} PUnit RoleMonadContext where
   toSyntaxOver := counterpartMonadicSyntax
-  map := fun {agent} {X} {γ} {A} {B} f node =>
+  map := fun {_agent} {_X} {γ} {_A} {_B} f node =>
     match γ with
     | ⟨.sender, bm⟩ =>
         let observe : (x : X) → bm.M (A x) := by
@@ -280,7 +280,7 @@ private def counterpartFamilyShape
       (∀ x, A x → B x) → Receiver X A → Receiver X B) :
     ShapeOver PUnit (fun _ => Role) where
   toSyntaxOver := counterpartFamilySyntax Sender Receiver
-  map := fun {agent} {X} {γ} {A} {B} f node =>
+  map := fun {_agent} {_X} {γ} {_A} {_B} f node =>
     match γ with
     | .sender =>
         mapSender f node
@@ -625,8 +625,7 @@ theorem Strategy.runWithRoles_mapOutputWithRoles_mapOutput
     | .node _ rest, ⟨.sender, rRest⟩ =>
         simp only [Strategy.mapOutputWithRoles, Counterpart.mapOutput, Counterpart.mapReceiver,
           Counterpart.mapSender]
-        simp [Strategy.runWithRoles, Strategy.runWithRolesAux, pairedInteraction,
-          Participant.focal, Participant.counterpart, focalRunner, counterpartRunner]
+        simp only [runWithRoles_sender, bind_pure_comp, bind_map_left, map_bind, Functor.map_map]
         refine congrArg (fun k => strat >>= k) ?_
         funext xc
         refine congrArg (fun k => cpt xc.1 >>= k) ?_
@@ -643,8 +642,8 @@ theorem Strategy.runWithRoles_mapOutputWithRoles_mapOutput
     | .node _ rest, ⟨.receiver, rRest⟩ =>
         simp only [Strategy.mapOutputWithRoles, Counterpart.mapOutput,
           Counterpart.mapReceiver]
-        simp [Strategy.runWithRoles, Strategy.runWithRolesAux, pairedInteraction,
-          Participant.focal, Participant.counterpart, focalRunner, counterpartRunner]
+        simp only
+          [runWithRoles_receiver, bind_pure_comp, bind_map_left, map_bind, Functor.map_map]
         refine congrArg (fun k => cpt >>= k) ?_
         funext xc
         refine congrArg (fun k => strat xc.1 >>= k) ?_
@@ -768,7 +767,7 @@ private theorem pairedMonadicSyntax_family_focal :
         (agent := PUnit.unit)
         (ctxs := RoleDecoration.withPairedMonads roles stratDeco cptDeco)
         (Out := Output)]
-      simpa [Strategy.withRolesAndMonads] using
+      simp [Strategy.withRolesAndMonads] using
         (RoleDecoration.withPairedMonads_map_fst
           (spec := spec) (roles := roles)
           (stratDeco := stratDeco) (cptDeco := cptDeco))
@@ -790,7 +789,7 @@ private theorem pairedMonadicSyntax_family_counterpart :
         (agent := PUnit.unit)
         (ctxs := RoleDecoration.withPairedMonads roles stratDeco cptDeco)
         (Out := Output)]
-      simpa [Counterpart.withMonads] using
+      simp [Counterpart.withMonads] using
         (RoleDecoration.withPairedMonads_map_snd
           (spec := spec) (roles := roles)
           (stratDeco := stratDeco) (cptDeco := cptDeco))
