@@ -755,7 +755,7 @@ structure OracleReduction {ι : Type} (oSpec : OracleSpec ι)
     (SharedIn : Type)
     (Context : SharedIn → Spec)
     (Roles : (shared : SharedIn) → RoleDecoration (Context shared))
-    (OD : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared))
+    (oracleDeco : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared))
     (StatementIn : SharedIn → Type)
     {ιₛᵢ : SharedIn → Type}
     (OStatementIn : (shared : SharedIn) → ιₛᵢ shared → Type)
@@ -773,12 +773,12 @@ structure OracleReduction {ι : Type} (oSpec : OracleSpec ι)
     StatementIn shared →
       Spec.Counterpart.withMonads (Context shared) (Roles shared)
         (toMonadDecoration oSpec (OStatementIn shared)
-          (Context shared) (Roles shared) (OD shared) accSpec)
+          (Context shared) (Roles shared) (oracleDeco shared) accSpec)
         (fun tr => StatementOut shared tr)
   simulate : (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) →
     QueryImpl [OStatementOut shared tr]ₒ
       (OracleComp
-        ([OStatementIn shared]ₒ + toOracleSpec (Context shared) (Roles shared) (OD shared) tr))
+        ([OStatementIn shared]ₒ + toOracleSpec (Context shared) (Roles shared) (oracleDeco shared) tr))
 
 namespace OracleReduction
 
@@ -791,7 +791,7 @@ abbrev VerifierOutput
     {StatementOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type}
     {ιₛᵢ : SharedIn → Type} {OStatementIn : (shared : SharedIn) → ιₛᵢ shared → Type}
     {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
-    {OD : (shared : SharedIn) → OracleDecoration.{0, 0} (Context shared) (Roles shared)}
+    {oracleDeco : (shared : SharedIn) → OracleDecoration.{0, 0} (Context shared) (Roles shared)}
     {ιₛₒ : (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → Type}
     (OStatementOut :
       (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type)
@@ -800,7 +800,7 @@ abbrev VerifierOutput
     (shared : SharedIn) (tr : Spec.Transcript (Context shared)) :=
   StatementOut shared tr × QueryImpl [OStatementOut shared tr]ₒ
     (OracleComp
-      ([OStatementIn shared]ₒ + toOracleSpec (Context shared) (Roles shared) (OD shared) tr))
+      ([OStatementIn shared]ₒ + toOracleSpec (Context shared) (Roles shared) (oracleDeco shared) tr))
 
 /-- Package the verifier's plain output statement together with the verifier's
 output-oracle query access. -/
@@ -811,7 +811,7 @@ def verifierOutput
     [∀ shared i, OracleInterface.{0, 0} (OStatementIn shared i)]
     {Context : SharedIn → Spec.{0}}
     {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
-    {OD : (shared : SharedIn) → OracleDecoration.{0, 0} (Context shared) (Roles shared)}
+    {oracleDeco : (shared : SharedIn) → OracleDecoration.{0, 0} (Context shared) (Roles shared)}
     {StatementIn WitnessIn : SharedIn → Type}
     {StatementOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type}
     {ιₛₒ : (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → Type}
@@ -819,12 +819,12 @@ def verifierOutput
       (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type}
     [∀ shared tr i, OracleInterface (OStatementOut shared tr i)]
     {WitnessOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type}
-    (reduction : OracleReduction oSpec SharedIn Context Roles OD
+    (reduction : OracleReduction oSpec SharedIn Context Roles oracleDeco
       StatementIn OStatementIn WitnessIn StatementOut OStatementOut WitnessOut)
     (shared : SharedIn) (tr : Spec.Transcript (Context shared)) (stmtOut : StatementOut shared tr) :
     VerifierOutput (Context := Context) (StatementOut := StatementOut)
       (SharedIn := SharedIn) (OStatementIn := OStatementIn)
-      (Roles := Roles) (OD := OD) OStatementOut shared tr :=
+      (Roles := Roles) (oracleDeco := oracleDeco) OStatementOut shared tr :=
   ⟨stmtOut, reduction.simulate shared tr⟩
 
 /-- The verifier-side monad decoration induced by an oracle reduction, starting
@@ -836,7 +836,7 @@ abbrev verifierMD
     [∀ shared i, OracleInterface.{0, 0} (OStatementIn shared i)]
     {Context : SharedIn → Spec.{0}}
     {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
-    {OD : (shared : SharedIn) → OracleDecoration.{0, 0} (Context shared) (Roles shared)}
+    {oracleDeco : (shared : SharedIn) → OracleDecoration.{0, 0} (Context shared) (Roles shared)}
     {StatementIn WitnessIn : SharedIn → Type}
     {StatementOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type}
     {ιₛₒ : (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → Type}
@@ -844,12 +844,12 @@ abbrev verifierMD
       (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type}
     [∀ shared tr i, OracleInterface (OStatementOut shared tr i)]
     {WitnessOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type}
-    (_reduction : OracleReduction oSpec SharedIn Context Roles OD
+    (_reduction : OracleReduction oSpec SharedIn Context Roles oracleDeco
       StatementIn OStatementIn WitnessIn StatementOut OStatementOut WitnessOut)
     (shared : SharedIn) {ιₐ : Type} (accSpec : OracleSpec.{0, 0} ιₐ) :
     Spec.MonadDecoration (Context shared) :=
   toMonadDecoration oSpec (OStatementIn shared)
-    (Context shared) (Roles shared) (OD shared) accSpec
+    (Context shared) (Roles shared) (oracleDeco shared) accSpec
 
 end OracleReduction
 
@@ -867,7 +867,7 @@ structure OracleVerifier {ι : Type} (oSpec : OracleSpec ι)
     (SharedIn : Type)
     (Context : SharedIn → Spec)
     (Roles : (shared : SharedIn) → RoleDecoration (Context shared))
-    (OD : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared))
+    (oracleDeco : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared))
     (StatementIn : SharedIn → Type)
     {ιₛᵢ : SharedIn → Type}
     (OStatementIn : (shared : SharedIn) → ιₛᵢ shared → Type)
@@ -881,12 +881,12 @@ structure OracleVerifier {ι : Type} (oSpec : OracleSpec ι)
     StatementIn shared →
       Spec.Counterpart.withMonads (Context shared) (Roles shared)
         (OracleDecoration.toMonadDecoration oSpec (OStatementIn shared)
-          (Context shared) (Roles shared) (OD shared) accSpec)
+          (Context shared) (Roles shared) (oracleDeco shared) accSpec)
         (fun tr => StatementOut shared tr)
   simulate : (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) →
     QueryImpl [OStatementOut shared tr]ₒ
       (OracleComp ([OStatementIn shared]ₒ + OracleDecoration.toOracleSpec
-        (Context shared) (Roles shared) (OD shared) tr))
+        (Context shared) (Roles shared) (oracleDeco shared) tr))
 
 instance
     {ι : Type} {oSpec : OracleSpec ι}
@@ -895,7 +895,7 @@ instance
     [∀ shared i, OracleInterface (OStatementIn shared i)]
     {Context : SharedIn → Spec}
     {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
-    {OD : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
+    {oracleDeco : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
     {StatementIn : SharedIn → Type}
     {StatementOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type}
     {ιₛₒ : (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → Type}
@@ -903,13 +903,13 @@ instance
       (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type}
     [∀ shared tr i, OracleInterface (OStatementOut shared tr i)] :
     CoeFun
-      (OracleVerifier oSpec SharedIn Context Roles OD StatementIn OStatementIn
+      (OracleVerifier oSpec SharedIn Context Roles oracleDeco StatementIn OStatementIn
         StatementOut OStatementOut)
       (fun _ => (shared : SharedIn) → {ιₐ : Type} → (accSpec : OracleSpec ιₐ) →
         StatementIn shared →
           Spec.Counterpart.withMonads (Context shared) (Roles shared)
             (OracleDecoration.toMonadDecoration oSpec (OStatementIn shared)
-              (Context shared) (Roles shared) (OD shared) accSpec)
+              (Context shared) (Roles shared) (oracleDeco shared) accSpec)
             (fun tr => StatementOut shared tr)) where
   coe verifier := verifier.toFun
 
@@ -924,7 +924,7 @@ def toVerifier
     [∀ shared i, OracleInterface (OStatementIn shared i)]
     {Context : SharedIn → Spec}
     {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
-    {OD : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
+    {oracleDeco : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
     {StatementIn WitnessIn : SharedIn → Type}
     {StatementOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type}
     {ιₛₒ : (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → Type}
@@ -932,9 +932,9 @@ def toVerifier
       (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type}
     [∀ shared tr i, OracleInterface (OStatementOut shared tr i)]
     {WitnessOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type}
-    (reduction : OracleReduction oSpec SharedIn Context Roles OD
+    (reduction : OracleReduction oSpec SharedIn Context Roles oracleDeco
       StatementIn OStatementIn WitnessIn StatementOut OStatementOut WitnessOut) :
-    Interaction.OracleVerifier oSpec SharedIn Context Roles OD
+    Interaction.OracleVerifier oSpec SharedIn Context Roles oracleDeco
       StatementIn OStatementIn StatementOut OStatementOut where
   toFun shared {_} accSpec stmt :=
     reduction.verifier shared accSpec stmt

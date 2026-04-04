@@ -37,7 +37,7 @@ def SimulatesConcrete
     {SharedIn : Type _}
     {Context : SharedIn → Spec}
     {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
-    {OD : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
+    {oracleDeco : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
     {StatementIn : SharedIn → Type _}
     {ιₛᵢ : SharedIn → Type _}
     {OStatementIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
@@ -49,14 +49,14 @@ def SimulatesConcrete
       (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type _}
     [∀ shared tr i, OracleInterface (OStatementOut shared tr i)]
     {WitnessOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type _}
-    (reduction : OracleReduction oSpec SharedIn Context Roles OD
+    (reduction : OracleReduction oSpec SharedIn Context Roles oracleDeco
       StatementIn OStatementIn WitnessIn StatementOut OStatementOut WitnessOut)
     (shared : SharedIn)
     (oStatementIn : OracleStatement (OStatementIn shared))
     (tr : Spec.Transcript (Context shared))
     (oStatementOut : OracleStatement (OStatementOut shared tr)) : Prop :=
   OracleDecoration.OutputRealizes
-    (Context := Context) (Roles := Roles) (OD := OD)
+    (Context := Context) (Roles := Roles) (oracleDeco := oracleDeco)
     (OStatementIn := OStatementIn) (OStatementOut := OStatementOut)
     shared
     (OracleInterface.simOracle0 (OStatementIn shared) oStatementIn)
@@ -70,7 +70,7 @@ structure Reification
     {SharedIn : Type _}
     {Context : SharedIn → Spec}
     {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
-    {OD : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
+    {oracleDeco : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
     {StatementIn : SharedIn → Type _}
     {ιₛᵢ : SharedIn → Type _}
     {OStatementIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
@@ -82,7 +82,7 @@ structure Reification
       (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type _}
     [∀ shared tr i, OracleInterface (OStatementOut shared tr i)]
     {WitnessOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type _}
-    (reduction : OracleReduction oSpec SharedIn Context Roles OD
+    (reduction : OracleReduction oSpec SharedIn Context Roles oracleDeco
       StatementIn OStatementIn WitnessIn StatementOut OStatementOut WitnessOut) where
   reify : (shared : SharedIn) → OracleStatement (OStatementIn shared) →
     (tr : Spec.Transcript (Context shared)) → Option (OracleStatement (OStatementOut shared tr))
@@ -110,7 +110,7 @@ def output
     {SharedIn : Type _}
     {Context : SharedIn → Spec}
     {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
-    {OD : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
+    {oracleDeco : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
     {StatementIn : SharedIn → Type _}
     {ιₛᵢ : SharedIn → Type _}
     {OStatementIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
@@ -122,7 +122,7 @@ def output
       (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type _}
     [∀ shared tr i, OracleInterface (OStatementOut shared tr i)]
     {WitnessOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type _}
-    {reduction : OracleReduction oSpec SharedIn Context Roles OD
+    {reduction : OracleReduction oSpec SharedIn Context Roles oracleDeco
       StatementIn OStatementIn WitnessIn StatementOut OStatementOut WitnessOut}
     (reification : OracleReduction.Reification reduction)
     (shared : SharedIn) (oStatementIn : OracleStatement (OStatementIn shared))
@@ -160,7 +160,7 @@ def outputRelationOfRelation
     {SharedIn : Type _}
     {Context : SharedIn → Spec}
     {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
-    {OD : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
+    {oracleDeco : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
     {StatementOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type _}
     {ιₛᵢ : SharedIn → Type _}
     {OStatementIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
@@ -175,12 +175,12 @@ def outputRelationOfRelation
           (fun _ => StatementOut shared tr) (fun _ => OStatementOut shared tr) shared →
         WitnessOut shared tr → Prop) :
     OracleReduction.OutputRelation
-      (Context := Context) (Roles := Roles) (OD := OD) (StatementOut := StatementOut)
+      (Context := Context) (Roles := Roles) (oracleDeco := oracleDeco) (StatementOut := StatementOut)
       (OStatementIn := OStatementIn) (OStatementOut := OStatementOut) WitnessOut :=
   fun shared inputImpl tr stmtOut outputImpl witOut =>
     ∃ oStatementOut : OracleStatement (OStatementOut shared tr),
       OracleDecoration.OutputRealizes
-        (Context := Context) (Roles := Roles) (OD := OD)
+        (Context := Context) (Roles := Roles) (oracleDeco := oracleDeco)
         (OStatementIn := OStatementIn) (OStatementOut := OStatementOut)
         shared inputImpl tr outputImpl oStatementOut ∧
       relOut shared tr ⟨stmtOut, oStatementOut⟩ witOut
@@ -192,7 +192,7 @@ def reifiedCompleteness
     {SharedIn : Type _}
     {Context : SharedIn → Spec}
     {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
-    {OD : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
+    {oracleDeco : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
     {StatementIn : SharedIn → Type _}
     {ιₛᵢ : SharedIn → Type _}
     {OStatementIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
@@ -204,7 +204,7 @@ def reifiedCompleteness
       (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type _}
     [∀ shared tr i, OracleInterface (OStatementOut shared tr i)]
     {WitnessOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type _}
-    (reduction : OracleReduction oSpec SharedIn Context Roles OD
+    (reduction : OracleReduction oSpec SharedIn Context Roles oracleDeco
       StatementIn OStatementIn WitnessIn StatementOut OStatementOut WitnessOut)
     (relIn : ∀ (shared : SharedIn),
       StatementWithOracles StatementIn OStatementIn shared →
@@ -217,7 +217,7 @@ def reifiedCompleteness
   OracleReduction.completeness reduction
     (inputRelationOfRelation relIn)
     (outputRelationOfRelation
-      (Context := Context) (Roles := Roles) (OD := OD) (StatementOut := StatementOut) relOut)
+      (Context := Context) (Roles := Roles) (oracleDeco := oracleDeco) (StatementOut := StatementOut) relOut)
     ε
 
 /-- Concrete-view perfect completeness, derived from the canonical relative
@@ -227,7 +227,7 @@ def reifiedPerfectCompleteness
     {SharedIn : Type _}
     {Context : SharedIn → Spec}
     {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
-    {OD : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
+    {oracleDeco : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
     {StatementIn : SharedIn → Type _}
     {ιₛᵢ : SharedIn → Type _}
     {OStatementIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
@@ -239,7 +239,7 @@ def reifiedPerfectCompleteness
       (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type _}
     [∀ shared tr i, OracleInterface (OStatementOut shared tr i)]
     {WitnessOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type _}
-    (reduction : OracleReduction oSpec SharedIn Context Roles OD
+    (reduction : OracleReduction oSpec SharedIn Context Roles oracleDeco
       StatementIn OStatementIn WitnessIn StatementOut OStatementOut WitnessOut)
     (relIn : ∀ (shared : SharedIn),
       StatementWithOracles StatementIn OStatementIn shared →
@@ -251,7 +251,7 @@ def reifiedPerfectCompleteness
   OracleReduction.perfectCompleteness reduction
     (inputRelationOfRelation relIn)
     (outputRelationOfRelation
-      (Context := Context) (Roles := Roles) (OD := OD) (StatementOut := StatementOut) relOut)
+      (Context := Context) (Roles := Roles) (oracleDeco := oracleDeco) (StatementOut := StatementOut) relOut)
 
 end OracleReduction
 
@@ -312,7 +312,7 @@ def SimulatesConcrete
     {SharedIn : Type _}
     {Context : SharedIn → Spec}
     {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
-    {OD : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
+    {oracleDeco : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
     {StatementIn : SharedIn → Type _}
     {ιₛᵢ : SharedIn → Type _}
     {OStatementIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
@@ -322,14 +322,14 @@ def SimulatesConcrete
     {OStatementOut :
       (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type _}
     [∀ shared tr i, OracleInterface (OStatementOut shared tr i)]
-    (verifier : Interaction.OracleVerifier oSpec SharedIn Context Roles OD
+    (verifier : Interaction.OracleVerifier oSpec SharedIn Context Roles oracleDeco
       StatementIn OStatementIn StatementOut OStatementOut)
     (shared : SharedIn)
     (oStatementIn : OracleStatement (OStatementIn shared))
     (tr : Spec.Transcript (Context shared))
     (oStatementOut : OracleStatement (OStatementOut shared tr)) : Prop :=
   OracleDecoration.OutputRealizes
-    (Context := Context) (Roles := Roles) (OD := OD)
+    (Context := Context) (Roles := Roles) (oracleDeco := oracleDeco)
     (OStatementIn := OStatementIn) (OStatementOut := OStatementOut)
     shared
     (OracleInterface.simOracle0 (OStatementIn shared) oStatementIn)
@@ -343,7 +343,7 @@ structure Reification
     {SharedIn : Type _}
     {Context : SharedIn → Spec}
     {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
-    {OD : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
+    {oracleDeco : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
     {StatementIn : SharedIn → Type _}
     {ιₛᵢ : SharedIn → Type _}
     {OStatementIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
@@ -353,7 +353,7 @@ structure Reification
     {OStatementOut :
       (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type _}
     [∀ shared tr i, OracleInterface (OStatementOut shared tr i)]
-    (verifier : Interaction.OracleVerifier oSpec SharedIn Context Roles OD
+    (verifier : Interaction.OracleVerifier oSpec SharedIn Context Roles oracleDeco
       StatementIn OStatementIn StatementOut OStatementOut) where
   reify : (shared : SharedIn) → OracleStatement (OStatementIn shared) →
     (tr : Spec.Transcript (Context shared)) → Option (OracleStatement (OStatementOut shared tr))
@@ -380,7 +380,7 @@ def output
     {SharedIn : Type _}
     {Context : SharedIn → Spec}
     {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
-    {OD : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
+    {oracleDeco : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
     {StatementIn : SharedIn → Type _}
     {ιₛᵢ : SharedIn → Type _}
     {OStatementIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
@@ -390,7 +390,7 @@ def output
     {OStatementOut :
       (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type _}
     [∀ shared tr i, OracleInterface (OStatementOut shared tr i)]
-    {verifier : Interaction.OracleVerifier oSpec SharedIn Context Roles OD
+    {verifier : Interaction.OracleVerifier oSpec SharedIn Context Roles oracleDeco
       StatementIn OStatementIn StatementOut OStatementOut}
     (reification : OracleVerifier.Reification verifier)
     (shared : SharedIn) (oStatementIn : OracleStatement (OStatementIn shared))
@@ -423,7 +423,7 @@ def outputLanguageOfReifiedLanguage
     {SharedIn : Type _}
     {Context : SharedIn → Spec}
     {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
-    {OD : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
+    {oracleDeco : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
     {StatementOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type _}
     {ιₛᵢ : SharedIn → Type _}
     {OStatementIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
@@ -435,12 +435,12 @@ def outputLanguageOfReifiedLanguage
     (langOut : ReifiedOutputLanguage
       (Context := Context) (StatementOut := StatementOut) (OStatementOut := OStatementOut)) :
     OracleVerifier.OutputLanguage
-      (Context := Context) (Roles := Roles) (OD := OD) (StatementOut := StatementOut)
+      (Context := Context) (Roles := Roles) (oracleDeco := oracleDeco) (StatementOut := StatementOut)
       (OStatementIn := OStatementIn) (OStatementOut := OStatementOut) :=
   fun shared inputImpl tr stmtOut outputImpl =>
     ∃ oStatementOut : OracleStatement (OStatementOut shared tr),
       OracleDecoration.OutputRealizes
-        (Context := Context) (Roles := Roles) (OD := OD)
+        (Context := Context) (Roles := Roles) (oracleDeco := oracleDeco)
         (OStatementIn := OStatementIn) (OStatementOut := OStatementOut)
         shared inputImpl tr outputImpl oStatementOut ∧
       ⟨stmtOut, oStatementOut⟩ ∈ langOut shared tr
@@ -468,7 +468,7 @@ def outputRelationOfReifiedRelation
     {SharedIn : Type _}
     {Context : SharedIn → Spec}
     {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
-    {OD : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
+    {oracleDeco : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
     {StatementOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type _}
     {ιₛᵢ : SharedIn → Type _}
     {OStatementIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
@@ -482,12 +482,12 @@ def outputRelationOfReifiedRelation
       (Context := Context) (StatementOut := StatementOut)
       (OStatementOut := OStatementOut) (WitnessOut := WitnessOut)) :
     OracleVerifier.OutputRelation
-      (Context := Context) (Roles := Roles) (OD := OD) (StatementOut := StatementOut)
+      (Context := Context) (Roles := Roles) (oracleDeco := oracleDeco) (StatementOut := StatementOut)
       (OStatementIn := OStatementIn) (OStatementOut := OStatementOut) WitnessOut :=
   fun shared inputImpl tr stmtOut outputImpl witOut =>
     ∃ oStatementOut : OracleStatement (OStatementOut shared tr),
       OracleDecoration.OutputRealizes
-        (Context := Context) (Roles := Roles) (OD := OD)
+        (Context := Context) (Roles := Roles) (oracleDeco := oracleDeco)
         (OStatementIn := OStatementIn) (OStatementOut := OStatementOut)
         shared inputImpl tr outputImpl oStatementOut ∧
       (⟨stmtOut, oStatementOut⟩, witOut) ∈ relOut shared tr
@@ -499,7 +499,7 @@ def reifiedSoundness
     {SharedIn : Type _}
     {Context : SharedIn → Spec}
     {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
-    {OD : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
+    {oracleDeco : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
     {StatementIn : SharedIn → Type _}
     {ιₛᵢ : SharedIn → Type _}
     {OStatementIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
@@ -509,7 +509,7 @@ def reifiedSoundness
     {OStatementOut :
       (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type _}
     [∀ shared tr i, OracleInterface (OStatementOut shared tr i)]
-    (verifier : Interaction.OracleVerifier oSpec SharedIn Context Roles OD
+    (verifier : Interaction.OracleVerifier oSpec SharedIn Context Roles oracleDeco
       StatementIn OStatementIn StatementOut OStatementOut) :
     ReifiedInputLanguage StatementIn OStatementIn →
     ReifiedOutputLanguage
@@ -519,7 +519,7 @@ def reifiedSoundness
       OracleVerifier.soundness verifier
         (inputLanguageOfReifiedLanguage langIn)
         (outputLanguageOfReifiedLanguage
-          (Context := Context) (Roles := Roles) (OD := OD)
+          (Context := Context) (Roles := Roles) (oracleDeco := oracleDeco)
           (StatementOut := StatementOut) langOut)
         ε
 
@@ -530,7 +530,7 @@ def reifiedKnowledgeSoundness
     {SharedIn : Type _}
     {Context : SharedIn → Spec}
     {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
-    {OD : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
+    {oracleDeco : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
     {StatementIn : SharedIn → Type _}
     {ιₛᵢ : SharedIn → Type _}
     {OStatementIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
@@ -542,7 +542,7 @@ def reifiedKnowledgeSoundness
       (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type _}
     [∀ shared tr i, OracleInterface (OStatementOut shared tr i)]
     {WitnessOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type _}
-    (verifier : Interaction.OracleVerifier oSpec SharedIn Context Roles OD
+    (verifier : Interaction.OracleVerifier oSpec SharedIn Context Roles oracleDeco
       StatementIn OStatementIn StatementOut OStatementOut) :
     ReifiedInputRelation StatementIn OStatementIn WitnessIn →
     ReifiedOutputRelation
@@ -553,7 +553,7 @@ def reifiedKnowledgeSoundness
       OracleVerifier.knowledgeSoundness verifier
         (inputRelationOfReifiedRelation relIn)
         (outputRelationOfReifiedRelation
-          (Context := Context) (Roles := Roles) (OD := OD)
+          (Context := Context) (Roles := Roles) (oracleDeco := oracleDeco)
           (StatementOut := StatementOut) relOut)
         ε
 

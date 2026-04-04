@@ -1300,7 +1300,7 @@ def pullback
     {InnerSpec : InnerStmtIn → Spec}
     {projection : Boundary.StatementProjection OuterStmtIn InnerStmtIn InnerSpec}
     {InnerRoles : (s : InnerStmtIn) → RoleDecoration (InnerSpec s)}
-    {InnerOD :
+    {innerOracleDeco :
       (s : InnerStmtIn) → OracleDecoration (InnerSpec s) (InnerRoles s)}
     {InnerStmtOut : (s : InnerStmtIn) → Spec.Transcript (InnerSpec s) → Type}
     {OuterStmtOut :
@@ -1340,19 +1340,19 @@ def pullback
           InnerOStmtOut OuterOStmtOut)
     (verifier :
       Interaction.OracleVerifier oSpec
-        InnerStmtIn InnerSpec InnerRoles InnerOD
+        InnerStmtIn InnerSpec InnerRoles innerOracleDeco
         (fun _ => PUnit) InnerOStmtIn InnerStmtOut InnerOStmtOut) :
     Interaction.OracleVerifier oSpec
       OuterStmtIn
       (fun outer => InnerSpec (stmt.proj outer))
       (fun outer => InnerRoles (stmt.proj outer))
-      (fun outer => InnerOD (stmt.proj outer))
+      (fun outer => innerOracleDeco (stmt.proj outer))
       (fun _ => PUnit) OuterOStmtIn OuterStmtOut OuterOStmtOut where
   toFun outer {_} accSpec _ :=
     Boundary.pullbackCounterpart (access outer).simulateIn
       (InnerSpec (stmt.proj outer))
       (InnerRoles (stmt.proj outer))
-      (InnerOD (stmt.proj outer))
+      (innerOracleDeco (stmt.proj outer))
       (fun tr stmtOut => stmt.lift outer tr stmtOut)
       accSpec
       (verifier (stmt.proj outer) accSpec PUnit.unit)
@@ -1364,7 +1364,7 @@ def pullback
       (OracleDecoration.toOracleSpec
         (InnerSpec (stmt.proj outerStmt))
         (InnerRoles (stmt.proj outerStmt))
-        (InnerOD (stmt.proj outerStmt))
+        (innerOracleDeco (stmt.proj outerStmt))
         tr)
       (verifier.simulate (stmt.proj outerStmt) tr)
 
@@ -1384,7 +1384,7 @@ def pullbackVerifier
     {InnerSpec : InnerStmtIn → Spec}
     {projection : Boundary.StatementProjection OuterStmtIn InnerStmtIn InnerSpec}
     {InnerRoles : (s : InnerStmtIn) → RoleDecoration (InnerSpec s)}
-    {InnerOD :
+    {innerOracleDeco :
       (s : InnerStmtIn) → OracleDecoration (InnerSpec s) (InnerRoles s)}
     {InnerStmtOut :
       (s : InnerStmtIn) → Spec.Transcript (InnerSpec s) → Type}
@@ -1431,7 +1431,7 @@ def pullbackVerifier
           (InnerSpec s)
           (InnerRoles s)
           (toMonadDecoration oSpec (InnerOStmtIn s)
-            (InnerSpec s) (InnerRoles s) (InnerOD s) accSpec)
+            (InnerSpec s) (InnerRoles s) (innerOracleDeco s) accSpec)
           (fun tr => InnerStmtOut s tr)) :
     (outer : OuterStmtIn) →
       {ιₐ : Type} →
@@ -1442,14 +1442,14 @@ def pullbackVerifier
         (toMonadDecoration oSpec (OuterOStmtIn outer)
           (InnerSpec (stmt.proj outer))
           (InnerRoles (stmt.proj outer))
-          (InnerOD (stmt.proj outer))
+          (innerOracleDeco (stmt.proj outer))
           accSpec)
         (fun tr => OuterStmtOut outer tr) :=
   fun outer {_} accSpec =>
     Boundary.pullbackCounterpart (access outer).simulateIn
       (InnerSpec (stmt.proj outer))
       (InnerRoles (stmt.proj outer))
-      (InnerOD (stmt.proj outer))
+      (innerOracleDeco (stmt.proj outer))
       (fun tr stmtOut => stmt.lift outer tr stmtOut)
       accSpec
       (verifier (stmt.proj outer) accSpec)

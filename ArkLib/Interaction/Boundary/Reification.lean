@@ -608,7 +608,7 @@ def pullback
     {InnerSpec : InnerStmtIn → Spec}
     {projection : Boundary.StatementProjection OuterStmtIn InnerStmtIn InnerSpec}
     {InnerRoles : (s : InnerStmtIn) → RoleDecoration (InnerSpec s)}
-    {InnerOD :
+    {innerOracleDeco :
       (s : InnerStmtIn) → OracleDecoration (InnerSpec s) (InnerRoles s)}
     {InnerStmtOut :
       (s : InnerStmtIn) → Spec.Transcript (InnerSpec s) → Type}
@@ -652,7 +652,7 @@ def pullback
         OuterOStmtIn InnerOStmtIn InnerOStmtOut OuterOStmtOut)
     (reduction :
       OracleReduction oSpec InnerStmtIn
-        InnerSpec InnerRoles InnerOD
+        InnerSpec InnerRoles innerOracleDeco
         (fun _ => PUnit)
         InnerOStmtIn
         (fun _ => InnerWitIn)
@@ -661,7 +661,7 @@ def pullback
       OuterStmtIn
       (fun outer => InnerSpec (toContext.stmt.proj outer))
       (fun outer => InnerRoles (toContext.stmt.proj outer))
-      (fun outer => InnerOD (toContext.stmt.proj outer))
+      (fun outer => innerOracleDeco (toContext.stmt.proj outer))
       (fun _ => PUnit)
       OuterOStmtIn
       (fun _ => OuterWitIn)
@@ -713,7 +713,7 @@ def pullback
       (toOracleSpec
         (InnerSpec (toContext.stmt.proj outerStmt))
         (InnerRoles (toContext.stmt.proj outerStmt))
-        (InnerOD (toContext.stmt.proj outerStmt))
+        (innerOracleDeco (toContext.stmt.proj outerStmt))
         tr)
       (reduction.simulate (toContext.stmt.proj outerStmt) tr)
 

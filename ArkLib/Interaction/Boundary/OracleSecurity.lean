@@ -55,7 +55,7 @@ theorem simulates_pullback
     {InnerSpec : InnerStmtIn → Spec}
     {projection : Boundary.StatementProjection OuterStmtIn InnerStmtIn InnerSpec}
     {InnerRoles : (s : InnerStmtIn) → RoleDecoration (InnerSpec s)}
-    {InnerOD :
+    {innerOracleDeco :
       (s : InnerStmtIn) → OracleDecoration (InnerSpec s) (InnerRoles s)}
     {InnerStmtOut :
       (s : InnerStmtIn) → Spec.Transcript (InnerSpec s) → Type}
@@ -92,7 +92,7 @@ theorem simulates_pullback
     (verifier :
       Interaction.OracleVerifier
         oSpec
-        InnerStmtIn InnerSpec InnerRoles InnerOD
+        InnerStmtIn InnerSpec InnerRoles innerOracleDeco
         (fun _ => PUnit) InnerOStmtIn InnerStmtOut InnerOStmtOut)
     (outer : OuterStmtIn)
     (oStmtIn : Interaction.OracleStatement (OuterOStmtIn outer))
@@ -128,12 +128,12 @@ theorem simulates_pullback
       (OracleDecoration.toOracleSpec
         (InnerSpec (toStatement.proj outer))
         (InnerRoles (toStatement.proj outer))
-        (InnerOD (toStatement.proj outer))
+        (innerOracleDeco (toStatement.proj outer))
         tr)
       (OracleDecoration.answerQuery
         (InnerSpec (toStatement.proj outer))
         (InnerRoles (toStatement.proj outer))
-        (InnerOD (toStatement.proj outer))
+        (innerOracleDeco (toStatement.proj outer))
         tr)
       innerOStmtOut
       (verifier.simulate (toStatement.proj outer) tr)
@@ -158,7 +158,7 @@ private abbrev InnerExecuteView
     {InnerSpec : InnerStmtIn → Spec}
     {projection : Boundary.StatementProjection OuterStmtIn InnerStmtIn InnerSpec}
     {InnerRoles : (s : InnerStmtIn) → RoleDecoration (InnerSpec s)}
-    {InnerOD :
+    {innerOracleDeco :
       (s : InnerStmtIn) → OracleDecoration (InnerSpec s) (InnerRoles s)}
     {InnerStmtOut :
       (s : InnerStmtIn) → Spec.Transcript (InnerSpec s) → Type}
@@ -204,7 +204,7 @@ private abbrev InnerExecuteView
             OracleDecoration.toOracleSpec
               (InnerSpec (toContext.stmt.proj outerStmt.1))
               (InnerRoles (toContext.stmt.proj outerStmt.1))
-              (InnerOD (toContext.stmt.proj outerStmt.1))
+              (innerOracleDeco (toContext.stmt.proj outerStmt.1))
               tr)))
 
 /-- The dependent output package produced by honest execution of the pulled-back
@@ -216,7 +216,7 @@ private abbrev OuterExecuteView
     {InnerSpec : InnerStmtIn → Spec}
     {projection : Boundary.StatementProjection OuterStmtIn InnerStmtIn InnerSpec}
     {InnerRoles : (s : InnerStmtIn) → RoleDecoration (InnerSpec s)}
-    {InnerOD :
+    {innerOracleDeco :
       (s : InnerStmtIn) → OracleDecoration (InnerSpec s) (InnerRoles s)}
     {InnerStmtOut :
       (s : InnerStmtIn) → Spec.Transcript (InnerSpec s) → Type}
@@ -271,7 +271,7 @@ private abbrev OuterExecuteView
             OracleDecoration.toOracleSpec
               (InnerSpec (toContext.stmt.proj outerStmt.1))
               (InnerRoles (toContext.stmt.proj outerStmt.1))
-              (InnerOD (toContext.stmt.proj outerStmt.1))
+              (innerOracleDeco (toContext.stmt.proj outerStmt.1))
               tr)))
 
 /-- Project an outer statement-with-oracles to the inner statement and
@@ -343,7 +343,7 @@ private def mapExecuteOutput
     {InnerSpec : InnerStmtIn → Spec}
     {projection : Boundary.StatementProjection OuterStmtIn InnerStmtIn InnerSpec}
     {InnerRoles : (s : InnerStmtIn) → RoleDecoration (InnerSpec s)}
-    {InnerOD :
+    {innerOracleDeco :
       (s : InnerStmtIn) → OracleDecoration (InnerSpec s) (InnerRoles s)}
     {InnerStmtOut :
       (s : InnerStmtIn) → Spec.Transcript (InnerSpec s) → Type}
@@ -387,7 +387,7 @@ private def mapExecuteOutput
         OuterOStmtIn InnerOStmtIn InnerOStmtOut OuterOStmtOut)
     (reduction :
       Interaction.OracleDecoration.OracleReduction oSpec
-        InnerStmtIn InnerSpec InnerRoles InnerOD
+        InnerStmtIn InnerSpec InnerRoles innerOracleDeco
         (fun _ => PUnit)
         InnerOStmtIn
         (fun _ => InnerWitIn)
@@ -400,7 +400,7 @@ private def mapExecuteOutput
         (OuterOStmtIn := OuterOStmtIn)
         (InnerOStmtIn := InnerOStmtIn)
         (InnerRoles := InnerRoles)
-        (InnerOD := InnerOD)
+        (innerOracleDeco := innerOracleDeco)
         (InnerOStmtOut := InnerOStmtOut)
         outerStmt) :
     OuterExecuteView
@@ -408,7 +408,7 @@ private def mapExecuteOutput
       (OuterOStmtIn := OuterOStmtIn)
       (InnerOStmtIn := InnerOStmtIn)
       (InnerRoles := InnerRoles)
-      (InnerOD := InnerOD)
+      (innerOracleDeco := innerOracleDeco)
       (InnerOStmtOut := InnerOStmtOut)
       (OuterOStmtOut := OuterOStmtOut)
       outerStmt :=
@@ -435,7 +435,7 @@ private def mapExecuteOutput
         (OracleDecoration.toOracleSpec
           (InnerSpec (toContext.stmt.proj outerStmt.1))
           (InnerRoles (toContext.stmt.proj outerStmt.1))
-          (InnerOD (toContext.stmt.proj outerStmt.1))
+          (innerOracleDeco (toContext.stmt.proj outerStmt.1))
           z.1)
         (reduction.simulate (toContext.stmt.proj outerStmt.1) z.1)⟩⟩
 
@@ -453,7 +453,7 @@ private theorem runWithOracleCounterpart_pullbackVerifier
     {InnerSpec : InnerStmtIn → Spec}
     {projection : Boundary.StatementProjection OuterStmtIn InnerStmtIn InnerSpec}
     {InnerRoles : (s : InnerStmtIn) → RoleDecoration (InnerSpec s)}
-    {InnerOD :
+    {innerOracleDeco :
       (s : InnerStmtIn) → OracleDecoration (InnerSpec s) (InnerRoles s)}
     {InnerStmtOut :
       (s : InnerStmtIn) → Spec.Transcript (InnerSpec s) → Type}
@@ -516,14 +516,14 @@ private theorem runWithOracleCounterpart_pullbackVerifier
           (InnerOStmtIn (toContext.stmt.proj outerStmt.1))
           (InnerSpec (toContext.stmt.proj outerStmt.1))
           (InnerRoles (toContext.stmt.proj outerStmt.1))
-          (InnerOD (toContext.stmt.proj outerStmt.1))
+          (innerOracleDeco (toContext.stmt.proj outerStmt.1))
           accSpec)
         (fun tr => InnerStmtOut (toContext.stmt.proj outerStmt.1) tr)) :
     OracleDecoration.runWithOracleCounterpart
         (OracleInterface.simOracle0 (OuterOStmtIn outerStmt.1) outerStmt.2)
         (InnerSpec (toContext.stmt.proj outerStmt.1))
         (InnerRoles (toContext.stmt.proj outerStmt.1))
-        (InnerOD (toContext.stmt.proj outerStmt.1))
+        (innerOracleDeco (toContext.stmt.proj outerStmt.1))
         accSpec
         accImpl
         strat
@@ -531,7 +531,7 @@ private theorem runWithOracleCounterpart_pullbackVerifier
           (boundary.access outerStmt.1).simulateIn
           (InnerSpec (toContext.stmt.proj outerStmt.1))
           (InnerRoles (toContext.stmt.proj outerStmt.1))
-          (InnerOD (toContext.stmt.proj outerStmt.1))
+          (innerOracleDeco (toContext.stmt.proj outerStmt.1))
           (fun tr stmtOut => toContext.stmt.lift outerStmt.1 tr stmtOut)
           accSpec
           verifier) =
@@ -545,7 +545,7 @@ private theorem runWithOracleCounterpart_pullbackVerifier
               outerStmt.2))
           (InnerSpec (toContext.stmt.proj outerStmt.1))
           (InnerRoles (toContext.stmt.proj outerStmt.1))
-          (InnerOD (toContext.stmt.proj outerStmt.1))
+          (innerOracleDeco (toContext.stmt.proj outerStmt.1))
           accSpec
           accImpl
           strat
@@ -566,7 +566,7 @@ private theorem runWithOracleCounterpart_pullbackVerifier
         outerStmt.2)
       (InnerSpec (toContext.stmt.proj outerStmt.1))
       (InnerRoles (toContext.stmt.proj outerStmt.1))
-      (InnerOD (toContext.stmt.proj outerStmt.1))
+      (innerOracleDeco (toContext.stmt.proj outerStmt.1))
       accSpec
       accImpl
       (fun tr stmtOut => toContext.stmt.lift outerStmt.1 tr stmtOut)
@@ -589,7 +589,7 @@ theorem simulates_pullback
     {InnerSpec : InnerStmtIn → Spec}
     {projection : Boundary.StatementProjection OuterStmtIn InnerStmtIn InnerSpec}
     {InnerRoles : (s : InnerStmtIn) → RoleDecoration (InnerSpec s)}
-    {InnerOD :
+    {innerOracleDeco :
       (s : InnerStmtIn) → OracleDecoration (InnerSpec s) (InnerRoles s)}
     {InnerStmtOut :
       (s : InnerStmtIn) → Spec.Transcript (InnerSpec s) → Type}
@@ -633,7 +633,7 @@ theorem simulates_pullback
         OuterOStmtIn InnerOStmtIn InnerOStmtOut OuterOStmtOut)
     (reduction :
       Interaction.OracleDecoration.OracleReduction oSpec
-        InnerStmtIn InnerSpec InnerRoles InnerOD
+        InnerStmtIn InnerSpec InnerRoles innerOracleDeco
         (fun _ => PUnit)
         InnerOStmtIn
         (fun _ => InnerWitIn)
@@ -672,12 +672,12 @@ theorem simulates_pullback
       (OracleDecoration.toOracleSpec
         (InnerSpec (toContext.stmt.proj outer))
         (InnerRoles (toContext.stmt.proj outer))
-        (InnerOD (toContext.stmt.proj outer))
+        (innerOracleDeco (toContext.stmt.proj outer))
         tr)
       (OracleDecoration.answerQuery
         (InnerSpec (toContext.stmt.proj outer))
         (InnerRoles (toContext.stmt.proj outer))
-        (InnerOD (toContext.stmt.proj outer))
+        (innerOracleDeco (toContext.stmt.proj outer))
         tr)
       innerOStmtOut
       (reduction.simulate (toContext.stmt.proj outer) tr)

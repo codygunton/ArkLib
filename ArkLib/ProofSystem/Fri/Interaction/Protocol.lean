@@ -98,7 +98,7 @@ private def terminalPhase {ι : Type} {oSpec : OracleSpec ι}
     (WitMid := fun _ _ => PUnit)
     (ctx₂ := fun _ _ => queryRoundSpec (n := n) (s := s) (l := l))
     (roles₂ := fun _ _ => queryRoundRoles (n := n) (s := s) (l := l))
-    (OD₂ := fun _ _ => queryRoundOD (n := n) (s := s) (l := l))
+    (oracleDeco₂ := fun _ _ => queryRoundOD (n := n) (s := s) (l := l))
     (StmtOut := fun _ _ _ => QueryResult)
     (ιₛₒ := fun _ _ _ => PEmpty)
     (OStmtOut := fun _ _ _ i => EmptyOracleFamily i)
@@ -134,7 +134,7 @@ def friContinuation {ι : Type} {oSpec : OracleSpec ι}
     (WitMid := fun _ _ => HonestPoly (F := F) s d k)
     (ctx₂ := fun _ _ => finalQueryContext (F := F) (n := n) (s := s) (d := d) (l := l))
     (roles₂ := fun _ _ => finalQueryRoles (F := F) (n := n) (s := s) (d := d) (l := l))
-    (OD₂ := fun _ _ => finalQueryOD (F := F) (n := n) (s := s) (d := d) (l := l))
+    (oracleDeco₂ := fun _ _ => finalQueryOD (F := F) (n := n) (s := s) (d := d) (l := l))
     (StmtOut := fun _ _ tr =>
       Spec.Transcript.liftAppend
         (finalFoldSpec (F := F) (d := d))

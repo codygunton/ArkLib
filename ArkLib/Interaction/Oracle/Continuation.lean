@@ -23,7 +23,7 @@ def freezeSharedToPUnit
     {SharedIn : Type}
     {Context : SharedIn → Spec}
     {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
-    {OD : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
+    {oracleDeco : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
     {StatementIn : SharedIn → Type}
     {ιₛᵢ : (shared : SharedIn) → Type}
     {OStmtIn : (shared : SharedIn) → ιₛᵢ shared → Type}
@@ -35,14 +35,14 @@ def freezeSharedToPUnit
       (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type}
     [∀ shared tr i, OracleInterface (OStmtOut shared tr i)]
     {WitnessOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type}
-    (reduction : OracleReduction oSpec SharedIn Context Roles OD
+    (reduction : OracleReduction oSpec SharedIn Context Roles oracleDeco
       StatementIn OStmtIn WitnessIn StatementOut OStmtOut WitnessOut)
     (shared : SharedIn) :
     OracleReduction oSpec
       PUnit
       (fun _ => Context shared)
       (fun _ => Roles shared)
-      (fun _ => OD shared)
+      (fun _ => oracleDeco shared)
       (fun _ => StatementIn shared)
       (fun _ => OStmtIn shared)
       (fun _ => WitnessIn shared)
@@ -105,7 +105,7 @@ def promoteStatementToShared
     {SharedIn : Type}
     {Context : SharedIn → Spec}
     {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
-    {OD : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
+    {oracleDeco : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
     {StatementIn : SharedIn → Type}
     {ιₛᵢ : (shared : SharedIn) → Type}
     {OStmtIn : (shared : SharedIn) → ιₛᵢ shared → Type}
@@ -117,14 +117,14 @@ def promoteStatementToShared
       (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type}
     [∀ shared tr i, OracleInterface (OStmtOut shared tr i)]
     {WitnessOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type}
-    (reduction : OracleReduction oSpec SharedIn Context Roles OD
+    (reduction : OracleReduction oSpec SharedIn Context Roles oracleDeco
       StatementIn OStmtIn WitnessIn StatementOut OStmtOut WitnessOut)
     (shared : SharedIn) :
     OracleReduction oSpec
       (StatementIn shared)
       (fun _ => Context shared)
       (fun _ => Roles shared)
-      (fun _ => OD shared)
+      (fun _ => oracleDeco shared)
       (fun _ => PUnit)
       (fun _ => OStmtIn shared)
       (fun _ => WitnessIn shared)
@@ -162,7 +162,7 @@ def pullbackShared
     (f : SharedIn' → SharedIn)
     {Context : SharedIn → Spec}
     {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
-    {OD : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
+    {oracleDeco : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
     {StatementIn : SharedIn → Type}
     {ιₛᵢ : (shared : SharedIn) → Type}
     {OStmtIn : (shared : SharedIn) → ιₛᵢ shared → Type}
@@ -174,12 +174,12 @@ def pullbackShared
       (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type}
     [∀ shared tr i, OracleInterface (OStmtOut shared tr i)]
     {WitnessOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type}
-    (reduction : OracleReduction oSpec SharedIn Context Roles OD
+    (reduction : OracleReduction oSpec SharedIn Context Roles oracleDeco
       StatementIn OStmtIn WitnessIn StatementOut OStmtOut WitnessOut) :
     OracleReduction oSpec SharedIn'
       (fun shared => Context (f shared))
       (fun shared => Roles (f shared))
-      (fun shared => OD (f shared))
+      (fun shared => oracleDeco (f shared))
       (fun shared => StatementIn (f shared))
       (fun shared => OStmtIn (f shared))
       (fun shared => WitnessIn (f shared))
@@ -434,7 +434,7 @@ def run
     {SharedIn : Type}
     {Context : SharedIn → Spec}
     {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
-    {OD : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
+    {oracleDeco : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
     {StatementIn : SharedIn → Type}
     {ιₛᵢ : (shared : SharedIn) → Type}
     {OStmtIn : (shared : SharedIn) → ιₛᵢ shared → Type}
@@ -446,7 +446,7 @@ def run
       (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type}
     [∀ shared tr i, OracleInterface (OStmtOut shared tr i)]
     {WitnessOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type}
-    (reduction : OracleReduction oSpec SharedIn Context Roles OD
+    (reduction : OracleReduction oSpec SharedIn Context Roles oracleDeco
       StatementIn OStmtIn WitnessIn StatementOut OStmtOut WitnessOut)
     (shared : SharedIn) (stmt : StatementIn shared)
     (inputImpl : QueryImpl [OStmtIn shared]ₒ Id)
@@ -457,10 +457,10 @@ def run
       (StatementOut shared tr × QueryImpl [OStmtOut shared tr]ₒ
         (OracleComp
           ([OStmtIn shared]ₒ + toOracleSpec (Context shared) (Roles shared)
-            (OD shared) tr)))) := do
+            (oracleDeco shared) tr)))) := do
   let ⟨tr, outP, stmtOutV⟩ ←
     runWithOracleCounterpart inputImpl
-      (Context shared) (Roles shared) (OD shared) accSpec accImpl
+      (Context shared) (Roles shared) (oracleDeco shared) accSpec accImpl
       prover (reduction.verifier shared accSpec stmt)
   pure ⟨tr, outP, ⟨stmtOutV, reduction.simulate shared tr⟩⟩
 
@@ -471,7 +471,7 @@ def execute
     {SharedIn : Type}
     {Context : SharedIn → Spec}
     {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
-    {OD : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
+    {oracleDeco : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
     {StatementIn : SharedIn → Type}
     {ιₛᵢ : (shared : SharedIn) → Type}
     {OStmtIn : (shared : SharedIn) → ιₛᵢ shared → Type}
@@ -483,7 +483,7 @@ def execute
       (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type}
     [∀ shared tr i, OracleInterface (OStmtOut shared tr i)]
     {WitnessOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type}
-    (reduction : OracleReduction oSpec SharedIn Context Roles OD
+    (reduction : OracleReduction oSpec SharedIn Context Roles oracleDeco
       StatementIn OStmtIn WitnessIn StatementOut OStmtOut WitnessOut)
     (shared : SharedIn)
     (s : StatementWithOracles StatementIn OStmtIn shared)
@@ -497,11 +497,11 @@ def execute
       (StatementOut shared tr × QueryImpl [OStmtOut shared tr]ₒ
         (OracleComp
           ([OStmtIn shared]ₒ + toOracleSpec (Context shared) (Roles shared)
-            (OD shared) tr)))) := do
+            (oracleDeco shared) tr)))) := do
   let strategy ← reduction.prover shared s w
   let ⟨tr, proverOut, stmtOutV⟩ ←
     runWithOracleCounterpart (OracleInterface.simOracle0 (OStmtIn shared) s.oracleStmt)
-      (Context shared) (Roles shared) (OD shared) accSpec accImpl
+      (Context shared) (Roles shared) (oracleDeco shared) accSpec accImpl
       strategy (reduction.verifier shared accSpec s.stmt)
   pure ⟨tr, proverOut, ⟨stmtOutV, reduction.simulate shared tr⟩⟩
 
@@ -515,7 +515,7 @@ private def liftSimulatedMidOracleContextContinuation
     {WitnessIn : SharedIn → Type}
     {ctx₁ : SharedIn → Spec}
     {roles₁ : (shared : SharedIn) → RoleDecoration (ctx₁ shared)}
-    {OD₁ : (shared : SharedIn) → OracleDecoration (ctx₁ shared) (roles₁ shared)}
+    {oracleDeco₁ : (shared : SharedIn) → OracleDecoration (ctx₁ shared) (roles₁ shared)}
     {StmtMid : (shared : SharedIn) → Spec.Transcript (ctx₁ shared) → Type}
     {ιₛₘ : (shared : SharedIn) → (tr₁ : Spec.Transcript (ctx₁ shared)) → Type}
     {OStmtMid :
@@ -526,10 +526,10 @@ private def liftSimulatedMidOracleContextContinuation
     {ctx₂ : (shared : SharedIn) → Spec.Transcript (ctx₁ shared) → Spec}
     {roles₂ : (shared : SharedIn) → (tr₁ : Spec.Transcript (ctx₁ shared)) →
       RoleDecoration (ctx₂ shared tr₁)}
-    {OD₂ : (shared : SharedIn) → (tr₁ : Spec.Transcript (ctx₁ shared)) →
+    {oracleDeco₂ : (shared : SharedIn) → (tr₁ : Spec.Transcript (ctx₁ shared)) →
       OracleDecoration (ctx₂ shared tr₁) (roles₂ shared tr₁)}
     (reduction1 : OracleReduction oSpec SharedIn
-      ctx₁ roles₁ OD₁ StatementIn OStmtIn WitnessIn StmtMid OStmtMid WitMid)
+      ctx₁ roles₁ oracleDeco₁ StatementIn OStmtIn WitnessIn StmtMid OStmtMid WitMid)
     (shared : SharedIn)
     (tr₁ : Spec.Transcript (ctx₁ shared))
     (tr₂ : Spec.Transcript (ctx₂ shared tr₁)) :
@@ -537,20 +537,20 @@ private def liftSimulatedMidOracleContextContinuation
       ([OStmtMid shared tr₁]ₒ +
         toOracleSpec ((ctx₁ shared).append (ctx₂ shared))
           (Spec.Decoration.append (roles₁ shared) (roles₂ shared))
-          (Role.Refine.append (OD₁ shared) (fun tr => OD₂ shared tr))
+          (Role.Refine.append (oracleDeco₁ shared) (fun tr => oracleDeco₂ shared tr))
           (Spec.Transcript.append (ctx₁ shared) (ctx₂ shared) tr₁ tr₂))
       (OracleComp
         ([OStmtIn shared]ₒ +
           toOracleSpec ((ctx₁ shared).append (ctx₂ shared))
             (Spec.Decoration.append (roles₁ shared) (roles₂ shared))
-            (Role.Refine.append (OD₁ shared) (fun tr => OD₂ shared tr))
+            (Role.Refine.append (oracleDeco₁ shared) (fun tr => oracleDeco₂ shared tr))
             (Spec.Transcript.append (ctx₁ shared) (ctx₂ shared) tr₁ tr₂)))
   | .inl q =>
       simulateQ
         (liftAppendLeftContext
           (spec₁ := ctx₁ shared) (spec₂ := ctx₂ shared)
           (roles₁ := roles₁ shared) (roles₂ := roles₂ shared)
-          (od₁ := OD₁ shared) (od₂ := fun tr => OD₂ shared tr)
+          (od₁ := oracleDeco₁ shared) (od₂ := fun tr => oracleDeco₂ shared tr)
           (OStmt := OStmtIn shared) tr₁ tr₂)
         (reduction1.simulate shared tr₁ q)
   | .inr q =>
@@ -558,7 +558,7 @@ private def liftSimulatedMidOracleContextContinuation
         (spec := [OStmtIn shared]ₒ +
           toOracleSpec ((ctx₁ shared).append (ctx₂ shared))
             (Spec.Decoration.append (roles₁ shared) (roles₂ shared))
-            (Role.Refine.append (OD₁ shared) (fun tr => OD₂ shared tr))
+            (Role.Refine.append (oracleDeco₁ shared) (fun tr => oracleDeco₂ shared tr))
             (Spec.Transcript.append (ctx₁ shared) (ctx₂ shared) tr₁ tr₂))
         (.inr q)
 
@@ -569,15 +569,15 @@ private def liftPrefixOracleContext
     [∀ s i, OracleInterface (OStmtIn s i)]
     {ctx₁ : StatementIn → Spec}
     {roles₁ : (s : StatementIn) → RoleDecoration (ctx₁ s)}
-    {OD₁ : (s : StatementIn) → OracleDecoration (ctx₁ s) (roles₁ s)}
+    {oracleDeco₁ : (s : StatementIn) → OracleDecoration (ctx₁ s) (roles₁ s)}
     (s : StatementIn) (tr₁ : Spec.Transcript (ctx₁ s))
     {ιₐ : Type} (accSpec : OracleSpec ιₐ) :
-    QueryImpl ([OStmtIn s]ₒ + toOracleSpec (ctx₁ s) (roles₁ s) (OD₁ s) tr₁)
+    QueryImpl ([OStmtIn s]ₒ + toOracleSpec (ctx₁ s) (roles₁ s) (oracleDeco₁ s) tr₁)
       (OracleComp ((oSpec + [OStmtIn s]ₒ) + accSpec))
   | .inl q =>
       liftM <| query (spec := [OStmtIn s]ₒ) q
   | .inr q =>
-      pure <| OracleDecoration.answerQuery (ctx₁ s) (roles₁ s) (OD₁ s) tr₁ q
+      pure <| OracleDecoration.answerQuery (ctx₁ s) (roles₁ s) (oracleDeco₁ s) tr₁ q
 
 private def retargetContinuationVerifier
     {ι : Type} {oSpec : OracleSpec ι}
@@ -587,14 +587,14 @@ private def retargetContinuationVerifier
     {WitnessIn : Type}
     {ctx₁ : StatementIn → Spec}
     {roles₁ : (s : StatementIn) → RoleDecoration (ctx₁ s)}
-    {OD₁ : (s : StatementIn) → OracleDecoration (ctx₁ s) (roles₁ s)}
+    {oracleDeco₁ : (s : StatementIn) → OracleDecoration (ctx₁ s) (roles₁ s)}
     {StmtMid : (s : StatementIn) → Spec.Transcript (ctx₁ s) → Type}
     {ιₛₘ : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) → Type}
     {OStmtMid : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) → ιₛₘ s tr₁ → Type}
     [∀ s tr₁ i, OracleInterface (OStmtMid s tr₁ i)]
     {WitMid : (s : StatementIn) → Spec.Transcript (ctx₁ s) → Type}
     (reduction1 : OracleReduction oSpec StatementIn
-      ctx₁ roles₁ OD₁
+      ctx₁ roles₁ oracleDeco₁
       (fun _ => PUnit) OStmtIn (fun _ => WitnessIn)
       StmtMid OStmtMid WitMid)
     (s : StatementIn) (tr₁ : Spec.Transcript (ctx₁ s)) :
@@ -624,7 +624,7 @@ private def retargetContinuationVerifier
             liftM <| query (spec := oSpec) q
         | .inl (.inr q) =>
             simulateQ (liftPrefixOracleContext
-              (oSpec := oSpec) (ctx₁ := ctx₁) (roles₁ := roles₁) (OD₁ := OD₁)
+              (oSpec := oSpec) (ctx₁ := ctx₁) (roles₁ := roles₁) (oracleDeco₁ := oracleDeco₁)
               s tr₁ accSpec) (reduction1.simulate s tr₁ q)
         | .inr q =>
             liftM <| query (spec := accSpec) q
@@ -642,7 +642,7 @@ private def liftSimulatedMidOracleContext
     {WitnessIn : Type}
     {ctx₁ : StatementIn → Spec}
     {roles₁ : (s : StatementIn) → RoleDecoration (ctx₁ s)}
-    {OD₁ : (s : StatementIn) → OracleDecoration (ctx₁ s) (roles₁ s)}
+    {oracleDeco₁ : (s : StatementIn) → OracleDecoration (ctx₁ s) (roles₁ s)}
     {StmtMid : (s : StatementIn) → Spec.Transcript (ctx₁ s) → Type}
     {ιₛₘ : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) → Type}
     {OStmtMid : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) → ιₛₘ s tr₁ → Type}
@@ -651,10 +651,10 @@ private def liftSimulatedMidOracleContext
     {ctx₂ : (s : StatementIn) → Spec.Transcript (ctx₁ s) → Spec}
     {roles₂ : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) →
       RoleDecoration (ctx₂ s tr₁)}
-    {OD₂ : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) →
+    {oracleDeco₂ : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) →
       OracleDecoration (ctx₂ s tr₁) (roles₂ s tr₁)}
     (reduction1 : OracleReduction oSpec StatementIn
-      ctx₁ roles₁ OD₁
+      ctx₁ roles₁ oracleDeco₁
       (fun _ => PUnit) OStmtIn (fun _ => WitnessIn)
       StmtMid OStmtMid WitMid)
     (s : StatementIn)
@@ -664,20 +664,20 @@ private def liftSimulatedMidOracleContext
       ([OStmtMid s tr₁]ₒ +
         toOracleSpec ((ctx₁ s).append (ctx₂ s))
           (Spec.Decoration.append (roles₁ s) (roles₂ s))
-          (Role.Refine.append (OD₁ s) (fun tr => OD₂ s tr))
+          (Role.Refine.append (oracleDeco₁ s) (fun tr => oracleDeco₂ s tr))
           (Spec.Transcript.append (ctx₁ s) (ctx₂ s) tr₁ tr₂))
       (OracleComp
         ([OStmtIn s]ₒ +
           toOracleSpec ((ctx₁ s).append (ctx₂ s))
             (Spec.Decoration.append (roles₁ s) (roles₂ s))
-            (Role.Refine.append (OD₁ s) (fun tr => OD₂ s tr))
+            (Role.Refine.append (oracleDeco₁ s) (fun tr => oracleDeco₂ s tr))
             (Spec.Transcript.append (ctx₁ s) (ctx₂ s) tr₁ tr₂)))
   | .inl q =>
       simulateQ
         (liftAppendLeftContext
           (spec₁ := ctx₁ s) (spec₂ := ctx₂ s)
           (roles₁ := roles₁ s) (roles₂ := roles₂ s)
-          (od₁ := OD₁ s) (od₂ := fun tr => OD₂ s tr)
+          (od₁ := oracleDeco₁ s) (od₂ := fun tr => oracleDeco₂ s tr)
           (OStmt := OStmtIn s) tr₁ tr₂)
         (reduction1.simulate s tr₁ q)
   | .inr q =>
@@ -685,7 +685,7 @@ private def liftSimulatedMidOracleContext
         (spec := [OStmtIn s]ₒ +
           toOracleSpec ((ctx₁ s).append (ctx₂ s))
             (Spec.Decoration.append (roles₁ s) (roles₂ s))
-            (Role.Refine.append (OD₁ s) (fun tr => OD₂ s tr))
+            (Role.Refine.append (oracleDeco₁ s) (fun tr => oracleDeco₂ s tr))
             (Spec.Transcript.append (ctx₁ s) (ctx₂ s) tr₁ tr₂))
         (.inr q)
 
@@ -697,7 +697,7 @@ private theorem simulateQ_liftSimulatedMidOracleContext_eq
     {WitnessIn : Type}
     {ctx₁ : StatementIn → Spec}
     {roles₁ : (s : StatementIn) → RoleDecoration (ctx₁ s)}
-    {OD₁ : (s : StatementIn) → OracleDecoration (ctx₁ s) (roles₁ s)}
+    {oracleDeco₁ : (s : StatementIn) → OracleDecoration (ctx₁ s) (roles₁ s)}
     {StmtMid : (s : StatementIn) → Spec.Transcript (ctx₁ s) → Type}
     {ιₛₘ : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) → Type}
     {OStmtMid : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) → ιₛₘ s tr₁ → Type}
@@ -706,10 +706,10 @@ private theorem simulateQ_liftSimulatedMidOracleContext_eq
     {ctx₂ : (s : StatementIn) → Spec.Transcript (ctx₁ s) → Spec}
     {roles₂ : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) →
       RoleDecoration (ctx₂ s tr₁)}
-    {OD₂ : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) →
+    {oracleDeco₂ : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) →
       OracleDecoration (ctx₂ s tr₁) (roles₂ s tr₁)}
     (reduction1 : OracleReduction oSpec StatementIn
-      ctx₁ roles₁ OD₁
+      ctx₁ roles₁ oracleDeco₁
       (fun _ => PUnit) OStmtIn (fun _ => WitnessIn)
       StmtMid OStmtMid WitMid)
     (s : StatementIn)
@@ -719,23 +719,23 @@ private theorem simulateQ_liftSimulatedMidOracleContext_eq
     (midImpl : QueryImpl [OStmtMid s tr₁]ₒ Id)
     (hMid : ∀ i (q : OracleInterface.Query (OStmtMid s tr₁ i)),
       simulateQ
-        (OracleDecoration.oracleContextImpl (ctx₁ s) (roles₁ s) (OD₁ s) oStmtIn tr₁)
+        (OracleDecoration.oracleContextImpl (ctx₁ s) (roles₁ s) (oracleDeco₁ s) oStmtIn tr₁)
         (reduction1.simulate s tr₁ ⟨i, q⟩) = pure (midImpl ⟨i, q⟩)) :
     ∀ q,
       simulateQ
         (OracleDecoration.oracleContextImpl ((ctx₁ s).append (ctx₂ s))
           (Spec.Decoration.append (roles₁ s) (roles₂ s))
-          (Role.Refine.append (OD₁ s) (fun tr => OD₂ s tr))
+          (Role.Refine.append (oracleDeco₁ s) (fun tr => oracleDeco₂ s tr))
           oStmtIn
           (Spec.Transcript.append (ctx₁ s) (ctx₂ s) tr₁ tr₂))
         (liftSimulatedMidOracleContext
-          (ctx₁ := ctx₁) (roles₁ := roles₁) (OD₁ := OD₁)
-          (ctx₂ := ctx₂) (roles₂ := roles₂) (OD₂ := OD₂)
+          (ctx₁ := ctx₁) (roles₁ := roles₁) (oracleDeco₁ := oracleDeco₁)
+          (ctx₂ := ctx₂) (roles₂ := roles₂) (oracleDeco₂ := oracleDeco₂)
           reduction1 s tr₁ tr₂ q) =
       (QueryImpl.add midImpl
         (OracleDecoration.answerQuery ((ctx₁ s).append (ctx₂ s))
           (Spec.Decoration.append (roles₁ s) (roles₂ s))
-          (Role.Refine.append (OD₁ s) (fun tr => OD₂ s tr))
+          (Role.Refine.append (oracleDeco₁ s) (fun tr => oracleDeco₂ s tr))
           (Spec.Transcript.append (ctx₁ s) (ctx₂ s) tr₁ tr₂))) q := by
   intro q
   cases q with
@@ -746,20 +746,20 @@ private theorem simulateQ_liftSimulatedMidOracleContext_eq
       have hroute :
           ((OracleDecoration.oracleContextImpl ((ctx₁ s).append (ctx₂ s))
               (Spec.Decoration.append (roles₁ s) (roles₂ s))
-              (Role.Refine.append (OD₁ s) (fun tr => OD₂ s tr))
+              (Role.Refine.append (oracleDeco₁ s) (fun tr => oracleDeco₂ s tr))
               oStmtIn
               (Spec.Transcript.append (ctx₁ s) (ctx₂ s) tr₁ tr₂)) ∘ₛ
               (liftAppendLeftContext
                 (spec₁ := ctx₁ s) (spec₂ := ctx₂ s)
                 (roles₁ := roles₁ s) (roles₂ := roles₂ s)
-                (od₁ := OD₁ s) (od₂ := fun tr => OD₂ s tr)
+                (od₁ := oracleDeco₁ s) (od₂ := fun tr => oracleDeco₂ s tr)
                 (OStmt := OStmtIn s) tr₁ tr₂)) =
-          OracleDecoration.oracleContextImpl (ctx₁ s) (roles₁ s) (OD₁ s) oStmtIn tr₁ := by
+          OracleDecoration.oracleContextImpl (ctx₁ s) (roles₁ s) (oracleDeco₁ s) oStmtIn tr₁ := by
         funext q'
         exact simulateQ_liftAppendLeftContext_eq
           (spec₁ := ctx₁ s) (spec₂ := ctx₂ s)
             (roles₁ := roles₁ s) (roles₂ := roles₂ s)
-            (od₁ := OD₁ s) (od₂ := fun tr => OD₂ s tr)
+            (od₁ := oracleDeco₁ s) (od₂ := fun tr => oracleDeco₂ s tr)
             (OStmt := OStmtIn s) tr₁ tr₂ oStmtIn q'
       rw [simulateQ_ext (fun q' => congrFun hroute q')]
       simpa [QueryImpl.add] using hMid i q
@@ -771,11 +771,11 @@ private theorem simulateQ_liftAppendRightContext_withImpl_eq
     {StatementIn : Type}
     {ctx₁ : StatementIn → Spec}
     {roles₁ : (s : StatementIn) → RoleDecoration (ctx₁ s)}
-    {OD₁ : (s : StatementIn) → OracleDecoration (ctx₁ s) (roles₁ s)}
+    {oracleDeco₁ : (s : StatementIn) → OracleDecoration (ctx₁ s) (roles₁ s)}
     {ctx₂ : (s : StatementIn) → Spec.Transcript (ctx₁ s) → Spec}
     {roles₂ : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) →
       RoleDecoration (ctx₂ s tr₁)}
-    {OD₂ : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) →
+    {oracleDeco₂ : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) →
       OracleDecoration (ctx₂ s tr₁) (roles₂ s tr₁)}
     {ιₛₘ : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) → Type}
     {OStmtMid :
@@ -790,15 +790,15 @@ private theorem simulateQ_liftAppendRightContext_withImpl_eq
         (QueryImpl.add midImpl
           (OracleDecoration.answerQuery ((ctx₁ s).append (ctx₂ s))
             (Spec.Decoration.append (roles₁ s) (roles₂ s))
-            (Role.Refine.append (OD₁ s) (fun tr => OD₂ s tr))
+            (Role.Refine.append (oracleDeco₁ s) (fun tr => oracleDeco₂ s tr))
             (Spec.Transcript.append (ctx₁ s) (ctx₂ s) tr₁ tr₂)))
         (liftAppendRightContext
           (spec₁ := ctx₁ s) (spec₂ := ctx₂ s)
           (roles₁ := roles₁ s) (roles₂ := roles₂ s)
-          (od₁ := OD₁ s) (od₂ := fun tr => OD₂ s tr)
+          (od₁ := oracleDeco₁ s) (od₂ := fun tr => oracleDeco₂ s tr)
           (OStmt := OStmtMid s tr₁) tr₁ tr₂ q) =
       (QueryImpl.add midImpl
-        (OracleDecoration.answerQuery (ctx₂ s tr₁) (roles₂ s tr₁) (OD₂ s tr₁) tr₂)) q := by
+        (OracleDecoration.answerQuery (ctx₂ s tr₁) (roles₂ s tr₁) (oracleDeco₂ s tr₁) tr₂)) q := by
   intro q
   cases q with
   | inl q =>
@@ -809,74 +809,74 @@ private theorem simulateQ_liftAppendRightContext_withImpl_eq
             (QueryImpl.add midImpl
               (OracleDecoration.answerQuery ((ctx₁ s).append (ctx₂ s))
                 (Spec.Decoration.append (roles₁ s) (roles₂ s))
-                (Role.Refine.append (OD₁ s) (fun tr => OD₂ s tr))
+                (Role.Refine.append (oracleDeco₁ s) (fun tr => oracleDeco₂ s tr))
                 (Spec.Transcript.append (ctx₁ s) (ctx₂ s) tr₁ tr₂)))
             (liftAppendRightContext
               (spec₁ := ctx₁ s) (spec₂ := ctx₂ s)
               (roles₁ := roles₁ s) (roles₂ := roles₂ s)
-              (od₁ := OD₁ s) (od₂ := fun tr => OD₂ s tr)
+              (od₁ := oracleDeco₁ s) (od₂ := fun tr => oracleDeco₂ s tr)
               (OStmt := OStmtMid s tr₁) tr₁ tr₂ (.inr q)) =
           cast
             (OracleDecoration.QueryHandle.appendRight_range
-              (ctx₁ s) (ctx₂ s) (roles₁ s) (roles₂ s) (OD₁ s) (fun tr => OD₂ s tr)
+              (ctx₁ s) (ctx₂ s) (roles₁ s) (roles₂ s) (oracleDeco₁ s) (fun tr => oracleDeco₂ s tr)
               tr₁ tr₂ q)
             (OracleDecoration.answerQuery ((ctx₁ s).append (ctx₂ s))
               (Spec.Decoration.append (roles₁ s) (roles₂ s))
-              (Role.Refine.append (OD₁ s) (fun tr => OD₂ s tr))
+              (Role.Refine.append (oracleDeco₁ s) (fun tr => oracleDeco₂ s tr))
               (Spec.Transcript.append (ctx₁ s) (ctx₂ s) tr₁ tr₂)
               (OracleDecoration.QueryHandle.appendRight
-                (ctx₁ s) (ctx₂ s) (roles₁ s) (roles₂ s) (OD₁ s) (fun tr => OD₂ s tr)
+                (ctx₁ s) (ctx₂ s) (roles₁ s) (roles₂ s) (oracleDeco₁ s) (fun tr => oracleDeco₂ s tr)
                 tr₁ tr₂ q)) := by
                   simpa [QueryImpl.add, liftAppendRightContext] using
                     (simulateQ_cast_query
                       (spec := [OStmtMid s tr₁]ₒ +
                         OracleDecoration.toOracleSpec ((ctx₁ s).append (ctx₂ s))
                           (Spec.Decoration.append (roles₁ s) (roles₂ s))
-                          (Role.Refine.append (OD₁ s) (fun tr => OD₂ s tr))
+                          (Role.Refine.append (oracleDeco₁ s) (fun tr => oracleDeco₂ s tr))
                           (Spec.Transcript.append (ctx₁ s) (ctx₂ s) tr₁ tr₂))
                       (α := ([OStmtMid s tr₁]ₒ +
                         OracleDecoration.toOracleSpec ((ctx₁ s).append (ctx₂ s))
                           (Spec.Decoration.append (roles₁ s) (roles₂ s))
-                          (Role.Refine.append (OD₁ s) (fun tr => OD₂ s tr))
+                          (Role.Refine.append (oracleDeco₁ s) (fun tr => oracleDeco₂ s tr))
                           (Spec.Transcript.append (ctx₁ s) (ctx₂ s) tr₁ tr₂)).Range
                           (Sum.inr <| OracleDecoration.QueryHandle.appendRight
                             (ctx₁ s) (ctx₂ s) (roles₁ s) (roles₂ s)
-                            (OD₁ s) (fun tr => OD₂ s tr) tr₁ tr₂ q))
+                            (oracleDeco₁ s) (fun tr => oracleDeco₂ s tr) tr₁ tr₂ q))
                       (β := ([OStmtMid s tr₁]ₒ +
                         OracleDecoration.toOracleSpec (ctx₂ s tr₁)
-                          (roles₂ s tr₁) (OD₂ s tr₁) tr₂).Range (Sum.inr q))
+                          (roles₂ s tr₁) (oracleDeco₂ s tr₁) tr₂).Range (Sum.inr q))
                       (h := (OracleDecoration.QueryHandle.appendRight_range
-                        (ctx₁ s) (ctx₂ s) (roles₁ s) (roles₂ s) (OD₁ s)
-                        (fun tr => OD₂ s tr) tr₁ tr₂ q :
+                        (ctx₁ s) (ctx₂ s) (roles₁ s) (roles₂ s) (oracleDeco₁ s)
+                        (fun tr => oracleDeco₂ s tr) tr₁ tr₂ q :
                           ([OStmtMid s tr₁]ₒ +
                             OracleDecoration.toOracleSpec ((ctx₁ s).append (ctx₂ s))
                               (Spec.Decoration.append (roles₁ s) (roles₂ s))
-                              (Role.Refine.append (OD₁ s) (fun tr => OD₂ s tr))
+                              (Role.Refine.append (oracleDeco₁ s) (fun tr => oracleDeco₂ s tr))
                               (Spec.Transcript.append (ctx₁ s) (ctx₂ s) tr₁ tr₂)).Range
                             (Sum.inr <| OracleDecoration.QueryHandle.appendRight
                               (ctx₁ s) (ctx₂ s) (roles₁ s) (roles₂ s)
-                              (OD₁ s) (fun tr => OD₂ s tr) tr₁ tr₂ q) =
+                              (oracleDeco₁ s) (fun tr => oracleDeco₂ s tr) tr₁ tr₂ q) =
                           ([OStmtMid s tr₁]ₒ +
                             OracleDecoration.toOracleSpec (ctx₂ s tr₁)
-                              (roles₂ s tr₁) (OD₂ s tr₁) tr₂).Range (Sum.inr q)))
+                              (roles₂ s tr₁) (oracleDeco₂ s tr₁) tr₂).Range (Sum.inr q)))
                       (impl := QueryImpl.add midImpl
                         (OracleDecoration.answerQuery ((ctx₁ s).append (ctx₂ s))
                           (Spec.Decoration.append (roles₁ s) (roles₂ s))
-                          (Role.Refine.append (OD₁ s) (fun tr => OD₂ s tr))
+                          (Role.Refine.append (oracleDeco₁ s) (fun tr => oracleDeco₂ s tr))
                           (Spec.Transcript.append (ctx₁ s) (ctx₂ s) tr₁ tr₂)))
                       (q := query
                         (spec := [OStmtMid s tr₁]ₒ +
                           OracleDecoration.toOracleSpec ((ctx₁ s).append (ctx₂ s))
                             (Spec.Decoration.append (roles₁ s) (roles₂ s))
-                            (Role.Refine.append (OD₁ s) (fun tr => OD₂ s tr))
+                            (Role.Refine.append (oracleDeco₁ s) (fun tr => oracleDeco₂ s tr))
                             (Spec.Transcript.append (ctx₁ s) (ctx₂ s) tr₁ tr₂))
                         (Sum.inr <| OracleDecoration.QueryHandle.appendRight
                           (ctx₁ s) (ctx₂ s) (roles₁ s) (roles₂ s)
-                          (OD₁ s) (fun tr => OD₂ s tr) tr₁ tr₂ q)))
+                          (oracleDeco₁ s) (fun tr => oracleDeco₂ s tr) tr₁ tr₂ q)))
         _ = OracleDecoration.answerQuery
-              (ctx₂ s tr₁) (roles₂ s tr₁) (OD₂ s tr₁) tr₂ q := by
+              (ctx₂ s tr₁) (roles₂ s tr₁) (oracleDeco₂ s tr₁) tr₂ q := by
               simpa using OracleDecoration.QueryHandle.answerQuery_appendRight
-                (ctx₁ s) (ctx₂ s) (roles₁ s) (roles₂ s) (OD₁ s) (fun tr => OD₂ s tr)
+                (ctx₁ s) (ctx₂ s) (roles₁ s) (roles₂ s) (oracleDeco₁ s) (fun tr => oracleDeco₂ s tr)
                 tr₁ tr₂ q
 
 private def compSimulate
@@ -887,7 +887,7 @@ private def compSimulate
     {WitnessIn : Type}
     {ctx₁ : StatementIn → Spec}
     {roles₁ : (s : StatementIn) → RoleDecoration (ctx₁ s)}
-    {OD₁ : (s : StatementIn) → OracleDecoration (ctx₁ s) (roles₁ s)}
+    {oracleDeco₁ : (s : StatementIn) → OracleDecoration (ctx₁ s) (roles₁ s)}
     {StmtMid : (s : StatementIn) → Spec.Transcript (ctx₁ s) → Type}
     {ιₛₘ : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) → Type}
     {OStmtMid : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) → ιₛₘ s tr₁ → Type}
@@ -896,7 +896,7 @@ private def compSimulate
     {ctx₂ : (s : StatementIn) → Spec.Transcript (ctx₁ s) → Spec}
     {roles₂ : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) →
       RoleDecoration (ctx₂ s tr₁)}
-    {OD₂ : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) →
+    {oracleDeco₂ : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) →
       OracleDecoration (ctx₂ s tr₁) (roles₂ s tr₁)}
     {StmtOut : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) →
       Spec.Transcript (ctx₂ s tr₁) → Type}
@@ -909,7 +909,7 @@ private def compSimulate
     {WitOut : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) →
       Spec.Transcript (ctx₂ s tr₁) → Type}
     (reduction1 : OracleReduction oSpec StatementIn
-      ctx₁ roles₁ OD₁
+      ctx₁ roles₁ oracleDeco₁
       (fun _ => PUnit) OStmtIn (fun _ => WitnessIn)
       StmtMid OStmtMid WitMid)
     (reduction2 : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) →
@@ -917,7 +917,7 @@ private def compSimulate
         PUnit
         (fun _ => ctx₂ s tr₁)
         (fun _ => roles₂ s tr₁)
-        (fun _ => OD₂ s tr₁)
+        (fun _ => oracleDeco₂ s tr₁)
         (fun _ => StmtMid s tr₁)
         (fun _ => OStmtMid s tr₁)
         (fun _ => WitMid s tr₁)
@@ -929,7 +929,7 @@ private def compSimulate
       [liftAppendOracleFamily (ctx₁ s) (ctx₂ s) (ιₛₒ s) (OStmtOut s) tr]ₒ
       (OracleComp ([OStmtIn s]ₒ + toOracleSpec ((ctx₁ s).append (ctx₂ s))
         (Spec.Decoration.append (roles₁ s) (roles₂ s))
-        (Role.Refine.append (OD₁ s) (fun tr₁ => OD₂ s tr₁)) tr)) := by
+        (Role.Refine.append (oracleDeco₁ s) (fun tr₁ => oracleDeco₂ s tr₁)) tr)) := by
   intro qOut
   let split := Spec.Transcript.split (ctx₁ s) (ctx₂ s) tr
   let tr₁ := split.1
@@ -941,14 +941,14 @@ private def compSimulate
       (liftAppendRightContext
         (spec₁ := ctx₁ s) (spec₂ := ctx₂ s)
         (roles₁ := roles₁ s) (roles₂ := roles₂ s)
-        (od₁ := OD₁ s) (od₂ := fun tr => OD₂ s tr)
+        (od₁ := oracleDeco₁ s) (od₂ := fun tr => oracleDeco₂ s tr)
         (OStmt := OStmtMid s tr₁) tr₁ tr₂)
       ((reduction2 s tr₁).simulate PUnit.unit tr₂ qSplit)
   let routed :=
     simulateQ
       (liftSimulatedMidOracleContext
-        (ctx₁ := ctx₁) (roles₁ := roles₁) (OD₁ := OD₁)
-        (ctx₂ := ctx₂) (roles₂ := roles₂) (OD₂ := OD₂)
+        (ctx₁ := ctx₁) (roles₁ := roles₁) (oracleDeco₁ := oracleDeco₁)
+        (ctx₂ := ctx₂) (roles₂ := roles₂) (oracleDeco₂ := oracleDeco₂)
         reduction1 s tr₁ tr₂)
       routedSuffix
   have htr :
@@ -960,18 +960,18 @@ private def compSimulate
         ([OStmtIn s]ₒ +
           toOracleSpec ((ctx₁ s).append (ctx₂ s))
             (Spec.Decoration.append (roles₁ s) (roles₂ s))
-            (Role.Refine.append (OD₁ s) (fun tr => OD₂ s tr))
+            (Role.Refine.append (oracleDeco₁ s) (fun tr => oracleDeco₂ s tr))
             (Spec.Transcript.append (ctx₁ s) (ctx₂ s) tr₁ tr₂))
         (([OStmtOut s tr₁ tr₂]ₒ).Range qSplit) =
       OracleComp
         ([OStmtIn s]ₒ + toOracleSpec ((ctx₁ s).append (ctx₂ s))
           (Spec.Decoration.append (roles₁ s) (roles₂ s))
-          (Role.Refine.append (OD₁ s) (fun tr₁ => OD₂ s tr₁)) tr)
+          (Role.Refine.append (oracleDeco₁ s) (fun tr₁ => oracleDeco₂ s tr₁)) tr)
         ([liftAppendOracleFamily (ctx₁ s) (ctx₂ s) (ιₛₒ s) (OStmtOut s) tr]ₒ.Range qOut) := by
     let specFn := fun tr' =>
       [OStmtIn s]ₒ + toOracleSpec ((ctx₁ s).append (ctx₂ s))
         (Spec.Decoration.append (roles₁ s) (roles₂ s))
-        (Role.Refine.append (OD₁ s) (fun tr => OD₂ s tr)) tr'
+        (Role.Refine.append (oracleDeco₁ s) (fun tr => oracleDeco₂ s tr)) tr'
     let rangeSplit := (([OStmtOut s tr₁ tr₂]ₒ).Range qSplit)
     have hSpec :
         OracleComp
@@ -1001,7 +1001,7 @@ private def compFlat {ι : Type} {oSpec : OracleSpec ι}
     {WitnessIn : Type}
     {ctx₁ : StatementIn → Spec}
     {roles₁ : (s : StatementIn) → RoleDecoration (ctx₁ s)}
-    {OD₁ : (s : StatementIn) → OracleDecoration (ctx₁ s) (roles₁ s)}
+    {oracleDeco₁ : (s : StatementIn) → OracleDecoration (ctx₁ s) (roles₁ s)}
     {StmtMid : (s : StatementIn) → Spec.Transcript (ctx₁ s) → Type}
     {ιₛₘ : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) → Type}
     {OStmtMid : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) → ιₛₘ s tr₁ → Type}
@@ -1010,7 +1010,7 @@ private def compFlat {ι : Type} {oSpec : OracleSpec ι}
     {ctx₂ : (s : StatementIn) → Spec.Transcript (ctx₁ s) → Spec}
     {roles₂ : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) →
       RoleDecoration (ctx₂ s tr₁)}
-    {OD₂ : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) →
+    {oracleDeco₂ : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) →
       OracleDecoration (ctx₂ s tr₁) (roles₂ s tr₁)}
     {StmtOut : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) →
       Spec.Transcript (ctx₂ s tr₁) → Type}
@@ -1023,7 +1023,7 @@ private def compFlat {ι : Type} {oSpec : OracleSpec ι}
     {WitOut : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) →
       Spec.Transcript (ctx₂ s tr₁) → Type}
     (reduction1 : OracleReduction oSpec StatementIn
-      ctx₁ roles₁ OD₁
+      ctx₁ roles₁ oracleDeco₁
       (fun _ => PUnit) OStmtIn (fun _ => WitnessIn)
       StmtMid OStmtMid WitMid)
     (reduction2 : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) →
@@ -1031,7 +1031,7 @@ private def compFlat {ι : Type} {oSpec : OracleSpec ι}
         PUnit
         (fun _ => ctx₂ s tr₁)
         (fun _ => roles₂ s tr₁)
-        (fun _ => OD₂ s tr₁)
+        (fun _ => oracleDeco₂ s tr₁)
         (fun _ => StmtMid s tr₁)
         (fun _ => OStmtMid s tr₁)
         (fun _ => WitMid s tr₁)
@@ -1041,7 +1041,7 @@ private def compFlat {ι : Type} {oSpec : OracleSpec ι}
     OracleReduction oSpec StatementIn
       (fun s => (ctx₁ s).append (ctx₂ s))
       (fun s => Spec.Decoration.append (roles₁ s) (roles₂ s))
-      (fun s => Role.Refine.append (OD₁ s) (fun tr₁ => OD₂ s tr₁))
+      (fun s => Role.Refine.append (oracleDeco₁ s) (fun tr₁ => oracleDeco₂ s tr₁))
       (fun _ => PUnit)
       OStmtIn
       (fun _ => WitnessIn)
@@ -1103,11 +1103,11 @@ private def compFlat {ι : Type} {oSpec : OracleSpec ι}
         (reduction1.verifier s accSpec PUnit.unit)
         (fun tr₁ sMid =>
           retargetContinuationVerifier reduction1 s tr₁
-            (ctx₂ s tr₁) (roles₂ s tr₁) (OD₂ s tr₁)
+            (ctx₂ s tr₁) (roles₂ s tr₁) (oracleDeco₂ s tr₁)
             (fun tr₂ => StmtOut s tr₁ tr₂)
-            ((accSpecAfter (ctx₁ s) (roles₁ s) (OD₁ s) accSpec tr₁).2)
+            ((accSpecAfter (ctx₁ s) (roles₁ s) (oracleDeco₁ s) accSpec tr₁).2)
             ((reduction2 s tr₁).verifier PUnit.unit
-              ((accSpecAfter (ctx₁ s) (roles₁ s) (OD₁ s) accSpec tr₁).2)
+              ((accSpecAfter (ctx₁ s) (roles₁ s) (oracleDeco₁ s) accSpec tr₁).2)
               sMid)))
   simulate := compSimulate reduction1 reduction2
 
@@ -1123,7 +1123,7 @@ def comp {ι : Type} {oSpec : OracleSpec ι}
     {WitnessIn : SharedIn → Type}
     {ctx₁ : SharedIn → Spec}
     {roles₁ : (shared : SharedIn) → RoleDecoration (ctx₁ shared)}
-    {OD₁ : (shared : SharedIn) → OracleDecoration (ctx₁ shared) (roles₁ shared)}
+    {oracleDeco₁ : (shared : SharedIn) → OracleDecoration (ctx₁ shared) (roles₁ shared)}
     {StmtMid : (shared : SharedIn) → Spec.Transcript (ctx₁ shared) → Type}
     {ιₛₘ : (shared : SharedIn) → (tr₁ : Spec.Transcript (ctx₁ shared)) → Type}
     {OStmtMid :
@@ -1134,7 +1134,7 @@ def comp {ι : Type} {oSpec : OracleSpec ι}
     {ctx₂ : (shared : SharedIn) → Spec.Transcript (ctx₁ shared) → Spec}
     {roles₂ : (shared : SharedIn) → (tr₁ : Spec.Transcript (ctx₁ shared)) →
       RoleDecoration (ctx₂ shared tr₁)}
-    {OD₂ : (shared : SharedIn) → (tr₁ : Spec.Transcript (ctx₁ shared)) →
+    {oracleDeco₂ : (shared : SharedIn) → (tr₁ : Spec.Transcript (ctx₁ shared)) →
       OracleDecoration (ctx₂ shared tr₁) (roles₂ shared tr₁)}
     {StmtOut : (shared : SharedIn) → (tr₁ : Spec.Transcript (ctx₁ shared)) →
       Spec.Transcript (ctx₂ shared tr₁) → Type}
@@ -1147,13 +1147,13 @@ def comp {ι : Type} {oSpec : OracleSpec ι}
     {WitOut : (shared : SharedIn) → (tr₁ : Spec.Transcript (ctx₁ shared)) →
       Spec.Transcript (ctx₂ shared tr₁) → Type}
     (reduction1 : OracleReduction oSpec SharedIn
-      ctx₁ roles₁ OD₁ StatementIn OStmtIn WitnessIn StmtMid OStmtMid WitMid)
+      ctx₁ roles₁ oracleDeco₁ StatementIn OStmtIn WitnessIn StmtMid OStmtMid WitMid)
     (reduction2 : (shared : SharedIn) → (tr₁ : Spec.Transcript (ctx₁ shared)) →
       OracleReduction oSpec
         PUnit
         (fun _ => ctx₂ shared tr₁)
         (fun _ => roles₂ shared tr₁)
-        (fun _ => OD₂ shared tr₁)
+        (fun _ => oracleDeco₂ shared tr₁)
         (fun _ => StmtMid shared tr₁)
         (fun _ => OStmtMid shared tr₁)
         (fun _ => WitMid shared tr₁)
@@ -1163,7 +1163,7 @@ def comp {ι : Type} {oSpec : OracleSpec ι}
     OracleReduction oSpec SharedIn
       (fun shared => (ctx₁ shared).append (ctx₂ shared))
       (fun shared => Spec.Decoration.append (roles₁ shared) (roles₂ shared))
-      (fun shared => Role.Refine.append (OD₁ shared) (fun tr₁ => OD₂ shared tr₁))
+      (fun shared => Role.Refine.append (oracleDeco₁ shared) (fun tr₁ => oracleDeco₂ shared tr₁))
       StatementIn OStmtIn WitnessIn
       (fun shared => Spec.Transcript.liftAppend (ctx₁ shared) (ctx₂ shared) (StmtOut shared))
       (fun shared tr =>
@@ -1235,12 +1235,12 @@ def comp {ι : Type} {oSpec : OracleSpec ι}
         (reduction1.verifier shared accSpec stmt)
         (fun tr₁ sMid =>
           retargetContinuationVerifier reduction1Fixed stmt tr₁
-            (ctx₂ shared tr₁) (roles₂ shared tr₁) (OD₂ shared tr₁)
+            (ctx₂ shared tr₁) (roles₂ shared tr₁) (oracleDeco₂ shared tr₁)
             (fun tr₂ => StmtOut shared tr₁ tr₂)
-            ((accSpecAfter (ctx₁ shared) (roles₁ shared) (OD₁ shared)
+            ((accSpecAfter (ctx₁ shared) (roles₁ shared) (oracleDeco₁ shared)
               accSpec tr₁).2)
             ((reduction2 shared tr₁).verifier PUnit.unit
-              ((accSpecAfter (ctx₁ shared) (roles₁ shared) (OD₁ shared)
+              ((accSpecAfter (ctx₁ shared) (roles₁ shared) (oracleDeco₁ shared)
                 accSpec tr₁).2)
               sMid)))
   simulate shared tr := by
@@ -1256,14 +1256,14 @@ def comp {ι : Type} {oSpec : OracleSpec ι}
         (liftAppendRightContext
           (spec₁ := ctx₁ shared) (spec₂ := ctx₂ shared)
           (roles₁ := roles₁ shared) (roles₂ := roles₂ shared)
-          (od₁ := OD₁ shared) (od₂ := fun tr₁ => OD₂ shared tr₁)
+          (od₁ := oracleDeco₁ shared) (od₂ := fun tr₁ => oracleDeco₂ shared tr₁)
           (OStmt := OStmtMid shared tr₁) tr₁ tr₂)
         ((reduction2 shared tr₁).simulate PUnit.unit tr₂ qSplit)
     let routed :=
       simulateQ
         (liftSimulatedMidOracleContextContinuation
-          (ctx₁ := ctx₁) (roles₁ := roles₁) (OD₁ := OD₁)
-          (ctx₂ := ctx₂) (roles₂ := roles₂) (OD₂ := OD₂)
+          (ctx₁ := ctx₁) (roles₁ := roles₁) (oracleDeco₁ := oracleDeco₁)
+          (ctx₂ := ctx₂) (roles₂ := roles₂) (oracleDeco₂ := oracleDeco₂)
           reduction1 shared tr₁ tr₂)
         routedSuffix
     have htr :
@@ -1275,21 +1275,21 @@ def comp {ι : Type} {oSpec : OracleSpec ι}
           ([OStmtIn shared]ₒ +
             toOracleSpec ((ctx₁ shared).append (ctx₂ shared))
               (Spec.Decoration.append (roles₁ shared) (roles₂ shared))
-              (Role.Refine.append (OD₁ shared) (fun tr₁ => OD₂ shared tr₁))
+              (Role.Refine.append (oracleDeco₁ shared) (fun tr₁ => oracleDeco₂ shared tr₁))
               (Spec.Transcript.append (ctx₁ shared) (ctx₂ shared) tr₁ tr₂))
           (([OStmtOut shared tr₁ tr₂]ₒ).Range qSplit) =
         OracleComp
           ([OStmtIn shared]ₒ +
             toOracleSpec ((ctx₁ shared).append (ctx₂ shared))
               (Spec.Decoration.append (roles₁ shared) (roles₂ shared))
-              (Role.Refine.append (OD₁ shared) (fun tr₁ => OD₂ shared tr₁)) tr)
+              (Role.Refine.append (oracleDeco₁ shared) (fun tr₁ => oracleDeco₂ shared tr₁)) tr)
           ([liftAppendOracleFamily (ctx₁ shared) (ctx₂ shared)
             (ιₛₒ shared) (OStmtOut shared) tr]ₒ.Range qOut) := by
       let specFn := fun tr' =>
         [OStmtIn shared]ₒ +
           toOracleSpec ((ctx₁ shared).append (ctx₂ shared))
             (Spec.Decoration.append (roles₁ shared) (roles₂ shared))
-            (Role.Refine.append (OD₁ shared) (fun tr₁ => OD₂ shared tr₁)) tr'
+            (Role.Refine.append (oracleDeco₁ shared) (fun tr₁ => oracleDeco₂ shared tr₁)) tr'
       let rangeSplit := ([OStmtOut shared tr₁ tr₂]ₒ).Range qSplit
       have hSpec :
           OracleComp
@@ -1321,7 +1321,7 @@ private theorem simulate_compFlat {ι : Type} {oSpec : OracleSpec ι}
     {WitnessIn : Type}
     {ctx₁ : StatementIn → Spec}
     {roles₁ : (s : StatementIn) → RoleDecoration (ctx₁ s)}
-    {OD₁ : (s : StatementIn) → OracleDecoration (ctx₁ s) (roles₁ s)}
+    {oracleDeco₁ : (s : StatementIn) → OracleDecoration (ctx₁ s) (roles₁ s)}
     {StmtMid : (s : StatementIn) → Spec.Transcript (ctx₁ s) → Type}
     {ιₛₘ : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) → Type}
     {OStmtMid : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) → ιₛₘ s tr₁ → Type}
@@ -1330,7 +1330,7 @@ private theorem simulate_compFlat {ι : Type} {oSpec : OracleSpec ι}
     {ctx₂ : (s : StatementIn) → Spec.Transcript (ctx₁ s) → Spec}
     {roles₂ : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) →
       RoleDecoration (ctx₂ s tr₁)}
-    {OD₂ : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) →
+    {oracleDeco₂ : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) →
       OracleDecoration (ctx₂ s tr₁) (roles₂ s tr₁)}
     {StmtOut : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) →
       Spec.Transcript (ctx₂ s tr₁) → Type}
@@ -1343,7 +1343,7 @@ private theorem simulate_compFlat {ι : Type} {oSpec : OracleSpec ι}
     {WitOut : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) →
       Spec.Transcript (ctx₂ s tr₁) → Type}
     (reduction1 : OracleReduction oSpec StatementIn
-      ctx₁ roles₁ OD₁
+      ctx₁ roles₁ oracleDeco₁
       (fun _ => PUnit) OStmtIn (fun _ => WitnessIn)
       StmtMid OStmtMid WitMid)
     (reduction2 : (s : StatementIn) → (tr₁ : Spec.Transcript (ctx₁ s)) →
@@ -1351,7 +1351,7 @@ private theorem simulate_compFlat {ι : Type} {oSpec : OracleSpec ι}
         PUnit
         (fun _ => ctx₂ s tr₁)
         (fun _ => roles₂ s tr₁)
-        (fun _ => OD₂ s tr₁)
+        (fun _ => oracleDeco₂ s tr₁)
         (fun _ => StmtMid s tr₁)
         (fun _ => OStmtMid s tr₁)
         (fun _ => WitMid s tr₁)
@@ -1366,31 +1366,31 @@ private theorem simulate_compFlat {ι : Type} {oSpec : OracleSpec ι}
     (outImpl : QueryImpl [OStmtOut s tr₁ tr₂]ₒ Id)
     (hMid : ∀ i (q : OracleInterface.Query (OStmtMid s tr₁ i)),
       simulateQ
-        (OracleDecoration.oracleContextImpl (ctx₁ s) (roles₁ s) (OD₁ s) oStmtIn tr₁)
+        (OracleDecoration.oracleContextImpl (ctx₁ s) (roles₁ s) (oracleDeco₁ s) oStmtIn tr₁)
         (reduction1.simulate s tr₁ ⟨i, q⟩) = pure (midImpl ⟨i, q⟩))
     (hOut : ∀ i (q : OracleInterface.Query (OStmtOut s tr₁ tr₂ i)),
       simulateQ
         (QueryImpl.add midImpl
-          (OracleDecoration.answerQuery (ctx₂ s tr₁) (roles₂ s tr₁) (OD₂ s tr₁) tr₂))
+          (OracleDecoration.answerQuery (ctx₂ s tr₁) (roles₂ s tr₁) (oracleDeco₂ s tr₁) tr₂))
         ((reduction2 s tr₁).simulate PUnit.unit tr₂ ⟨i, q⟩) = pure (outImpl ⟨i, q⟩)) :
     ∀ i (q : OracleInterface.Query (OStmtOut s tr₁ tr₂ i)),
       simulateQ
         (OracleDecoration.oracleContextImpl ((ctx₁ s).append (ctx₂ s))
           (Spec.Decoration.append (roles₁ s) (roles₂ s))
-          (Role.Refine.append (OD₁ s) (fun tr => OD₂ s tr))
+          (Role.Refine.append (oracleDeco₁ s) (fun tr => oracleDeco₂ s tr))
           oStmtIn
           (Spec.Transcript.append (ctx₁ s) (ctx₂ s) tr₁ tr₂))
         (simulateQ
           (liftSimulatedMidOracleContext
-            (ctx₁ := ctx₁) (roles₁ := roles₁) (OD₁ := OD₁)
+            (ctx₁ := ctx₁) (roles₁ := roles₁) (oracleDeco₁ := oracleDeco₁)
             (StmtMid := StmtMid) (ιₛₘ := ιₛₘ) (OStmtMid := OStmtMid)
-            (ctx₂ := ctx₂) (roles₂ := roles₂) (OD₂ := OD₂)
+            (ctx₂ := ctx₂) (roles₂ := roles₂) (oracleDeco₂ := oracleDeco₂)
             reduction1 s tr₁ tr₂)
           (simulateQ
             (liftAppendRightContext
               (spec₁ := ctx₁ s) (spec₂ := ctx₂ s)
               (roles₁ := roles₁ s) (roles₂ := roles₂ s)
-              (od₁ := OD₁ s) (od₂ := fun tr => OD₂ s tr)
+              (od₁ := oracleDeco₁ s) (od₂ := fun tr => oracleDeco₂ s tr)
               (OStmt := OStmtMid s tr₁) tr₁ tr₂)
             ((reduction2 s tr₁).simulate PUnit.unit tr₂ ⟨i, q⟩))) =
       pure (outImpl ⟨i, q⟩) := by
@@ -1402,27 +1402,27 @@ private theorem simulate_compFlat {ι : Type} {oSpec : OracleSpec ι}
         simulateQ
           (OracleDecoration.oracleContextImpl ((ctx₁ s).append (ctx₂ s))
             (Spec.Decoration.append (roles₁ s) (roles₂ s))
-            (Role.Refine.append (OD₁ s) (fun tr => OD₂ s tr))
+            (Role.Refine.append (oracleDeco₁ s) (fun tr => oracleDeco₂ s tr))
             oStmtIn
             (Spec.Transcript.append (ctx₁ s) (ctx₂ s) tr₁ tr₂))
           (liftSimulatedMidOracleContext
-            (ctx₁ := ctx₁) (roles₁ := roles₁) (OD₁ := OD₁)
+            (ctx₁ := ctx₁) (roles₁ := roles₁) (oracleDeco₁ := oracleDeco₁)
             (StmtMid := StmtMid) (ιₛₘ := ιₛₘ) (OStmtMid := OStmtMid)
-            (ctx₂ := ctx₂) (roles₂ := roles₂) (OD₂ := OD₂)
+            (ctx₂ := ctx₂) (roles₂ := roles₂) (oracleDeco₂ := oracleDeco₂)
             reduction1 s tr₁ tr₂ q))
       (simulateQ
         (liftAppendRightContext
           (spec₁ := ctx₁ s) (spec₂ := ctx₂ s)
           (roles₁ := roles₁ s) (roles₂ := roles₂ s)
-          (od₁ := OD₁ s) (od₂ := fun tr => OD₂ s tr)
+          (od₁ := oracleDeco₁ s) (od₂ := fun tr => oracleDeco₂ s tr)
           (OStmt := OStmtMid s tr₁) tr₁ tr₂)
         ((reduction2 s tr₁).simulate PUnit.unit tr₂ ⟨i, q⟩)) =
       pure (outImpl ⟨i, q⟩)
   rw [simulateQ_ext
     (simulateQ_liftSimulatedMidOracleContext_eq
-      (ctx₁ := ctx₁) (roles₁ := roles₁) (OD₁ := OD₁)
+      (ctx₁ := ctx₁) (roles₁ := roles₁) (oracleDeco₁ := oracleDeco₁)
       (StmtMid := StmtMid) (ιₛₘ := ιₛₘ) (OStmtMid := OStmtMid)
-      (ctx₂ := ctx₂) (roles₂ := roles₂) (OD₂ := OD₂)
+      (ctx₂ := ctx₂) (roles₂ := roles₂) (oracleDeco₂ := oracleDeco₂)
       reduction1 s tr₁ tr₂ oStmtIn midImpl hMid)]
   rw [← QueryImpl.simulateQ_compose]
   change
@@ -1432,19 +1432,19 @@ private theorem simulate_compFlat {ι : Type} {oSpec : OracleSpec ι}
           (QueryImpl.add midImpl
             (OracleDecoration.answerQuery ((ctx₁ s).append (ctx₂ s))
               (Spec.Decoration.append (roles₁ s) (roles₂ s))
-              (Role.Refine.append (OD₁ s) (fun tr => OD₂ s tr))
+              (Role.Refine.append (oracleDeco₁ s) (fun tr => oracleDeco₂ s tr))
               (Spec.Transcript.append (ctx₁ s) (ctx₂ s) tr₁ tr₂)))
           (liftAppendRightContext
             (spec₁ := ctx₁ s) (spec₂ := ctx₂ s)
             (roles₁ := roles₁ s) (roles₂ := roles₂ s)
-            (od₁ := OD₁ s) (od₂ := fun tr => OD₂ s tr)
+            (od₁ := oracleDeco₁ s) (od₂ := fun tr => oracleDeco₂ s tr)
             (OStmt := OStmtMid s tr₁) tr₁ tr₂ q))
       ((reduction2 s tr₁).simulate PUnit.unit tr₂ ⟨i, q⟩) =
       pure (outImpl ⟨i, q⟩)
   rw [simulateQ_ext
     (simulateQ_liftAppendRightContext_withImpl_eq
-      (ctx₁ := ctx₁) (roles₁ := roles₁) (OD₁ := OD₁)
-      (ctx₂ := ctx₂) (roles₂ := roles₂) (OD₂ := OD₂)
+      (ctx₁ := ctx₁) (roles₁ := roles₁) (oracleDeco₁ := oracleDeco₁)
+      (ctx₂ := ctx₂) (roles₂ := roles₂) (oracleDeco₂ := oracleDeco₂)
       (ιₛₘ := ιₛₘ) (OStmtMid := OStmtMid)
       s tr₁ tr₂ midImpl)]
   simpa using hOut i q
