@@ -8,24 +8,21 @@ import ArkLib.Interaction.Concurrent.Execution
 /-!
 # Finite prefixes and infinite runs of dynamic concurrent processes
 
-This file extends the dynamic `Concurrent.Process` execution layer in two
-directions.
+This file extends finite executions in the two directions needed for semantic
+reasoning about ongoing concurrent behavior.
 
-* `Process.Prefix` is the finite-prefix analogue of `Process.Trace`.
-  Unlike `Trace`, a `Prefix` may stop at any residual process state, not only
-  at a quiescent one.
-* `Process.Run` is an infinite execution of a dynamic concurrent process,
-  represented in a continuation-friendly way by a state stream together with
-  one complete sequential transcript for each state.
+* `Process.Prefix` is the right notion of a finite initial segment of an
+  execution. Unlike `Process.Trace`, it may stop at any residual process state,
+  not only at a quiescent one.
+* `Process.Run` is an infinite execution, represented by the residual process
+  state at each time index together with the complete transcript chosen for the
+  corresponding process step.
 
-The key reason for introducing `Prefix` is that finite traces alone are not a
-good prefix object for infinite behavior: a `Trace` can terminate only at a
-state whose current step has no complete transcripts, while a prefix of an
-ongoing run must be allowed to stop arbitrarily.
-
-This file is therefore the bridge from the existing finite execution layer to
-later semantic layers such as observation equivalence, fairness, liveness, and
-refinement over infinite runs.
+The distinction matters because fairness, liveness, and observational
+equivalence reason about executions that continue forever. A terminating trace
+is too restrictive to serve as the generic prefix object for that purpose, so
+this file provides the dedicated bridge from finite executions to infinitary
+semantics.
 -/
 
 universe u v w
@@ -57,21 +54,29 @@ inductive Prefix {Party : Type u} (process : Process Party) :
 
 namespace Prefix
 
-/-- The sequence of current controlling parties exposed by a finite prefix. -/
+/--
+The sequence of current controlling parties exposed by a finite prefix.
+
+This is the controller-level summary of the finite execution prefix.
+-/
 def currentControllers {Party : Type u} {process : Process Party} :
     {p : process.Proc} → {n : Nat} → Prefix process p n → List (Option Party)
   | _, _, .nil => []
   | p, _, .step tr tail =>
       (process.step p).currentController? tr :: currentControllers tail
 
-/-- The sequence of full controller paths exposed by a finite prefix. -/
+/--
+The sequence of full controller paths exposed by a finite prefix.
+-/
 def controllerPaths {Party : Type u} {process : Process Party} :
     {p : process.Proc} → {n : Nat} → Prefix process p n → List (List Party)
   | _, _, .nil => []
   | p, _, .step tr tail =>
       (process.step p).controllerPath tr :: controllerPaths tail
 
-/-- The stable event labels attached to the executed steps of a finite prefix. -/
+/--
+The stable event labels attached to the executed steps of a finite prefix.
+-/
 def events {Party : Type u} {process : Process Party} {Event : Type w}
     (eventMap : process.EventMap Event) :
     {p : process.Proc} → {n : Nat} → Prefix process p n → List Event
@@ -79,7 +84,9 @@ def events {Party : Type u} {process : Process Party} {Event : Type w}
   | p, _, .step tr tail =>
       eventMap p tr :: events eventMap tail
 
-/-- The stable tickets attached to the executed steps of a finite prefix. -/
+/--
+The stable tickets attached to the executed steps of a finite prefix.
+-/
 def tickets {Party : Type u} {process : Process Party} {Ticket : Type w}
     (ticketMap : process.Tickets Ticket) :
     {p : process.Proc} → {n : Nat} → Prefix process p n → List Ticket
@@ -90,6 +97,9 @@ def tickets {Party : Type u} {process : Process Party} {Ticket : Type w}
 /--
 Forget the quiescence proof of a finite `Trace` and keep only its executed
 prefix.
+
+This is the canonical way to view a terminated finite execution as an ordinary
+prefix that can later be compared with prefixes extracted from infinite runs.
 -/
 def ofTrace {Party : Type u} {process : Process Party} :
     {p : process.Proc} → (trace : Trace process p) → Prefix process p trace.length
@@ -130,8 +140,9 @@ It is represented by:
 * `next_state`, which states that the residual state stream follows the
   process continuation exactly.
 
-This is a continuation-based infinite semantics: the "state" of the run is
-just the residual process state already exposed by the process itself.
+This is a continuation-based infinite semantics: the run does not introduce a
+new operational state space of its own. It simply records how the residual
+process state evolves when one complete process step is chosen at each time.
 -/
 structure Run {Party : Type u} (process : Process Party) where
   state : Nat → process.Proc
@@ -149,6 +160,8 @@ def initial {Party : Type u} {process : Process Party}
 
 /--
 The first complete process-step transcript of the run.
+
+This is the step that carries the system from `run.initial` to `run.tail.initial`.
 -/
 def head {Party : Type u} {process : Process Party}
     (run : Run process) : (process.step run.initial).spec.Transcript := by
@@ -156,6 +169,9 @@ def head {Party : Type u} {process : Process Party}
 
 /--
 The tail of a run after its first process step.
+
+Operationally, `run.tail` is the same execution observed one process step
+later.
 -/
 def tail {Party : Type u} {process : Process Party}
     (run : Run process) :
@@ -179,6 +195,8 @@ theorem tail_initial {Party : Type u} {process : Process Party}
 /--
 `take run n` is the length-`n` finite execution prefix of the infinite run
 `run`.
+
+This is the basic bridge from infinitary runs back to finite prefix reasoning.
 -/
 def take {Party : Type u} {process : Process Party}
     (run : Run process) : (n : Nat) → Prefix process run.initial n
@@ -187,7 +205,9 @@ def take {Party : Type u} {process : Process Party}
       .step run.head (cast (by
         rw [run.tail_initial]) (run.tail.take n))
 
-/-- The current controlling party of step `n` of a run, if any. -/
+/--
+The current controlling party of step `n` of a run, if any.
+-/
 def currentController? {Party : Type u} {process : Process Party}
     (run : Run process) (n : Nat) : Option Party :=
   (process.step (run.state n)).currentController? (run.transcript n)
@@ -199,7 +219,9 @@ def currentControllersUpTo {Party : Type u} {process : Process Party}
   | 0 => []
   | n + 1 => run.currentController? 0 :: run.tail.currentControllersUpTo n
 
-/-- The full controller path recorded by step `n` of a run. -/
+/--
+The full controller path recorded by step `n` of a run.
+-/
 def controllerPath {Party : Type u} {process : Process Party}
     (run : Run process) (n : Nat) : List Party :=
   (process.step (run.state n)).controllerPath (run.transcript n)
@@ -211,7 +233,9 @@ def controllerPathsUpTo {Party : Type u} {process : Process Party}
   | 0 => []
   | n + 1 => run.controllerPath 0 :: run.tail.controllerPathsUpTo n
 
-/-- The stable event label attached to step `n` of a run. -/
+/--
+The stable event label attached to step `n` of a run.
+-/
 def event {Party : Type u} {process : Process Party}
     {Event : Type w} (eventMap : process.EventMap Event)
     (run : Run process) (n : Nat) : Event :=
@@ -225,7 +249,9 @@ def eventsUpTo {Party : Type u} {process : Process Party}
   | 0 => []
   | n + 1 => run.event eventMap 0 :: run.tail.eventsUpTo eventMap n
 
-/-- The stable ticket attached to step `n` of a run. -/
+/--
+The stable ticket attached to step `n` of a run.
+-/
 def ticket {Party : Type u} {process : Process Party}
     {Ticket : Type w} (ticketMap : process.Tickets Ticket)
     (run : Run process) (n : Nat) : Ticket :=

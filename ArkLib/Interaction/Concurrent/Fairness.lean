@@ -8,18 +8,24 @@ import ArkLib.Interaction.Concurrent.Run
 /-!
 # Fairness of dynamic concurrent runs
 
-This file adds a first fairness layer on top of `Concurrent.Process.Run`.
+This file adds the first fairness layer on top of `Concurrent.Process.Run`.
 
-The design is intentionally ticket-based:
+The key design choice is that fairness is phrased in terms of stable
+`Tickets`, not raw frontier events. This matters because the concrete event
+type available at one residual process state need not even be comparable with
+the event type at a later state, while a ticket is meant to name the same
+scheduling obligation across time and across different presentations of the
+same protocol.
 
-* enabledness is phrased in terms of stable tickets attached to complete step
-  transcripts;
-* fairness quantifies over those tickets, not over raw frontier events;
-* the resulting notions apply equally well to state-indexed machines and to
-  richer continuation-based process frontends.
+So the fairness notions here answer questions of the form:
 
-This keeps fairness decoupled from any particular scheduler syntax while still
-remaining concrete enough for later liveness theorems.
+* was a given obligation enabled at time `n`?
+* was it the obligation actually chosen at time `n`?
+* if it stays enabled, must it eventually fire?
+* if it is enabled infinitely often, must it fire infinitely often?
+
+This makes the fairness layer frontend-independent while still concrete enough
+for later liveness theorems.
 -/
 
 universe u v w
@@ -30,17 +36,26 @@ namespace Concurrent
 namespace Process
 namespace Run
 
-/-- `Always P` means that `P` holds at every time index. -/
+/--
+`Always P` means that the temporal property `P` holds at every time index.
+-/
 def Always (P : Nat → Prop) : Prop := ∀ n, P n
 
-/-- `Eventually P` means that `P` holds at some time index. -/
+/--
+`Eventually P` means that `P` holds at some time index.
+-/
 def Eventually (P : Nat → Prop) : Prop := ∃ n, P n
 
-/-- `EventuallyAlways P` means that from some point onward, `P` always holds. -/
+/--
+`EventuallyAlways P` means that from some time onward, `P` keeps holding
+forever.
+-/
 def EventuallyAlways (P : Nat → Prop) : Prop :=
   ∃ N, ∀ n, N ≤ n → P n
 
-/-- `InfinitelyOften P` means that `P` holds at arbitrarily late time indices. -/
+/--
+`InfinitelyOften P` means that `P` holds at arbitrarily late time indices.
+-/
 def InfinitelyOften (P : Nat → Prop) : Prop :=
   ∀ N, ∃ n, N ≤ n ∧ P n
 
@@ -79,6 +94,9 @@ namespace Ticketed
 `enabledAt ticketed run ticket n` means that at time `n`, there exists some
 complete transcript of the current process step whose stable ticket is
 `ticket`.
+
+This is the semantic notion of "the scheduler could choose obligation
+`ticket` now".
 -/
 def enabledAt {Party : Type u} (ticketed : Process.Ticketed Party)
     (run : Process.Run ticketed.toProcess)
@@ -89,6 +107,9 @@ def enabledAt {Party : Type u} (ticketed : Process.Ticketed Party)
 /--
 `firedAt ticketed run ticket n` means that the actual transcript chosen by the
 run at time `n` has stable ticket `ticket`.
+
+This is the semantic notion of "obligation `ticket` was the one actually
+served at time `n`".
 -/
 def firedAt {Party : Type u} (ticketed : Process.Ticketed Party)
     (run : Process.Run ticketed.toProcess)
@@ -99,6 +120,9 @@ def firedAt {Party : Type u} (ticketed : Process.Ticketed Party)
 Weak fairness for one ticket:
 if the ticket is continuously enabled from some point onward, then it is
 eventually fired.
+
+This is the standard justice-style condition for one stable scheduling
+obligation.
 -/
 def WeakFairOn {Party : Type u} (ticketed : Process.Ticketed Party)
     (run : Process.Run ticketed.toProcess)
@@ -109,6 +133,9 @@ def WeakFairOn {Party : Type u} (ticketed : Process.Ticketed Party)
 /--
 Strong fairness for one ticket:
 if the ticket is enabled infinitely often, then it is fired infinitely often.
+
+This is the standard compassion-style condition for one stable scheduling
+obligation.
 -/
 def StrongFairOn {Party : Type u} (ticketed : Process.Ticketed Party)
     (run : Process.Run ticketed.toProcess)
@@ -116,18 +143,24 @@ def StrongFairOn {Party : Type u} (ticketed : Process.Ticketed Party)
   Process.Run.InfinitelyOften (enabledAt ticketed run ticket) →
     Process.Run.InfinitelyOften (firedAt ticketed run ticket)
 
-/-- A run is weakly fair when every ticket is weakly fair. -/
+/--
+A run is weakly fair when every ticket is weakly fair.
+-/
 def WeakFair {Party : Type u} (ticketed : Process.Ticketed Party)
     (run : Process.Run ticketed.toProcess) : Prop :=
   ∀ ticket, WeakFairOn ticketed run ticket
 
-/-- A run is strongly fair when every ticket is strongly fair. -/
+/--
+A run is strongly fair when every ticket is strongly fair.
+-/
 def StrongFair {Party : Type u} (ticketed : Process.Ticketed Party)
     (run : Process.Run ticketed.toProcess) : Prop :=
   ∀ ticket, StrongFairOn ticketed run ticket
 
 /--
 The actually fired ticket at time `n` is always enabled at time `n`.
+
+This is the sanity lemma connecting the two basic predicates.
 -/
 theorem fired_implies_enabled {Party : Type u} (ticketed : Process.Ticketed Party)
     (run : Process.Run ticketed.toProcess)

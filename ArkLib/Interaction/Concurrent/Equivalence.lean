@@ -8,19 +8,21 @@ import ArkLib.Interaction.Concurrent.Bisimulation
 /-!
 # Common concurrent equivalence notions
 
-This file packages the most useful bisimulation-based equivalence notions for
-the current concurrent framework.
+This file packages the bisimulation-based equivalence notions that are most
+useful in practice.
 
-The emphasis is pragmatic rather than foundational:
+The underlying `Refinement.Bisimulation` API is intentionally general: it can
+talk about any step relation whatsoever. For actual protocol work, however, one
+usually wants a smaller family of standard questions:
 
-* controller equivalence,
-* controller-path equivalence,
-* event-trace equivalence,
-* ticket equivalence,
-* and party-local observational equivalence.
+* do the two systems expose the same controller at each step?
+* do they expose the same full controller path?
+* do they produce the same external event trace?
+* do they preserve the same fairness tickets?
+* does a chosen party observe the same thing in both systems?
 
-Each notion is just a specialized `Refinement.Bisimulation`, together with the
-obvious preservation lemmas exposed under a simpler name.
+This file packages exactly those questions as named equivalence notions and
+records the immediate preservation lemmas for finite run prefixes.
 -/
 
 universe u v w
@@ -29,8 +31,10 @@ namespace Interaction
 namespace Concurrent
 namespace Equivalence
 
-/-- Controller equivalence preserves the current controller chosen at each
-executed step. -/
+/--
+`Controller left right` means that `left` and `right` are bisimilar while
+preserving the current controlling party chosen at each executed step.
+-/
 abbrev Controller {Party : Type u}
     (left right : Process.System Party) :=
   Refinement.Bisimulation left right
@@ -38,8 +42,10 @@ abbrev Controller {Party : Type u}
     (Observation.Process.TranscriptRel.byController
       (left := right.toProcess) (right := left.toProcess))
 
-/-- Controller-path equivalence preserves the full controller path of each
-executed step. -/
+/--
+`ControllerPath left right` means that `left` and `right` are bisimilar while
+preserving the full controller path of each executed step.
+-/
 abbrev ControllerPath {Party : Type u}
     (left right : Process.System Party) :=
   Refinement.Bisimulation left right
@@ -47,8 +53,11 @@ abbrev ControllerPath {Party : Type u}
     (Observation.Process.TranscriptRel.byPath
       (left := right.toProcess) (right := left.toProcess))
 
-/-- Trace equivalence preserves the stable external event labels attached to
-complete step transcripts. -/
+/--
+`Trace left right eventLeft eventRight` means that `left` and `right` are
+bisimilar while preserving the stable external event label attached to each
+complete step transcript.
+-/
 abbrev Trace {Party : Type u} {Event : Type w}
     (left right : Process.System Party)
     (eventLeft : left.toProcess.EventMap Event)
@@ -58,8 +67,11 @@ abbrev Trace {Party : Type u} {Event : Type w}
     (Observation.Process.TranscriptRel.byEvent
       (left := right.toProcess) (right := left.toProcess) eventRight eventLeft)
 
-/-- Ticket equivalence preserves the stable tickets attached to complete step
-transcripts. -/
+/--
+`Ticket left right ticketLeft ticketRight` means that `left` and `right` are
+bisimilar while preserving the stable tickets attached to complete step
+transcripts.
+-/
 abbrev Ticket {Party : Type u} {Ticket : Type w}
     (left right : Process.System Party)
     (ticketLeft : left.toProcess.Tickets Ticket)
@@ -69,8 +81,11 @@ abbrev Ticket {Party : Type u} {Ticket : Type w}
     (Observation.Process.TranscriptRel.byTicket
       (left := right.toProcess) (right := left.toProcess) ticketRight ticketLeft)
 
-/-- Observational equivalence for one fixed party preserves that party's packed
-local observations at every executed step. -/
+/--
+`Observation me left right` means that `left` and `right` are bisimilar while
+preserving the packed local observations exposed to the fixed party `me` at
+every executed step.
+-/
 abbrev Observation {Party : Type u} [DecidableEq Party]
     (me : Party)
     (left right : Process.System Party) :=
@@ -81,8 +96,10 @@ abbrev Observation {Party : Type u} [DecidableEq Party]
 
 namespace Controller
 
-/-- Along the forward direction of a controller equivalence, the current
-controller sequence of every finite run prefix is preserved. -/
+/--
+Along the forward direction of a controller equivalence, the current controller
+sequence of every finite run prefix is preserved.
+-/
 theorem currentControllersUpTo_eq {Party : Type u}
     {left right : Process.System Party}
     (equiv : Controller left right)
@@ -97,8 +114,10 @@ end Controller
 
 namespace ControllerPath
 
-/-- Along the forward direction of a controller-path equivalence, the full
-controller-path sequence of every finite run prefix is preserved. -/
+/--
+Along the forward direction of a controller-path equivalence, the full
+controller-path sequence of every finite run prefix is preserved.
+-/
 theorem controllerPathsUpTo_eq {Party : Type u}
     {left right : Process.System Party}
     (equiv : ControllerPath left right)
@@ -113,8 +132,10 @@ end ControllerPath
 
 namespace Trace
 
-/-- Along the forward direction of a trace equivalence, the stable event trace
-of every finite run prefix is preserved. -/
+/--
+Along the forward direction of a trace equivalence, the stable event trace of
+every finite run prefix is preserved.
+-/
 theorem eventsUpTo_eq {Party : Type u} {Event : Type w}
     {left right : Process.System Party}
     {eventLeft : left.toProcess.EventMap Event}
@@ -131,8 +152,10 @@ end Trace
 
 namespace Ticket
 
-/-- Along the forward direction of a ticket equivalence, the stable ticket
-sequence of every finite run prefix is preserved. -/
+/--
+Along the forward direction of a ticket equivalence, the stable ticket
+sequence of every finite run prefix is preserved.
+-/
 theorem ticketsUpTo_eq {Party : Type u} {TicketTy : Type w}
     {left right : Process.System Party}
     {ticketLeft : left.toProcess.Tickets TicketTy}
@@ -149,9 +172,10 @@ end Ticket
 
 namespace Observation
 
-/-- Along the forward direction of an observational equivalence, the packed
-local observations of the chosen party are preserved on every finite run
-prefix. -/
+/--
+Along the forward direction of an observational equivalence, the packed local
+observations of the chosen party are preserved on every finite run prefix.
+-/
 theorem observationsUpTo_eq {Party : Type u} [DecidableEq Party]
     (me : Party)
     {left right : Process.System Party}

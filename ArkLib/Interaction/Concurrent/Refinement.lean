@@ -9,22 +9,25 @@ import ArkLib.Interaction.Concurrent.Observation
 /-!
 # Forward refinement for dynamic concurrent processes
 
-This file introduces a first process-level refinement notion for the dynamic
+This file introduces the first process-level refinement notion for the dynamic
 concurrent core.
 
-The central notion is `ForwardSimulation` between two `Process.System`s. A
-simulation records:
+The central object is `ForwardSimulation` between two `Process.System`s. It
+captures the usual implementation/specification picture:
 
-* a relation between implementation and specification states;
-* initialization and assumption compatibility;
-* a step-matching rule from every implementation transcript to some matching
-  specification transcript; and
-* a safety-transfer rule from related specification states to implementation
-  states.
+* implementation and specification states are related by a simulation
+  invariant;
+* every admissible implementation start state can be matched by some
+  specification start state;
+* every concrete implementation step can be simulated by a specification step;
+* the simulation may additionally insist that the two steps agree on events,
+  tickets, controller data, or local observations; and
+* safety obligations may be transferred from the specification side back to the
+  implementation side.
 
-The matching relation on step transcripts is parameterized by any chosen
-`Observation.Process.TranscriptRel`, so the same simulation interface can be
-instantiated with controller-path, event, or ticket preservation.
+This gives a reusable refinement layer that is independent of any particular
+concurrent frontend and rich enough to support observational reasoning, not
+just state-reachability arguments.
 -/
 
 universe u v w
@@ -48,6 +51,11 @@ The meaning is:
 
 This is intentionally phrased over the dynamic `Process.System` core rather
 than any particular concurrent frontend.
+
+The parameter `matchStep` determines what behavioral information the
+simulation preserves at each step. Choosing different transcript relations
+recovers event-preserving, ticket-preserving, controller-preserving, or
+observation-preserving refinements.
 -/
 structure ForwardSimulation {Party : Type u}
     (impl spec : Process.System Party)
@@ -75,6 +83,9 @@ namespace ForwardSimulation
 
 /--
 Choose the matching specification transcript for one implementation transcript.
+
+This is the specification-side step selected by the simulation for the given
+implementation step.
 -/
 noncomputable def matchTranscript {Party : Type u}
     {impl spec : Process.System Party}
@@ -108,6 +119,10 @@ theorem matchTranscript_spec {Party : Type u}
 `matchedState sim run hrel n` is the specification-side state reached after
 matching the first `n` steps of the implementation run `run`, starting from an
 initial related specification state witnessed by `hrel`.
+
+This is the fundamental state-transport construction behind run-level
+refinement: it recursively follows the implementation run while using the
+simulation to pick matching specification transcripts.
 -/
 noncomputable def matchedState {Party : Type u}
     {impl spec : Process.System Party}
@@ -132,6 +147,8 @@ noncomputable def matchedState {Party : Type u}
 The specification transcript chosen to match the `n`th implementation step of
 the run `run`, relative to the initial related specification state witnessed by
 `hrel`.
+
+This is the stepwise witness used to build the whole matched specification run.
 -/
 noncomputable def matchedTranscript {Party : Type u}
     {impl spec : Process.System Party}
@@ -149,6 +166,9 @@ noncomputable def matchedTranscript {Party : Type u}
 `mapRun sim run hrel` is the specification run obtained by recursively matching
 every step of the implementation run `run`, starting from an initial related
 specification state witnessed by `hrel`.
+
+So `mapRun` turns a forward simulation into an execution-level translation from
+implementation runs to matching specification runs.
 -/
 noncomputable def mapRun {Party : Type u}
     {impl spec : Process.System Party}
@@ -182,6 +202,8 @@ theorem stateRel_mapRun {Party : Type u}
 /--
 At every step index `n`, the mapped specification transcript matches the
 implementation transcript by `matchStep`.
+
+This is the run-level form of the step-matching guarantee.
 -/
 theorem match_mapRun {Party : Type u}
     {impl spec : Process.System Party}
@@ -198,6 +220,8 @@ theorem match_mapRun {Party : Type u}
 /--
 If every state along the mapped specification run is safe, then every state
 along the implementation run is safe.
+
+This is the basic safety-transport principle of forward simulation.
 -/
 theorem safe_of_mapRun {Party : Type u}
     {impl spec : Process.System Party}
@@ -215,6 +239,9 @@ theorem safe_of_mapRun {Party : Type u}
 /--
 If an implementation run is admissible, then its mapped specification run is
 also admissible.
+
+So ambient assumptions are preserved along the run translation induced by the
+simulation.
 -/
 theorem admissible_mapRun {Party : Type u}
     {impl spec : Process.System Party}
@@ -331,6 +358,10 @@ theorem observationsUpTo_mapRun {Party : Type u} [DecidableEq Party]
 If the specification system satisfies safety under some fairness assumption,
 then the implementation system also satisfies safety under any implementation
 fairness assumption that transfers along the simulation.
+
+This is the top-level preservation theorem: once fairness is known to transfer,
+forward simulation lets one discharge implementation-side safety obligations by
+proving them on the specification side.
 -/
 theorem safe_of_satisfies {Party : Type u}
     {impl spec : Process.System Party}

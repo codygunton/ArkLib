@@ -8,27 +8,28 @@ import ArkLib.Interaction.Concurrent.Process
 /-!
 # State-indexed concurrent machines
 
-This file adds a flat state-indexed frontend to the dynamic concurrent process
-layer.
+This file provides the flat, transition-system presentation of the concurrent
+interaction framework.
 
-The foundational `Concurrent.Process` API is continuation-based: a residual
-process state exposes one sequential `Step`, and completing that step yields
-the next residual state.
+The semantic center of the library is `Concurrent.Process`: a residual process
+state exposes one sequential interaction step, and completing that step yields
+the next residual state. That continuation-based view is convenient when the
+shape of the current interaction matters.
 
-Many users, however, naturally think in terms of enabled transitions over an
-explicit state space. This file packages that presentation:
+Many protocol designers, however, start from a more operational picture:
 
-* `Machine` is the minimal state-indexed dynamics:
-  * a state type `State`,
-  * a type `Enabled σ` of enabled events in each state, and
-  * a step function `step`.
-* `Machine.toProcess` compiles such a machine into the continuation-based
-  `Concurrent.Process` core by turning each enabled event set into a one-node
-  sequential interaction step.
-* `Machine.Labeled`, `Machine.Ticketed`, and `Machine.System` add the standard
-  orthogonal enrichments without bloating the minimal core.
+* there is an explicit global state `σ`,
+* a family `Enabled σ` of events that may happen next, and
+* a function describing the successor state after such an event.
 
-This is the frontend where Veil-style transition-system semantics should land.
+`Machine` packages exactly that presentation. It is intentionally small, and
+then layered enrichments add stable event labels, fairness tickets, and system
+predicates. The key bridge is `Machine.toProcess`, which interprets each
+enabled event set as a one-node sequential step and thereby embeds machine
+semantics into the general `Concurrent.Process` core.
+
+This is the natural frontend for transition-system style models, including
+state-heavy distributed and cryptographic protocol semantics.
 -/
 
 universe u v
@@ -37,16 +38,16 @@ namespace Interaction
 namespace Concurrent
 
 /--
-`Machine` is the minimal state-indexed dynamics for a concurrent system.
+`Machine` is the minimal state-indexed presentation of a concurrent system.
 
-Fields:
-* `State` is the type of residual states;
-* `Enabled σ` is the type of currently enabled events in state `σ`;
-* `step σ e` is the residual state after performing enabled event `e`.
+At any residual state `σ`, the type `Enabled σ` describes the events that may
+occur next, and `step σ e` records the successor state produced by choosing the
+enabled event `e`.
 
-This record intentionally contains only the dynamics.
-Labels, fairness tickets, controller ownership, local views, and safety
-predicates are all layered on top separately.
+This record intentionally contains only dynamics. Event labels, fairness
+tickets, controller ownership, local views, and verification predicates are all
+added in separate layers so that the core transition semantics stays small and
+reusable.
 -/
 structure Machine where
   State : Type v
@@ -55,18 +56,32 @@ structure Machine where
 
 namespace Machine
 
-/-- Stable external event labels for enabled machine events. -/
+/--
+`EventMap` assigns a stable external label to each enabled machine event.
+
+These labels are the observable step descriptions that one typically wants to
+preserve under refinement, compare across runs, or expose in user-facing trace
+statements.
+-/
 abbrev EventMap (machine : Machine) (Event : Type u) :=
   (σ : machine.State) → machine.Enabled σ → Event
 
-/-- Stable tickets for enabled machine events. These are the intended handles
-for later fairness and liveness layers. -/
+/--
+`Tickets` assigns a stable obligation identifier to each enabled machine event.
+
+Unlike the raw event itself, a ticket is meant to persist across different
+representations of the same scheduling obligation, so later fairness and
+liveness layers quantify over tickets rather than over the concrete event type
+of one particular state.
+-/
 abbrev Tickets (machine : Machine) (Ticket : Type u) :=
   (σ : machine.State) → machine.Enabled σ → Ticket
 
 /--
-`Machine.Labeled` is a machine equipped with a stable external event label for
-each enabled event.
+`Machine.Labeled` packages a machine together with its chosen event-label map.
+
+This is the smallest bundle that supports statements about observable event
+traces without committing to fairness or safety metadata.
 -/
 structure Labeled where
   toMachine : Machine
@@ -74,8 +89,10 @@ structure Labeled where
   event : toMachine.EventMap Event
 
 /--
-`Machine.Ticketed` is a machine equipped with a stable ticket for each enabled
-event.
+`Machine.Ticketed` packages a machine together with stable tickets for its
+enabled events.
+
+This is the machine-side entry point for fairness and liveness statements.
 -/
 structure Ticketed where
   toMachine : Machine
@@ -84,7 +101,12 @@ structure Ticketed where
 
 /--
 `Machine.System` augments a machine by the standard verification predicates
-used throughout ArkLib and in transition-system frameworks such as Veil.
+used throughout ArkLib: initial states, ambient assumptions, safety, and
+invariants.
+
+These predicates are orthogonal to the step relation itself, so they are kept
+out of `Machine` and bundled only when one wants verification-oriented
+statements about the machine.
 -/
 structure System extends Machine where
   init : State → Prop
@@ -96,10 +118,14 @@ structure System extends Machine where
 Compile a flat state-indexed machine into the continuation-based
 `Concurrent.Process` core.
 
-The parameter `semantics` supplies the root `NodeSemantics` for the one-node
-sequential step representing the enabled event set of each state.
-So `Machine.toProcess` is the exact bridge from state-indexed transition systems
-to the more general interaction-centered process semantics.
+At each machine state `σ`, the current enabled event type `Enabled σ` is turned
+into a one-node sequential interaction step. The supplied `semantics` equips
+that node with controller and local-view information, so the result is not just
+an operational embedding of the state transition relation, but a full process
+step inside the richer interaction semantics.
+
+`Machine.toProcess` is therefore the canonical bridge from transition-system
+models to the more general process-centered concurrent layer.
 -/
 def toProcess {Party : Type u} (machine : Machine)
     (semantics : (σ : machine.State) → NodeSemantics Party (machine.Enabled σ)) :
@@ -112,7 +138,9 @@ def toProcess {Party : Type u} (machine : Machine)
         | ⟨event, _⟩ => machine.step σ event }
 
 /--
-Compile a machine system into the corresponding process system.
+Lift `Machine.toProcess` from bare dynamics to the verification-oriented
+`Process.System` layer by reusing the same initial, assumption, safety, and
+invariant predicates.
 -/
 def System.toProcess {Party : Type u} (system : Machine.System)
     (semantics : (σ : system.State) → NodeSemantics Party (system.Enabled σ)) :

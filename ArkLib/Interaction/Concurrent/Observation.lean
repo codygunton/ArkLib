@@ -8,19 +8,24 @@ import ArkLib.Interaction.Concurrent.Run
 /-!
 # Observation equivalence for concurrent processes
 
-This file packages the local observations induced by finite and infinite
-executions of `Concurrent.Process`, and provides reusable transcript-matching
-relations for later refinement and fairness layers.
+This file packages the notion of "what a party can tell apart" from concrete
+executions of a concurrent process.
 
-The key idea is to erase a step's dependent local-observation types into a
-uniform packed form:
+The process semantics keeps the exact dependent type of each local observation,
+which is ideal when reasoning inside one fixed execution. But comparison across
+different executions, processes, or refinement layers needs a uniform carrier.
+The solution adopted here is to pack each local observation together with its
+type and then compare executions through these packed observations.
 
-* each visited node contributes one packed observation value;
-* each process step contributes a list of such packed observations;
-* each finite prefix contributes a list of per-step observation lists.
+The resulting API provides:
 
-This packed representation is intentionally coarse enough to compare different
-concrete transcripts that expose the same local information to a chosen party.
+* packed local observations for one sequential step;
+* per-step observation summaries for finite traces, finite prefixes, and runs;
+* generic transcript relations saying when two executions match; and
+* reusable lemmas showing that controller, event, ticket, and observation data
+  are preserved when those transcript relations hold.
+
+This is the comparison layer later used by refinement and equivalence results.
 -/
 
 universe u v w
@@ -34,7 +39,7 @@ namespace Observation
 type.
 
 This is the simplest uniform carrier for local observations whose precise type
-may vary from one node to the next.
+may vary from one visited node to the next.
 -/
 structure PackedObs : Type (w + 1) where
   α : Type w
@@ -46,6 +51,9 @@ namespace Observed
 /--
 Forget the dependent indices of an observed sequential transcript and keep only
 the concrete packed sequence of observations that was exposed locally.
+
+This is the uniform, comparison-friendly summary of what one party learned from
+one complete sequential step transcript.
 -/
 def toList {Party : Type u} [DecidableEq Party] {me : Party} :
     {spec : Interaction.Spec.{w}} →
@@ -63,6 +71,10 @@ end Observed
 `obsList me step tr` is the packed sequence of local observations available to
 the fixed party `me` while the sequential process step `step` executes along
 the transcript `tr`.
+
+This forgets the exact dependent observation types but keeps their concrete
+values in order, which makes it the basic comparison object for one process
+step.
 -/
 def obsList {Party : Type u} [DecidableEq Party] (me : Party)
     {P : Type v} (step : Interaction.Concurrent.Step Party P)
@@ -77,6 +89,9 @@ namespace Trace
 /--
 The per-step packed local observations exposed along a finite complete process
 trace.
+
+Each list element corresponds to one executed process step and stores the local
+observations that `me` obtained during that step.
 -/
 def observations {Party : Type u} [DecidableEq Party]
     {process : Process Party} (me : Party) :
@@ -91,6 +106,8 @@ namespace Prefix
 
 /--
 The per-step packed local observations exposed along a finite process prefix.
+
+This is the prefix-level analogue of `Trace.observations`.
 -/
 def observations {Party : Type u} [DecidableEq Party]
     {process : Process Party} (me : Party) :
@@ -106,6 +123,10 @@ match step-by-step according to the transcript relation `rel`.
 
 The length index forces the two prefixes to have the same number of executed
 steps.
+
+So `Prefix.Rel` is the generic finite-horizon comparison interface: the caller
+chooses what it means for one process step of `left` to match one process step
+of `right`, and `Rel` lifts that choice to whole finite prefixes.
 -/
 def Rel {Party : Type u}
     {left right : Process Party}
@@ -147,7 +168,8 @@ end Prefix
 `TranscriptRel left right` is a cross-process relation on one complete process
 step transcript of `left` and one complete process step transcript of `right`.
 
-This is the basic matching interface used later by refinement.
+This is the basic matching interface used later by refinement, equivalence, and
+observation-preservation theorems.
 -/
 abbrev TranscriptRel {Party : Type u}
     (left right : Process Party) :=
@@ -158,30 +180,43 @@ abbrev TranscriptRel {Party : Type u}
 
 namespace TranscriptRel
 
-/-- The permissive transcript relation. -/
+/--
+The permissive transcript relation that accepts every pair of transcripts.
+-/
 def top {Party : Type u} {left right : Process Party} :
     TranscriptRel left right :=
   fun _ _ => True
 
-/-- Conjunction of transcript relations. -/
+/--
+Conjunction of transcript relations.
+
+This is useful when one refinement should preserve several observational
+features at once.
+-/
 def inter {Party : Type u} {left right : Process Party}
     (first second : TranscriptRel left right) :
     TranscriptRel left right :=
   fun trL trR => first trL trR ∧ second trL trR
 
-/-- Match two transcripts by equality of their current controlling parties. -/
+/--
+Match two transcripts by equality of their current controlling parties.
+-/
 def byController {Party : Type u} {left right : Process Party} :
     TranscriptRel left right :=
   fun {pL} {pR} trL trR =>
     (left.step pL).currentController? trL = (right.step pR).currentController? trR
 
-/-- Match two transcripts by equality of their full controller paths. -/
+/--
+Match two transcripts by equality of their full controller paths.
+-/
 def byPath {Party : Type u} {left right : Process Party} :
     TranscriptRel left right :=
   fun {pL} {pR} trL trR =>
     (left.step pL).controllerPath trL = (right.step pR).controllerPath trR
 
-/-- Match two transcripts by equality of stable external event labels. -/
+/--
+Match two transcripts by equality of stable external event labels.
+-/
 def byEvent {Party : Type u} {left right : Process Party}
     {Event : Type w}
     (eventL : left.EventMap Event) (eventR : right.EventMap Event) :
@@ -189,7 +224,9 @@ def byEvent {Party : Type u} {left right : Process Party}
   fun {pL} {pR} trL trR =>
     eventL pL trL = eventR pR trR
 
-/-- Match two transcripts by equality of stable tickets. -/
+/--
+Match two transcripts by equality of stable tickets.
+-/
 def byTicket {Party : Type u} {left right : Process Party}
     {Ticket : Type w}
     (ticketL : left.Tickets Ticket) (ticketR : right.Tickets Ticket) :
@@ -198,7 +235,11 @@ def byTicket {Party : Type u} {left right : Process Party}
     ticketL pL trL = ticketR pR trR
 
 /-- Match two transcripts by equality of the packed local observations exposed
-to one fixed party. -/
+to one fixed party.
+
+This is the relation that identifies executions that are observationally
+indistinguishable to `me` at the step level.
+-/
 def byObservation {Party : Type u} [DecidableEq Party]
     {left right : Process Party} (me : Party) :
     TranscriptRel left right :=
@@ -378,6 +419,9 @@ namespace Run
 /--
 The per-step packed local observations exposed along the first `n` steps of the
 run `run`.
+
+This is the infinite-run analogue of `Prefix.observations`, truncated to the
+first `n` steps.
 -/
 def observationsUpTo {Party : Type u} [DecidableEq Party]
     {process : Process Party} (me : Party)
@@ -390,6 +434,8 @@ def observationsUpTo {Party : Type u} [DecidableEq Party]
 /--
 `RelUpTo rel left right n` states that the first `n` executed steps of the
 runs `left` and `right` match step-by-step according to `rel`.
+
+This is the finite-prefix comparison predicate for runs.
 -/
 def RelUpTo {Party : Type u}
     {left right : Process Party}
@@ -403,6 +449,9 @@ def RelUpTo {Party : Type u}
 /--
 `Rel rel left right` states that every finite prefix of the runs `left` and
 `right` matches according to `rel`.
+
+So two runs are related when they remain indistinguishable at every finite
+horizon under the chosen step-matching criterion.
 -/
 def Rel {Party : Type u}
     {left right : Process Party}

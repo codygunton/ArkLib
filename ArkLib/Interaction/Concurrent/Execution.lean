@@ -8,21 +8,24 @@ import ArkLib.Interaction.Concurrent.Process
 /-!
 # Finite executions of dynamic concurrent processes
 
-This file equips the dynamic `Concurrent.Process` core with finite executions
-and their induced local observations.
+This file explains what it means to execute a `Concurrent.Process` for finitely
+many steps.
 
-The key shift from the earlier structural concurrent execution layer is:
+The important point is that one process step is itself a finite sequential
+interaction episode. So a finite concurrent execution is not just a list of
+atomic labels: at each residual state we record one complete sequential
+transcript of the current step, then continue from the residual process state
+selected by that transcript.
 
-* execution is now centered on `Concurrent.Process`, whose current step is a
-  finite sequential interaction episode;
-* a finite execution therefore consists of one complete sequential transcript
-  per residual process state;
-* controller paths and local observations are recovered from the nodewise
-  semantics attached to each such step.
+This file therefore provides two parallel views of finite execution:
 
-This means the current execution layer no longer depends on any particular
-concurrent frontend. Structural trees, machines, and future Veil-style
-frontends can all compile to `Process` and then reuse the same execution API.
+* `Process.Trace`, the exact global execution history; and
+* `Step.Observed` / `Process.ObservedTrace`, the local observations that one
+  fixed party extracts from that history.
+
+Because the API is phrased over `Concurrent.Process`, it applies uniformly to
+all frontends that compile into the process core, including structural
+concurrent syntax and state-indexed machines.
 -/
 
 universe u v w
@@ -34,15 +37,16 @@ namespace Step
 
 /--
 `Observed me semantics tr` is the exact typed sequence of local observations
-available to the fixed party `me` along the sequential transcript `tr`.
+available to the fixed party `me` during one sequential step.
 
-The observation type is computed directly from the nodewise `LocalView`
-metadata stored in `semantics`. At each visited node, the constructor records
-the observation exposed there and then continues recursively through the chosen
-transcript branch.
+More concretely, suppose the current process step executes along transcript
+`tr`. At each visited node of that transcript, the step semantics determines
+what `me` is allowed to observe there, and `Observed` records exactly that
+piece of local information before continuing to the next node.
 
-So this is the sequential-step analogue of a projected local trace: it records
-what one participant actually learns while one process step executes.
+So `Observed` is the step-local projection of the global transcript: it forgets
+everything that `me` is not entitled to see, while preserving the exact local
+observation type at every node.
 -/
 inductive Observed {Party : Type u} [DecidableEq Party] (me : Party) :
     {spec : Interaction.Spec.{w}} →
@@ -72,7 +76,9 @@ inductive Observed {Party : Type u} [DecidableEq Party] (me : Party) :
 
 namespace Observed
 
-/-- The number of visited nodes recorded by an observed sequential transcript. -/
+/--
+The number of visited nodes recorded by an observed sequential transcript.
+-/
 def length {Party : Type u} [DecidableEq Party] {me : Party} :
     {spec : Interaction.Spec.{w}} →
       {semantics : Interaction.Spec.Decoration (StepContext Party) spec} →
@@ -84,7 +90,10 @@ def length {Party : Type u} [DecidableEq Party] {me : Party} :
 
 /--
 `ofTranscript me semantics tr` is the canonical observed sequential transcript
-induced by the concrete transcript `tr`.
+induced by the concrete global transcript `tr`.
+
+It is obtained by replaying `tr` and, at each visited node, extracting the
+observation that the local view for `me` exposes there.
 -/
 def ofTranscript {Party : Type u} [DecidableEq Party] (me : Party) :
     {spec : Interaction.Spec.{w}} →
@@ -102,6 +111,9 @@ end Observed
 /--
 `Observed me step tr` is the sequence of local observations exposed to `me`
 while the step `step` executes along the transcript `tr`.
+
+This is the most convenient step-level type when working with concrete process
+steps rather than raw decorations.
 -/
 abbrev ObservedTranscript {Party : Type u} [DecidableEq Party] (me : Party)
     {P : Type v} (step : Step Party P) (tr : Interaction.Spec.Transcript step.spec) :=
@@ -124,15 +136,15 @@ namespace Process
 `Trace process p` is a finite execution trace of the residual process state
 `p`.
 
-Each constructor records one complete sequential step transcript:
+Each `step` constructor records one whole sequential transcript for the current
+process step, then continues with the residual process selected by that
+transcript. The `done` constructor is available only when the current step has
+no complete transcripts at all, so a `Trace` represents a genuinely terminated
+finite execution.
 
-* `done h` finishes the execution when the current step exposes no complete
-  transcript at all;
-* `step tr tail` executes the current step along transcript `tr` and then
-  continues with a trace of the residual process state `next tr`.
-
-So `Process.Trace` is the dynamic-process analogue of a sequential transcript,
-but with one whole sequential interaction episode per execution step.
+`Process.Trace` is therefore the global finite-history object for the dynamic
+concurrent core: one element per process step, where each element remembers the
+entire internal interaction episode that realized that step.
 -/
 inductive Trace {Party : Type u} (process : Process Party) :
     process.Proc → Sort _ where
@@ -150,7 +162,9 @@ inductive Trace {Party : Type u} (process : Process Party) :
 
 namespace Trace
 
-/-- The number of process steps recorded by a finite execution trace. -/
+/--
+The number of process steps recorded by a finite execution trace.
+-/
 def length {Party : Type u} {process : Process Party} :
     {p : process.Proc} → Process.Trace process p → Nat
   | _, .done _ => 0
@@ -160,10 +174,10 @@ def length {Party : Type u} {process : Process Party} :
 `currentControllers trace` records the current controlling party of each
 executed process step.
 
-This is computed from the concrete step transcript itself via
-`Step.currentController?`. So, unlike the earlier tree-specific execution
-layer, the current controller of a generic process step may depend on the
-chosen step transcript.
+This sequence is computed from the concrete step transcripts themselves via
+`Step.currentController?`, so it answers the operational question "who was in
+charge of this step as it actually occurred?" rather than merely recording a
+static owner of the process state.
 -/
 def currentControllers {Party : Type u} {process : Process Party} :
     {p : process.Proc} → Process.Trace process p → List (Option Party)
@@ -176,8 +190,8 @@ def currentControllers {Party : Type u} {process : Process Party} :
 `controllerPaths trace` records the full controller path of each executed step
 transcript.
 
-Each list element is the path produced by `Step.controllerPath` for the
-corresponding step transcript of the process execution.
+Each list element explains the whole control stack that led to the chosen
+transcript of that step, not just the final active controller.
 -/
 def controllerPaths {Party : Type u} {process : Process Party} :
     {p : process.Proc} → Process.Trace process p → List (List Party)
@@ -189,6 +203,8 @@ def controllerPaths {Party : Type u} {process : Process Party} :
 /--
 `events eventMap trace` records the external event label attached to each
 process step transcript by the stable event map `eventMap`.
+
+This is the finite event trace exposed by a labeled process.
 -/
 def events {Party : Type u} {process : Process Party} {Event : Type w}
     (eventMap : process.EventMap Event) :
@@ -201,8 +217,8 @@ def events {Party : Type u} {process : Process Party} {Event : Type w}
 `tickets ticketMap trace` records the stable tickets attached to each process
 step transcript by `ticketMap`.
 
-These are the intended obligation identifiers for future fairness and liveness
-layers.
+These tickets are the stable obligation identifiers later used by fairness and
+liveness statements.
 -/
 def tickets {Party : Type u} {process : Process Party} {Ticket : Type w}
     (ticketMap : process.Tickets Ticket) :
@@ -231,8 +247,9 @@ observations available to the fixed party `me` along the concrete process
 execution trace `trace`.
 
 At each process step, the head constructor stores the observed sequential
-transcript induced by that step's transcript. The tail then continues with the
-residual process state.
+transcript induced by that step's global transcript, and the tail continues
+with the residual process state. So `ObservedTrace` is the party-local view of
+the global finite execution `trace`.
 -/
 inductive ObservedTrace {Party : Type u} [DecidableEq Party]
     (me : Party) (process : Process Party) :
@@ -252,7 +269,11 @@ inductive ObservedTrace {Party : Type u} [DecidableEq Party]
 
 namespace ObservedTrace
 
-/-- The number of executed process steps recorded by an observed trace. -/
+/--
+The number of process steps recorded by an observed trace.
+
+This agrees with the length of the underlying global trace.
+-/
 def length {Party : Type u} [DecidableEq Party]
     {me : Party} {process : Process Party} :
     {p : process.Proc} → {trace : Process.Trace process p} →
@@ -264,6 +285,9 @@ def length {Party : Type u} [DecidableEq Party]
 /--
 `ofTrace me process trace` is the canonical observed process trace induced by
 the concrete execution trace `trace`.
+
+It is obtained by projecting each executed process step to the local
+observations available to `me`.
 -/
 def ofTrace {Party : Type u} [DecidableEq Party]
     (me : Party) (process : Process Party) :

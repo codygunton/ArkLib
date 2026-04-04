@@ -11,12 +11,19 @@ import ArkLib.Interaction.Concurrent.Refinement
 This file adds the symmetric refinement layer on top of
 `Concurrent.Refinement.ForwardSimulation`.
 
-The key idea is deliberately minimal:
+`ForwardSimulation` is intentionally one-way: it shows that every behavior of
+an implementation can be matched by some behavior of a specification. The
+purpose of this file is to package the corresponding two-way notion used when
+two systems should count as behaviorally equivalent rather than merely
+implementing one another.
 
-* a backward simulation is just a forward simulation in the reverse direction;
-* a bisimulation packages one forward simulation in each direction;
-* safety transport under transferred fairness assumptions is then available in
-  both directions.
+The construction is deliberately simple:
+
+* a backward simulation is just a forward simulation with the two systems
+  swapped;
+* a bisimulation packages one simulation in each direction; and
+* once both directions are available, safety results can be transported either
+  way, provided the chosen fairness assumptions also transfer.
 
 This keeps the equivalence layer aligned with the existing process-centered
 refinement API rather than introducing a second semantic style.
@@ -34,6 +41,9 @@ namespace TranscriptRel
 /--
 Reverse a transcript-matching relation by flipping its two transcript
 arguments.
+
+This is the basic step needed to reinterpret a forward step-matching condition
+as a backward one.
 -/
 def reverse {Party : Type u}
     {left right : Process Party}
@@ -50,6 +60,8 @@ namespace Refinement
 /--
 `ForwardSimulation.refl system matchStep` is the identity simulation on
 `system`, provided that `matchStep` relates each transcript to itself.
+
+This is the canonical witness that every system refines itself.
 -/
 def ForwardSimulation.refl {Party : Type u}
     (system : Process.System Party)
@@ -72,6 +84,9 @@ def ForwardSimulation.refl {Party : Type u}
 /--
 `BackwardSimulation impl spec matchStep` is just a forward simulation from
 `spec` to `impl`, with the transcript-matching relation reversed accordingly.
+
+So "backward simulation" is only a change of viewpoint, not a second primitive
+notion.
 -/
 abbrev BackwardSimulation {Party : Type u}
     (impl spec : Process.System Party)
@@ -86,6 +101,9 @@ in each direction between `left` and `right`.
 
 By default, the backward transcript-matching relation is the reversal of the
 forward one.
+
+This is the library's main process-level equivalence witness: each side can
+match the other's executions while preserving the chosen step relation.
 -/
 structure Bisimulation {Party : Type u}
     (left right : Process.System Party)
@@ -100,7 +118,11 @@ structure Bisimulation {Party : Type u}
 
 namespace Bisimulation
 
-/-- Swap the two sides of a bisimulation. -/
+/--
+Swap the two sides of a bisimulation.
+
+This is the symmetry principle for the packaged equivalence witness itself.
+-/
 def symm {Party : Type u}
     {left right : Process.System Party}
     {matchForth :
@@ -115,6 +137,8 @@ def symm {Party : Type u}
 /--
 The identity bisimulation on `system`, provided that both transcript relations
 relate every transcript to itself.
+
+This is the reflexivity principle for the packaged equivalence witness.
 -/
 def refl {Party : Type u}
     (system : Process.System Party)
@@ -137,6 +161,8 @@ def refl {Party : Type u}
 /--
 Transport safety from the right system to the left system under a bisimulation,
 assuming the chosen fairness predicates transfer along the forward direction.
+
+This is the "use the right-hand system as the proof-oriented model" direction.
 -/
 theorem left_safe_of_satisfies {Party : Type u}
     {left right : Process.System Party}
@@ -158,6 +184,8 @@ theorem left_safe_of_satisfies {Party : Type u}
 /--
 Transport safety from the left system to the right system under a bisimulation,
 assuming the chosen fairness predicates transfer along the backward direction.
+
+This is the same transport principle in the opposite direction.
 -/
 theorem right_safe_of_satisfies {Party : Type u}
     {left right : Process.System Party}
@@ -179,6 +207,9 @@ theorem right_safe_of_satisfies {Party : Type u}
 /--
 Safety under fairness assumptions is equivalent across a bisimulation when the
 fairness assumptions themselves transfer in both directions.
+
+So once fairness transport is established, either side of a bisimulation may be
+used as the proof-oriented presentation of the protocol.
 -/
 theorem safe_iff_of_satisfies {Party : Type u}
     {left right : Process.System Party}

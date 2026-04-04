@@ -10,37 +10,38 @@ import ArkLib.Interaction.Multiparty.Core
 /-!
 # Dynamic concurrent processes
 
-This file introduces the continuation-based semantic center for the concurrent
-interaction layer.
+This file introduces the semantic center of the concurrent `Interaction`
+layer.
 
-The existing structural concurrent syntax in `Concurrent.Spec` is a very useful
-source language: it provides a finite syntax of atomic nodes and binary `par`.
-But it is still only one presentation of concurrency. A more general semantic
-object is a **residual process** whose next global step is itself a finite
-sequential interaction protocol.
+The structural syntax in `Concurrent.Spec` is a useful source language, but it
+is not the only natural presentation of concurrency. Many systems are better
+viewed as a **residual process** which, at any moment, exposes one finite
+sequential interaction episode; completing that episode yields the next
+residual process.
 
-That is the role of this file.
+That is the viewpoint formalized here.
 
-Main definitions:
+The file is organized in two levels:
 
-* `NodeSemantics Party X` records, at one sequential interaction node with move
-  space `X`, both:
-  * the controller path contribution of each chosen move; and
-  * the per-party local views of the node's chosen move.
-* `Step Party P` is one finite sequential interaction episode whose completion
-  yields the next residual process state `P`.
-* `Process Party` is a continuation-based concurrent process: from any residual
-  process state, it exposes one `Step`.
-* `Process.System Party` adds standard verification predicates such as `init`
-  and `safe`.
+* `StepOver Γ P` and `ProcessOver Γ` are the generic forms, parameterized by a
+  realized node context `Γ`;
+* `Step Party P` and `Process Party` are the closed-world specializations whose
+  node metadata is exactly `NodeSemantics Party`.
 
-This design is deliberately more general than the structural tree frontend:
-it supports cyclic or unbounded behavior by allowing the residual process state
-type to be arbitrary, while still keeping the interaction layer continuation-
-first and tree-based at each individual step.
+So the intended reading is:
+
+* a **step** is one finite local protocol episode,
+* a **process** is an unbounded sequence of such steps obtained by
+  continuation,
+* and controller / observation metadata lives in a node context rather than
+  being built into the process infrastructure itself.
+
+This design stays continuation-first, but is more general than the structural
+tree frontend: cyclic or unbounded behavior is represented by the residual
+state type, while each individual step remains a finite `Interaction.Spec`.
 -/
 
-universe u v w
+universe u v w w₂ w₃
 
 namespace Interaction
 namespace Concurrent
@@ -66,38 +67,114 @@ structure NodeSemantics (Party : Type u) (X : Type w) where
   controllers : X → List Party := fun _ => []
   views : Party → Multiparty.LocalView X
 
-/-- The realized node context of per-node controller and local-view metadata. -/
+/--
+The closed-world node context used by the current concurrent semantics.
+
+At a node with move space `X`, the context value is exactly the
+`NodeSemantics Party X` describing:
+
+* which parties are recorded as controllers of the chosen move, and
+* what each party locally observes of that move.
+
+This is the context whose specialization recovers the existing closed-world
+`Step` / `Process` APIs.
+-/
 abbrev StepContext (Party : Type u) := fun X => NodeSemantics Party X
 
 /--
-`Step Party P` is one finite sequential interaction episode whose completion
-produces the next residual process state `P`.
+`StepOver Γ P` is one finite sequential interaction episode whose nodes are
+decorated by realized context `Γ`, and whose completion produces the next
+residual process state `P`.
 
 Fields:
 
 * `spec` is the shape of the sequential interaction episode;
-* `semantics` decorates that sequential tree by `NodeSemantics Party`, giving
-  controller and local-view data at each node;
-* `next` maps a complete transcript of that step to the next residual process
-  state.
+* `semantics` decorates that sequential tree by node-local context `Γ`;
+* `next` maps a complete transcript of that episode to the next residual
+  process state.
 
-So a `Step` is not merely a one-node enabled-event interface. It may be a
-whole finite interaction protocol in its own right, while still remaining
-purely continuation-based.
+The important point is that a `StepOver` is **not** restricted to a single
+atomic event. One concurrent step may itself be a short sequential protocol:
+for example, a scheduler choice followed by a payload choice, or a small
+request/response exchange treated as one logical concurrent transition.
+
+So `StepOver` is the right object when the concurrency layer should expose
+finite sequential structure inside each global step, rather than flattening
+everything into atomic transitions.
 -/
-structure Step (Party : Type u) (P : Type v) where
+structure StepOver (Γ : Interaction.Spec.Node.Context.{w, w₂}) (P : Type v) where
   spec : Interaction.Spec.{w}
-  semantics : Interaction.Spec.Decoration (StepContext Party) spec
+  semantics : Interaction.Spec.Decoration Γ spec
   next : Interaction.Spec.Transcript spec → P
+
+/--
+`ProcessOver Γ` is a continuation-based concurrent process whose current step
+episodes are decorated by realized context `Γ`.
+
+From any residual process state `p : Proc`, the process exposes exactly one
+step protocol `step p : StepOver Γ Proc`. Running that step to completion
+produces the next residual state.
+
+So `ProcessOver` should be read as:
+
+> a system whose behavior unfolds as a sequence of finite step protocols.
+
+This is the generic semantic center for the concurrent layer. Structural
+trees, flat machines, and future frontends can all compile into `ProcessOver`
+by choosing an appropriate node-local context `Γ`.
+-/
+structure ProcessOver (Γ : Interaction.Spec.Node.Context.{w, w₂}) where
+  Proc : Type v
+  step : Proc → StepOver Γ Proc
+
+namespace ProcessOver
+
+/--
+A stable external label for each complete step transcript of a process.
+
+The point of an `EventMap` is to attach one comparison-friendly label to a
+whole step, independently of how much internal sequential structure that step
+contains.
+-/
+abbrev EventMap {Γ : Interaction.Spec.Node.Context.{w, w₂}}
+    (process : ProcessOver.{v, w, w₂} Γ) (Event : Type w₃) :=
+  (p : process.Proc) → Interaction.Spec.Transcript (process.step p).spec → Event
+
+/--
+A stable ticket for each complete step transcript of a process.
+
+Tickets are the intended handles for fairness and liveness: instead of talking
+about unstable frontier events whose types change from state to state, later
+semantic layers can talk about these stable identifiers.
+-/
+abbrev Tickets {Γ : Interaction.Spec.Node.Context.{w, w₂}}
+    (process : ProcessOver.{v, w, w₂} Γ) (Ticket : Type w₃) :=
+  (p : process.Proc) → Interaction.Spec.Transcript (process.step p).spec → Ticket
+
+end ProcessOver
+
+/--
+The closed-world specialization of `StepOver`.
+
+Here the node context is fixed to `StepContext Party`, so every node carries
+the usual controller-path and local-view data for that party universe.
+-/
+abbrev Step (Party : Type u) (P : Type v) :=
+  StepOver (StepContext Party) P
 
 namespace Step
 
 /--
-`controllerPath step tr` is the sequence of recorded controllers along the
-concrete transcript `tr` through the sequential step `step`.
+`controllerPath step tr` is the controller sequence exposed by the concrete
+step transcript `tr`.
 
-At each visited node, the path contribution `node.controllers x` associated to
-the chosen move `x` is prepended to the recursively computed tail path.
+Every visited node contributes the controller list recorded for the chosen
+move at that node. These per-node contributions are concatenated along the
+whole step transcript.
+
+So if a step internally consists of, say, "the scheduler chooses a branch,
+then Alice chooses a payload", the controller path records both pieces in
+order.
 -/
 def controllerPath {Party : Type u} {P : Type v} (step : Step Party P) :
     Interaction.Spec.Transcript step.spec → List Party := by
@@ -113,77 +190,104 @@ def controllerPath {Party : Type u} {P : Type v} (step : Step Party P) :
   exact go step.semantics tr
 
 /--
-`currentController? step tr` is the first controller, if any, on the concrete
-controller path exposed by the transcript `tr`.
+`currentController? step tr` is the head of the controller path exposed by the
+concrete transcript `tr`, if such a controller exists.
 
-Unlike the earlier tree-specific concurrent execution layer, the current
-controller of a process step may in general depend on the chosen transcript of
-that step protocol itself.
+This is the most immediate "who controlled this step?" projection. It is only
+the first controller because one step may internally contain several
+controlled subchoices.
 -/
 def currentController? {Party : Type u} {P : Type v} (step : Step Party P)
     (tr : Interaction.Spec.Transcript step.spec) : Option Party :=
   step.controllerPath tr |>.head?
 end Step
 
+namespace StepOver
+
 /--
-`Process Party` is a continuation-based concurrent process with parties `Party`.
+Closed-world controller-path projection for a `StepOver` specialized to
+`StepContext Party`.
 
-From any residual process state `p : Proc`, the process exposes exactly one
-sequential interaction `step p`. Executing a complete transcript of that step
-produces the next residual process state.
-
-This is the dynamic semantic center for the concurrent interaction layer:
-different frontends, such as state machines or structural parallel syntax,
-can compile into `Process`.
+This bridge keeps the old dot-notation ergonomics after the `StepOver`
+cutover: downstream closed-world code can still write
+`(process.step p).controllerPath tr`.
 -/
-structure Process (Party : Type u) where
-  Proc : Type v
-  step : Proc → Step.{u, v, w} Party Proc
+abbrev controllerPath {Party : Type u} {P : Type v}
+    (step : StepOver (StepContext Party) P) :
+    Interaction.Spec.Transcript step.spec → List Party :=
+  Step.controllerPath step
+
+/--
+Closed-world current-controller projection for a `StepOver` specialized to
+`StepContext Party`.
+-/
+abbrev currentController? {Party : Type u} {P : Type v}
+    (step : StepOver (StepContext Party) P)
+    (tr : Interaction.Spec.Transcript step.spec) : Option Party :=
+  Step.currentController? step tr
+
+end StepOver
+
+/--
+The closed-world specialization of `ProcessOver`.
+
+This is the process type consumed by the current execution, run, observation,
+refinement, fairness, and liveness layers.
+-/
+abbrev Process (Party : Type u) :=
+  ProcessOver (StepContext Party)
 
 namespace Process
 
-/-- A stable external event map for the step transcripts of a process. -/
-abbrev EventMap {Party : Type u} (process : Process Party) (Event : Type w) :=
+/--
+A stable external label for each complete closed-world process step.
+-/
+abbrev EventMap {Party : Type u} (process : Process Party) (Event : Type w₂) :=
   (p : process.Proc) → Interaction.Spec.Transcript (process.step p).spec → Event
 
-/-- A stable ticket map for the step transcripts of a process. Tickets are the
-intended handle for future fairness and liveness layers. -/
-abbrev Tickets {Party : Type u} (process : Process Party) (Ticket : Type w) :=
+/--
+A stable ticket for each complete closed-world process step.
+-/
+abbrev Tickets {Party : Type u} (process : Process Party) (Ticket : Type w₂) :=
   (p : process.Proc) → Interaction.Spec.Transcript (process.step p).spec → Ticket
 
 /--
-`Process.Labeled` is a process equipped with a stable external event label for
-each complete step transcript.
+`Process.Labeled` is a closed-world process together with a stable event label
+for each complete step transcript.
 -/
 structure Labeled (Party : Type u) where
   toProcess : Process Party
-  Event : Type w
+  Event : Type w₂
   event : toProcess.EventMap Event
 
 /--
-`Process.Ticketed` is a process equipped with a stable ticket for each complete
-step transcript.
+`Process.Ticketed` is a closed-world process together with a stable ticket for
+each complete step transcript.
 
-These tickets are the intended obligation identifiers for later fairness and
+These tickets are the obligation identifiers used later by the fairness and
 liveness layers.
 -/
 structure Ticketed (Party : Type u) where
   toProcess : Process Party
-  Ticket : Type w
+  Ticket : Type w₂
   ticket : toProcess.Tickets Ticket
 
 /--
-`Process.System` augments a process by the standard verification predicates used
-throughout ArkLib and in transition-system-style frameworks such as Veil.
+`Process.System` augments a closed-world process by the standard verification
+predicates used throughout ArkLib and in transition-system-style frameworks.
 
-These predicates are intentionally metadata on top of the dynamic process
-semantics:
+Its parent field `toProcess` is the dynamic semantics; the remaining fields are
+verification metadata on top of that semantics:
+
 * `init` marks initial residual states;
-* `assumptions` records ambient assumptions;
-* `safe` is the intended safety property;
+* `assumptions` records ambient assumptions on runs;
+* `safe` is the intended state safety predicate;
 * `inv` is the intended inductive invariant.
+
+This keeps the semantic object and the proof obligations separate while still
+bundling them in one place for refinement and liveness statements.
 -/
-structure System (Party : Type u) extends Process Party where
+structure System (Party : Type u) extends toProcess : ProcessOver (StepContext Party) where
   init : Proc → Prop
   assumptions : Proc → Prop := fun _ => True
   safe : Proc → Prop := fun _ => True
