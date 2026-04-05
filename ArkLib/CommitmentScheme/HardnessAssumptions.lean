@@ -13,7 +13,6 @@ import Mathlib.Algebra.Field.ZMod
 import Mathlib.Algebra.Order.Star.Basic
 import Mathlib.Algebra.Polynomial.FieldDivision
 import Mathlib.LinearAlgebra.Lagrange
-import ArkLib.ToVCVio.Oracle
 
 /-
   # Hardness Assumptions

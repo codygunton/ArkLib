@@ -11,9 +11,6 @@ import ArkLib.CommitmentScheme.HardnessAssumptions
 import ArkLib.AGM.Basic
 import CompPoly.Univariate.Basic
 import CompPoly.Univariate.ToPoly
-import ArkLib.ToVCVio.DistEq
-import ArkLib.ToVCVio.Oracle
-import ArkLib.ToVCVio.SimOracle
 import Mathlib.Algebra.Field.ZMod
 import Mathlib.Algebra.Order.Star.Basic
 import Mathlib.Algebra.Polynomial.FieldDivision
@@ -143,7 +140,7 @@ theorem commit_eq_CPolynomial {a : ZMod p} (hpG1 : Nat.card G₁ = p)
 def generateOpening [Fact (Nat.Prime p)] (srs : Vector G₁ (n + 1))
     (coeffs : Fin (n + 1) → ZMod p) (z : ZMod p) : G₁ :=
     letI poly : CPolynomial (ZMod p) :=
-      ⟨(Raw.mk (Array.ofFn coeffs)).trim, Raw.Trim.trim_twice _⟩
+      ⟨(Raw.mk (Array.ofFn coeffs)).trim, Raw.Trim.isCanonical_trim _⟩
     letI q : CPolynomial (ZMod p) := divByMonic (poly - C (eval z poly))
       (X - C z)
     commit srs (fun i : Fin (n + 1) => q.coeff i)
@@ -196,7 +193,7 @@ omit [DecidableEq G₁] [Fact (0 < p)] in
 theorem correctness (hpG1 : Nat.card G₁ = p) (n : ℕ) (a : ZMod p)
   (coeffs : Fin (n + 1) → ZMod p) (z : ZMod p) :
   let poly : CPolynomial (ZMod p) :=
-    ⟨(Raw.mk (Array.ofFn coeffs)).trim, Raw.Trim.trim_twice _⟩
+    ⟨(Raw.mk (Array.ofFn coeffs)).trim, Raw.Trim.isCanonical_trim _⟩
   let v : ZMod p := eval z poly
   let srs : Vector G₁ (n + 1) × Vector G₂ 2 := generateSrs (g₁:=g₁) (g₂:=g₂) n a
   let C : G₁ := commit srs.1 coeffs
@@ -221,10 +218,10 @@ theorem correctness (hpG1 : Nat.card G₁ = p) (n : ℕ) (a : ZMod p)
 
   -- the (mathematical) degree of poly is at most n
   have hpdeg : degree poly ≤ n := by
-    unfold degree Raw.degree
-    cases h : poly.val.lastNonzero with
-    | none => exact bot_le
-    | some k =>
+    unfold CPolynomial.degree
+    cases h : poly.val.size with
+    | zero => exact bot_le
+    | succ k =>
       simp only [Nat.cast_le]
       have hsz : poly.val.size ≤ n + 1 := by
         change (Raw.mk (Array.ofFn coeffs)).trim.size ≤ n + 1
@@ -233,12 +230,12 @@ theorem correctness (hpG1 : Nat.card G₁ = p) (n : ℕ) (a : ZMod p)
 
   -- expansion of (a-z) to Polynomial form
   have haz : (a-z) = eval a (X - C z) := by
-    rw [eval_toPoly, toPoly_sub, Polynomial.eval_sub, X_toPoly, C_toPoly,
+    rw [eval_toPoly, CPolynomial.toPoly_sub, Polynomial.eval_sub, X_toPoly, C_toPoly,
       Polynomial.eval_X, Polynomial.eval_C]
 
   -- the polynomial form of (a-z) is monic
   have hmonic : Polynomial.Monic ((X : CPolynomial (ZMod p)) - C z).toPoly := by
-    rw [toPoly_sub, X_toPoly, C_toPoly]
+    rw [CPolynomial.toPoly_sub, X_toPoly, C_toPoly]
     exact Polynomial.monic_X_sub_C z
 
   -- the proof
@@ -253,7 +250,7 @@ theorem correctness (hpG1 : Nat.card G₁ = p) (n : ℕ) (a : ZMod p)
   have hqdeg : degree q ≤ n := by
     rw [degree_toPoly, toPoly_divByMonic _ _ hmonic]
     apply le_trans (Polynomial.degree_divByMonic_le _ _)
-    rw [toPoly_sub, C_toPoly]
+    rw [CPolynomial.toPoly_sub, C_toPoly]
     apply le_trans (Polynomial.degree_sub_le _ _)
     apply max_le
     · rw [← degree_toPoly]; exact hpdeg
@@ -281,7 +278,7 @@ theorem correctness (hpG1 : Nat.card G₁ = p) (n : ℕ) (a : ZMod p)
   -- prove the goal using the eval isomorphism to mathlib Polynomials
   subst v q
   simp_rw [haz]
-  simp_rw [eval_toPoly, toPoly_divByMonic _ _ hmonic, toPoly_sub,
+  simp_rw [eval_toPoly, toPoly_divByMonic _ _ hmonic, CPolynomial.toPoly_sub,
     ←Polynomial.eval_mul, C_toPoly, X_toPoly]
   simp_rw [Polynomial.X_sub_C_mul_divByMonic_eq_sub_modByMonic,
     Polynomial.modByMonic_X_sub_C_eq_C_eval]
@@ -296,7 +293,7 @@ local instance : OracleInterface (Fin (n + 1) → ZMod p) where
     impl := fun z => do
       let coeffs ← read
       let poly : CPolynomial (ZMod p) :=
-        ⟨(Raw.mk (Array.ofFn coeffs)).trim, Raw.Trim.trim_twice _⟩
+        ⟨(Raw.mk (Array.ofFn coeffs)).trim, Raw.Trim.isCanonical_trim _⟩
       return eval z poly
   }
 

@@ -59,13 +59,13 @@ private lemma raw_toPoly_pow_X (k : ℕ) :
 private lemma canonical_natDegree_eq (p : CPolynomial.Raw R)
     (hp : p.trim = p) (hs : p.size ≥ 1) :
     p.toPoly.natDegree = p.size - 1 := by
-  have hne : p.trim ≠ Raw.mk #[] := by
-    rw [hp]; intro h; rw [h] at hs; simp at hs
-  have hsz := Raw.Trim.size_eq_natDegree_plus_one p hne
-  rw [hp] at hsz
-  suffices h : p.toPoly.natDegree = Raw.natDegree p by omega
-  let cp : CPolynomial R := ⟨p, hp⟩
-  exact (natDegree_toPoly cp).symm
+  let cp : CPolynomial R := ⟨p, Raw.Trim.isCanonical_of_trim_eq hp⟩
+  have h := natDegree_toPoly cp
+  change (match p.size with | 0 => 0 | .succ n => n) = p.toPoly.natDegree at h
+  rw [← h]
+  cases p.size with
+  | zero => rfl
+  | succ n => rfl
 
 private lemma canonical_toPoly_ne_zero (p : CPolynomial.Raw R)
     (hp : p.trim = p) (hs : p.size ≥ 1) : p.toPoly ≠ 0 := by
@@ -80,7 +80,10 @@ private lemma canonical_toPoly_ne_zero (p : CPolynomial.Raw R)
 private lemma canonical_leadingCoeff_eq (p : CPolynomial.Raw R)
     (hp : p.trim = p) :
     p.leadingCoeff = p.toPoly.leadingCoeff := by
-  let cp : CPolynomial R := ⟨p, hp⟩
+  let cp : CPolynomial R := ⟨p, Raw.Trim.isCanonical_of_trim_eq hp⟩
+  show Raw.leadingCoeff p = p.toPoly.leadingCoeff
+  unfold Raw.leadingCoeff
+  rw [hp]
   exact leadingCoeff_toPoly cp
 
 private lemma canonical_leadingCoeff_ne_zero (p : CPolynomial.Raw R)
@@ -254,9 +257,9 @@ theorem go_degree_bound (n : ℕ) (p q : CPolynomial.Raw R)
 
 theorem toPoly_divByMonic (fp fq : CPolynomial R) (hq : fq.toPoly.Monic) :
     (fp.divByMonic fq).toPoly = fp.toPoly /ₘ fq.toPoly := by
-  set fuel := fp.val.size - fq.val.size -- fp.val.size + 1 - fq.val.size
+  set fuel := fp.val.size
   have heq := go_eq fuel fp.val fq.val
-  have hdeg := go_degree_bound fuel fp.val fq.val fp.prop fq.prop hq (by omega)
+  have hdeg := go_degree_bound fuel fp.val fq.val (trim_eq fp) (trim_eq fq) hq (by omega)
   set quot := (Raw.divModByMonicAux.go fuel fp.val fq.val).1
   set rem := (Raw.divModByMonicAux.go fuel fp.val fq.val).2
   have hd : (fp.divByMonic fq).toPoly = quot.toPoly := by
