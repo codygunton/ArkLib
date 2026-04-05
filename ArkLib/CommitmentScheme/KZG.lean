@@ -893,7 +893,7 @@ def find_S (srs : Vector G₁ (n + 1) × Vector G₂ 2) (cm : G₁) (diversion :
     then some candidate.toFinset
     else find_S srs cm diversion xs (prefix_acc ++ [x])
 
--- put it together
+-- put all steps together
 
 /-- These are steps 3 and 4 of the reduction listed in the paper (Proof of Lemma 9.1 in https://eprint.iacr.org/2025/902.pdf) -/
 def map_FB_instance_to_ARSDH_inst' {L : ℕ} (hn : 1 ≤ n)
