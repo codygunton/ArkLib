@@ -84,7 +84,7 @@ def OracleStatement (i : Fin (k + 1)) : Fin (i.val + 1) → Type :=
 def FinalOracleStatement : Fin (k + 2) → Type :=
   fun j =>
     if j.1 = k + 1
-    then (Unit → F[X])
+    then F[X]
     else (evalDomain D x (∑ j' ∈ finRangeTo j.1, s j') → F)
 
 /-- The FRI protocol has as witness the polynomial that is supposed to correspond to the codeword in
@@ -94,7 +94,7 @@ def Witness (F : Type) [NonBinaryField F] {k : ℕ}
     (s : Fin (k + 1) → ℕ+) (d : ℕ+) (i : Fin (k + 2)) :=
   F⦃< 2^((∑ j', (s j').1) - (∑ j' ∈ finRangeTo i.1, (s j').1)) * d⦄[X]
 
-private lemma sum_add_one {i : Fin (k + 1)} :
+private lemma sum_finRangeTo_add_one {i : Fin (k + 1)} :
   ∑ j' ∈ finRangeTo (i.1 + 1), (s j').1 = (∑ j' ∈ finRangeTo i.1, (s j').1) + (s i).1 := by
           rw [finRangeTo, List.take_add, List.toFinset_append]
           rw
@@ -173,7 +173,7 @@ private lemma witness_lift {F : Type} [NonBinaryField F]
         rw [Nat.sub_sub_right b h', Nat.sub_add_comm h, Nat.add_comm]
       rw [←mul_assoc, ←pow_add, arith]
       · convert deg_bound
-        rw [sum_add_one]
+        rw [sum_finRangeTo_add_one]
         simp
       · simp only [ge_iff_le]
         apply sum_le_univ_sum_of_nonneg
@@ -207,8 +207,8 @@ instance finalOracleStatementInterface :
     toOC.spec := fun _ => if j = k + 1 then F[X] else F
     toOC.impl := fun q => do
       if h : j = k + 1 then
-        let st : Unit → F[X] := cast (by simp [FinalOracleStatement, h]) (← read)
-        return cast (by simp [FinalOracleStatement, h]) (st ())
+        let st : F[X] := cast (by simp [FinalOracleStatement, h]) (← read)
+        return cast (by simp [h]) st
       else
         let st : evalDomain D x (∑ j' ∈ finRangeTo j.1, s j') → F :=
           cast (by simp [FinalOracleStatement, h]) (← read)
@@ -332,6 +332,37 @@ instance {i : Fin k} : ∀ j, OracleInterface ((pSpec D x s i).Message j)
       unfold pSpec Message
       simp only [Fin.vcons_fin_zero, Nat.reduceAdd, Fin.isValue, Fin.vcons_one]
       infer_instance
+
+instance {i : Fin k} : ∀ j, OracleInterface ((pSpec D x s i).Challenge j) :=
+  ProtocolSpec.challengeOracleInterface
+
+instance {i : Fin k} : ∀ j, Inhabited ((pSpec D x s i).Challenge j) := by
+  intro j
+  letI : Inhabited F := ⟨0⟩
+  rcases j with ⟨j, hj⟩
+  have h_j_eq_0 : j = 0 := by
+    cases j using Fin.cases with
+    | zero => rfl
+    | succ j1 =>
+        cases j1 using Fin.cases with
+        | zero => simp [pSpec] at hj
+        | succ j2 => exact j2.elim0
+  subst h_j_eq_0
+  simpa [pSpec, Challenge] using (inferInstance : Inhabited F)
+
+noncomputable instance {i : Fin k} : ∀ j, Fintype ((pSpec D x s i).Challenge j) := by
+  intro j
+  letI : Fintype F := Fintype.ofFinite _
+  rcases j with ⟨j, hj⟩
+  have h_j_eq_0 : j = 0 := by
+    cases j using Fin.cases with
+    | zero => rfl
+    | succ j1 =>
+        cases j1 using Fin.cases with
+        | zero => simp [pSpec] at hj
+        | succ j2 => exact j2.elim0
+  subst h_j_eq_0
+  simpa [pSpec, Challenge] using (inferInstance : Fintype F)
 
 /-- The prover for the `i`-th round of the FRI protocol. It first receives the challenge,
     then does an `s` degree split of this polynomial. Finally, it returns the evaluation of
@@ -487,15 +518,44 @@ def outputRelation (cond : ∑ i, (s i).1 ≤ n) [DecidableEq F] (δ : ℝ≥0) 
   element as the challenge to the prover, then in contrast to the previous folding rounds simply
   sends the folded polynomial to the verifier. -/
 @[reducible]
-def pSpec (F : Type) [Semiring F] : ProtocolSpec 2 := ⟨!v[.V_to_P, .P_to_V], !v[F, Unit → F[X]]⟩
+def pSpec (F : Type) [Semiring F] : ProtocolSpec 2 :=
+  ⟨!v[.V_to_P, .P_to_V], !v[F, F[X]]⟩
 
 /- `OracleInterface` instance for the `pSpec` of the final folding round of the FRI protocol. -/
 instance : ∀ j, OracleInterface ((pSpec F).Message j)
   | ⟨0, h⟩ => nomatch h
-  | ⟨1, _⟩ => by
-      unfold pSpec Message
-      simp only [Fin.vcons_fin_zero, Nat.reduceAdd, Fin.isValue, Fin.vcons_one]
-      exact OracleInterface.instFunction
+  | ⟨1, _⟩ => OracleInterface.instDefault
+
+/- `OracleInterface` instance for the `pSpec` of the final folding round of the FRI protocol. -/
+instance : ∀ j, OracleInterface ((pSpec F).Challenge j) := ProtocolSpec.challengeOracleInterface
+
+instance : ∀ j, Inhabited ((pSpec F).Challenge j) := by
+  intro j
+  letI : Inhabited F := ⟨0⟩
+  rcases j with ⟨j, hj⟩
+  have h_j_eq_0 : j = 0 := by
+    cases j using Fin.cases with
+    | zero => rfl
+    | succ j1 =>
+        cases j1 using Fin.cases with
+        | zero => simp [pSpec] at hj
+        | succ j2 => exact j2.elim0
+  subst h_j_eq_0
+  simpa [pSpec, Challenge] using (inferInstance : Inhabited F)
+
+noncomputable instance : ∀ j, Fintype ((pSpec F).Challenge j) := by
+  intro j
+  letI : Fintype F := Fintype.ofFinite _
+  rcases j with ⟨j, hj⟩
+  have h_j_eq_0 : j = 0 := by
+    cases j using Fin.cases with
+    | zero => rfl
+    | succ j1 =>
+        cases j1 using Fin.cases with
+        | zero => simp [pSpec] at hj
+        | succ j2 => exact j2.elim0
+  subst h_j_eq_0
+  simpa [pSpec, Challenge] using (inferInstance : Fintype F)
 
 /- Prover for the final folding round of the FRI protocol. -/
 noncomputable def finalFoldProver :
@@ -518,7 +578,7 @@ noncomputable def finalFoldProver :
   sendMessage
   | ⟨0, h⟩ => nomatch h
   | ⟨1, _⟩ => fun ⟨⟨chals, o⟩, p⟩ =>
-    pure ⟨fun x => p.1, ⟨⟨chals, o⟩, p⟩⟩
+    pure ⟨p.1, ⟨⟨chals, o⟩, p⟩⟩
 
   receiveChallenge
   | ⟨0, _⟩ => fun ⟨⟨chals, o⟩, p⟩ => pure <|
@@ -542,7 +602,7 @@ noncomputable def finalFoldProver :
           unfold FinalOracleStatement
           if h : j.1 = k + 1
           then
-            simpa [h] using fun x => p.1
+            simpa [h] using p.1
           else
           simpa [h, ↓reduceIte, OracleStatement, evalDomain] using
             o ⟨j.1, Nat.lt_of_le_of_ne (Fin.is_le j) h⟩
@@ -605,7 +665,7 @@ namespace QueryRound
 
 /-  Parameter for the number of round consistency checks to be
     run by the query round. -/
-variable (l : ℕ)
+variable (l : ℕ) [NeZero l]
 
 /- Input/Output relations for the query round of the FRI protocol -/
 def inputRelation (cond : ∑ i, (s i).1 ≤ n) [DecidableEq F] (δ : ℝ≥0) :
@@ -633,15 +693,43 @@ def pSpec : ProtocolSpec 1 :=
   ⟨!v[.V_to_P], !v[Fin l → evalDomain D x 0]⟩
 
 /- `OracleInterface` instances for the query round `pSpec`. -/
-instance : ∀ j, OracleInterface ((pSpec D x l).Message j) := fun j =>
+instance (priority := high) : ∀ j, OracleInterface ((pSpec D x l).Message j) := fun j =>
   match j with
   | ⟨0, h⟩ => nomatch h
+
+instance (priority := high) : ∀ j, OracleInterface ((pSpec D x l).Challenge j) :=
+  ProtocolSpec.challengeOracleInterface
 
 instance : ∀ j, OracleInterface ((pSpec D x l).Challenge j) := fun j =>
   by
     unfold Challenge
     rw [Fin.fin_one_eq_zero j.1]
     exact OracleInterface.instFunction
+
+noncomputable instance : ∀ j, Inhabited ((pSpec D x l).Challenge j) := by
+  intro j
+  let defaultPt : evalDomain D x 0 :=
+    Classical.choice (inferInstance : Nonempty (evalDomain D x 0))
+  rcases j with ⟨j, hj⟩
+  have h_j_eq_0 : j = 0 := by
+    cases j using Fin.cases with
+    | zero => rfl
+    | succ j1 => exact j1.elim0
+  subst h_j_eq_0
+  simpa [Challenge, evalDomain] using
+    (show Inhabited (Fin l → evalDomain D x 0) from ⟨fun _ => defaultPt⟩)
+
+noncomputable instance : ∀ j, Fintype ((pSpec D x l).Challenge j) := by
+  intro j
+  letI : Fintype (evalDomain D x 0) := Fintype.ofFinite _
+  rcases j with ⟨j, hj⟩
+  have h_j_eq_0 : j = 0 := by
+    cases j using Fin.cases with
+    | zero => rfl
+    | succ j1 => exact j1.elim0
+  subst h_j_eq_0
+  simpa [Challenge, evalDomain] using
+    (show Fintype (Fin l → evalDomain D x 0) from Fintype.ofFinite _)
 
 /- Query round prover, does nothing. After BCS transform is applied to
    construct the non-interactive FRI protocol, it will have to respond with
@@ -684,14 +772,15 @@ def getConst (k : ℕ) (s : Fin (k + 1) → ℕ+) : OracleComp [FinalOracleState
     (query (spec := [FinalOracleStatement D x s]ₒ) ⟨(Fin.last (k + 1)), (by
       simpa using ())⟩))
 
-private lemma roots_of_unity_lem {s : Fin (k + 1) → ℕ+} {i : Fin (k + 1)}
+private lemma sum_finRangeTo_le_sub_of_le {s : Fin (k + 1) → ℕ+} {i : Fin (k + 1)}
     (k_le_n : (∑ j', (s j').1) ≤ n) :
   (∑ j' ∈ finRangeTo i.1, (s j').1) ≤ n - (s i).1 := by
     apply Nat.le_sub_of_add_le
-    rw [←sum_add_one]
+    rw [←sum_finRangeTo_add_one]
     transitivity
     · exact sum_le_univ_sum_of_nonneg (by simp)
     · exact k_le_n
+
 
 /- Verifier for query round of the FRI protocol. Runs `l` checks on uniformly
    sampled points in the first evaluation domain against the oracles sent during
@@ -713,20 +802,32 @@ noncomputable def queryVerifier (k_le_n : (∑ j', (s j').1) ≤ n) (l : ℕ) [D
                   let s₀ :
                     evalDomain D x
                       (∑ j' ∈ finRangeTo i.1, (s j').1) :=
-                    ⟨_, pow_2_pow_i_mem_Di_of_mem_D _ s₀.2⟩
+                    ⟨_, pow_2_pow_i_mem_Di_of_mem_D s₀.2⟩
                   let queries :
                     List (
                       evalDomain D x
                         (∑ j' ∈ finRangeTo i.1, (s j').1)
                     ) :=
                     List.map
-                      (fun r =>
+                      (fun ind =>
+                        let r :=
+                          Domain.domainEnum D (⟨n - (s i).1, by grind⟩ : Fin (n + 1))
+                            ⟨
+                              ind.1,
+                              by
+                                have : (s i).1 ≤ n := by
+                                  refine le_trans ?_ k_le_n
+                                  apply Finset.single_le_sum
+                                    (f := fun j => (s j).1) (by aesop) (mem_univ _)
+                                simp_all only [Nat.sub_sub_eq_min, inf_of_le_right, Fin.is_lt]
+                            ⟩
                         ⟨
                           _,
-                          CosetDomain.mul_root_of_unity D (roots_of_unity_lem k_le_n) s₀.2 r.2
+                          CosetDomain.mul_root_of_unity D
+                            (sum_finRangeTo_le_sub_of_le k_le_n) s₀.2 r.2
                         ⟩
                       )
-                      (Domain.rootsOfUnity D n (s i))
+                      (List.finRange (2 ^ (s i).1))
                   let (pts : List (F × F)) ←
                     List.mapM
                       (fun q => queryCodeword D x k s q >>= fun v => pure (q.1.1, v))
@@ -736,7 +837,7 @@ noncomputable def queryVerifier (k_le_n : (∑ j', (s j').1) ≤ n) (l : ℕ) [D
                     then
                       have := CosetDomain.pow_lift D x (s i).1 s₀.2
                       queryCodeword D x k s (i := ⟨i.1.succ, Order.lt_add_one_iff.mpr h⟩)
-                        ⟨_, by rw [←sum_add_one] at this; exact this⟩
+                        ⟨_, by rw [←sum_finRangeTo_add_one] at this; exact this⟩
                     else
                       pure (p.eval (s₀.1.1 ^ (2 ^ (s (Fin.last k)).1)))
                   guard (RoundConsistency.roundConsistencyCheck x₀ pts β)
