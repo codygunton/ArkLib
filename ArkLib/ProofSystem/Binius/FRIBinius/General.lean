@@ -7,6 +7,8 @@ Authors: Chung Thai Nguyen, Quang Dao
 import ArkLib.ProofSystem.Binius.BinaryBasefold.QueryPhase
 import ArkLib.ProofSystem.Binius.FRIBinius.CoreInteractionPhase
 import ArkLib.ProofSystem.Binius.RingSwitching.BatchingPhase
+import ArkLib.OracleReduction.Security.Basic
+import ArkLib.OracleReduction.Security.Implications
 
 /-!
 # FRI-Binius IOPCS
@@ -27,8 +29,8 @@ namespace Binius.FRIBinius.FullFRIBinius
 noncomputable section
 
 open Polynomial MvPolynomial OracleSpec OracleComp ProtocolSpec Finset AdditiveNTT Module
-  Binius
-open Binius.BinaryBasefold Binius.RingSwitching
+  Binius Verifier
+open Binius.BinaryBasefold Binius.RingSwitching Binius.FRIBinius.CoreInteractionPhase
 
 variable (κ : ℕ) [NeZero κ]
 variable (L : Type) [Field L] [Fintype L] [DecidableEq L] [CharP L 2]
@@ -339,6 +341,275 @@ theorem fullOracleVerifier_rbrKnowledgeSoundness :
   dsimp only [ChallengeIdx, fullOracleVerifier, batchingCorePspec,
     BinaryBasefold.pSpecCoreInteraction, batchingCoreVerifier, MessageIdx] at res ⊢
   exact res
+
+/-!
+## Concrete Knowledge Soundness Error
+
+The concrete **soundness** (and matching KS scalar target) for FRI-Binius (**Construction 5.1**) is
+given in Diamond–Posen (ePrint 2024/504) **§5.2, equation (43)**. The paper derives it from the
+proofs of **Theorem 3.5** (ring-switching compiler) and **Theorem 4.17** (binary BaseFold / FRI
+folding, **Construction 4.12**); the middle and right summands come from **Propositions 4.23** and
+**4.24** respectively (see §5.2 text after (43)).
+
+Closed form:
+
+  (κ + 2 · ℓ') / |L| + 2^(ℓ' + 𝓡) / |L| + (1/2 + 1/(2 · 2^𝓡))^γ
+
+Decomposition:
+- `(κ + 2 · ℓ') / |L|` — ring-switching batching + sumcheck (§5.2; see also **Protocol 3.1** total
+  `(2·ℓ'+κ)/|L|` in the paper’s efficiency discussion)
+- `2^(ℓ' + 𝓡) / |L|` — aggregated fold-step bad events (**Proposition 4.23**)
+- `(1/2 + 1/(2 · 2^𝓡))^γ` — query-phase / proximity acceptance (**Proposition 4.24**)
+
+Audit note: DP24 presents this scalar as a soundness bound; this formalization proves the stronger
+knowledge-soundness statement while keeping the scalar error exactly the same.
+-/
+
+/-- Single-repetition proximity testing error: `1/2 + 1/(2 · 2^𝓡)` (third factor of DP24 §5.2 (43)). -/
+def querySingleRepetitionError : ℝ≥0 :=
+  (1 / 2 : ℝ≥0) + 1 / (2 * 2 ^ 𝓡)
+
+/-- Concrete KS upper bound for full FRI-Binius matching **DP24 §5.2 eq. (43)** / **Construction 5.1**
+concrete soundness. -/
+def concreteFRIBiniusKnowledgeError : ℝ≥0 :=
+  ((κ : ℝ≥0) + 2 * (ℓ' : ℝ≥0)) / (Fintype.card L : ℝ≥0)
+    + (2 ^ (ℓ' + 𝓡) : ℝ≥0) / (Fintype.card L : ℝ≥0)
+    + querySingleRepetitionError (𝓡 := 𝓡) ^ γ_repetitions
+
+/-- `∑ᵢ εᵢ` for the full verifier is at most **DP24 §5.2 eq. (43)** (same decomposition as
+**Theorem 4.17** / **Propositions 4.23–4.24** in the soundness analysis of **Construction 4.12**, plus
+the **Theorem 3.5** / ring-switching front encoded in batching+core RBR errors).
+
+Proof sketch:
+- Batching contributes `κ / |L|` (single challenge round in `pSpecBatching`)
+- Core interaction sumcheck rounds contribute `2 · ℓ' / |L|`
+- Core interaction fold bad-event mass is **at most** the display `2^(ℓ' + 𝓡) / |L|` from
+  **Proposition 4.23** (may be strict vs. the formal per-round `foldKnowledgeError` schedule; see
+  `BinaryBasefold.CoreInteraction.sumcheckFoldKnowledgeError_le`)
+- Query phase contributes `(1/2 + 1/(2 · 2^𝓡))^γ` (**Proposition 4.24**)
+-/
+theorem fullRbrKnowledgeError_sum_le_concrete :
+    (∑ i : (fullPspec κ L K β ℓ' 𝓡 ϑ γ_repetitions h_ℓ_add_R_rate).ChallengeIdx,
+      fullRbrKnowledgeError κ L K β ℓ' 𝓡 ϑ γ_repetitions h_ℓ_add_R_rate i)
+    ≤ concreteFRIBiniusKnowledgeError κ L ℓ' 𝓡 γ_repetitions := by
+  classical
+  have h_full :
+      (∑ i : (fullPspec κ L K β ℓ' 𝓡 ϑ γ_repetitions h_ℓ_add_R_rate).ChallengeIdx,
+        fullRbrKnowledgeError κ L K β ℓ' 𝓡 ϑ γ_repetitions h_ℓ_add_R_rate i)
+      =
+      (∑ i : (batchingCorePspec κ L K β ℓ' 𝓡 ϑ h_ℓ_add_R_rate).ChallengeIdx,
+        batchingCoreRbrKnowledgeError κ L K β ℓ' 𝓡 ϑ h_ℓ_add_R_rate i)
+      + (∑ i : (BinaryBasefold.pSpecQuery K β γ_repetitions
+          (h_ℓ_add_R_rate := h_ℓ_add_R_rate)).ChallengeIdx,
+        QueryPhase.queryRbrKnowledgeError K β γ_repetitions
+          (h_ℓ_add_R_rate := h_ℓ_add_R_rate) i) := by
+    unfold fullRbrKnowledgeError
+    let f :
+        ((batchingCorePspec κ L K β ℓ' 𝓡 ϑ h_ℓ_add_R_rate).ChallengeIdx
+          ⊕ (BinaryBasefold.pSpecQuery K β γ_repetitions
+            (h_ℓ_add_R_rate := h_ℓ_add_R_rate)).ChallengeIdx) → ℝ≥0 :=
+      Sum.elim
+        (batchingCoreRbrKnowledgeError κ L K β ℓ' 𝓡 ϑ h_ℓ_add_R_rate)
+        (QueryPhase.queryRbrKnowledgeError K β γ_repetitions
+          (h_ℓ_add_R_rate := h_ℓ_add_R_rate))
+    change (∑ i : (fullPspec κ L K β ℓ' 𝓡 ϑ γ_repetitions h_ℓ_add_R_rate).ChallengeIdx,
+        f (ChallengeIdx.sumEquiv.symm i))
+      =
+      (∑ i : (batchingCorePspec κ L K β ℓ' 𝓡 ϑ h_ℓ_add_R_rate).ChallengeIdx,
+        batchingCoreRbrKnowledgeError κ L K β ℓ' 𝓡 ϑ h_ℓ_add_R_rate i)
+      + (∑ i : (BinaryBasefold.pSpecQuery K β γ_repetitions
+          (h_ℓ_add_R_rate := h_ℓ_add_R_rate)).ChallengeIdx,
+        QueryPhase.queryRbrKnowledgeError K β γ_repetitions
+          (h_ℓ_add_R_rate := h_ℓ_add_R_rate) i)
+    have hsum :
+        (∑ i : (fullPspec κ L K β ℓ' 𝓡 ϑ γ_repetitions h_ℓ_add_R_rate).ChallengeIdx,
+          f (ChallengeIdx.sumEquiv.symm i))
+          =
+        (∑ i : ((batchingCorePspec κ L K β ℓ' 𝓡 ϑ h_ℓ_add_R_rate).ChallengeIdx
+            ⊕ (BinaryBasefold.pSpecQuery K β γ_repetitions
+              (h_ℓ_add_R_rate := h_ℓ_add_R_rate)).ChallengeIdx),
+          f i) := by
+      exact Equiv.sum_comp (e := Equiv.symm ChallengeIdx.sumEquiv) (g := f)
+    rw [hsum]
+    rw [Fintype.sum_sum_type]
+    simp only [f, Sum.elim_inl, Sum.elim_inr]
+  rw [h_full]
+  have h_batchingCore :
+      (∑ i : (batchingCorePspec κ L K β ℓ' 𝓡 ϑ h_ℓ_add_R_rate).ChallengeIdx,
+        batchingCoreRbrKnowledgeError κ L K β ℓ' 𝓡 ϑ h_ℓ_add_R_rate i)
+        =
+      (∑ i : (RingSwitching.pSpecBatching κ L K).ChallengeIdx,
+        RingSwitching.BatchingPhase.batchingRBRKnowledgeError (κ := κ) (L := L))
+        +
+      (∑ i : (BinaryBasefold.pSpecCoreInteraction K β (ϑ := ϑ)
+          (h_ℓ_add_R_rate := h_ℓ_add_R_rate)).ChallengeIdx,
+        FRIBinius.CoreInteractionPhase.coreInteractionOracleRbrKnowledgeError κ L K β ℓ' 𝓡 ϑ
+          h_ℓ_add_R_rate i) := by
+    unfold batchingCoreRbrKnowledgeError
+    let f :
+        ((RingSwitching.pSpecBatching κ L K).ChallengeIdx
+          ⊕ (BinaryBasefold.pSpecCoreInteraction K β (ϑ := ϑ)
+            (h_ℓ_add_R_rate := h_ℓ_add_R_rate)).ChallengeIdx) → ℝ≥0 :=
+      Sum.elim
+        (fun _ => RingSwitching.BatchingPhase.batchingRBRKnowledgeError (κ := κ) (L := L))
+        (FRIBinius.CoreInteractionPhase.coreInteractionOracleRbrKnowledgeError κ L K β ℓ' 𝓡 ϑ
+          h_ℓ_add_R_rate)
+    change (∑ i : (batchingCorePspec κ L K β ℓ' 𝓡 ϑ h_ℓ_add_R_rate).ChallengeIdx,
+        f (ChallengeIdx.sumEquiv.symm i))
+      =
+      (∑ i : (RingSwitching.pSpecBatching κ L K).ChallengeIdx,
+        RingSwitching.BatchingPhase.batchingRBRKnowledgeError (κ := κ) (L := L))
+        +
+      (∑ i : (BinaryBasefold.pSpecCoreInteraction K β (ϑ := ϑ)
+          (h_ℓ_add_R_rate := h_ℓ_add_R_rate)).ChallengeIdx,
+        FRIBinius.CoreInteractionPhase.coreInteractionOracleRbrKnowledgeError κ L K β ℓ' 𝓡 ϑ
+          h_ℓ_add_R_rate i)
+    have hsum :
+        (∑ i : (batchingCorePspec κ L K β ℓ' 𝓡 ϑ h_ℓ_add_R_rate).ChallengeIdx,
+          f (ChallengeIdx.sumEquiv.symm i))
+          =
+        (∑ i : ((RingSwitching.pSpecBatching κ L K).ChallengeIdx
+            ⊕ (BinaryBasefold.pSpecCoreInteraction K β (ϑ := ϑ)
+                (h_ℓ_add_R_rate := h_ℓ_add_R_rate)).ChallengeIdx),
+          f i) := by
+      exact Equiv.sum_comp (e := Equiv.symm ChallengeIdx.sumEquiv) (g := f)
+    rw [hsum]
+    rw [Fintype.sum_sum_type]
+    simp only [f, Sum.elim_inl, Sum.elim_inr]
+  rw [h_batchingCore]
+  have h_batching :
+      (∑ i : (RingSwitching.pSpecBatching κ L K).ChallengeIdx,
+        RingSwitching.BatchingPhase.batchingRBRKnowledgeError (κ := κ) (L := L))
+      = (κ : ℝ≥0) / (Fintype.card L : ℝ≥0) := by
+    have h_batching_card : Fintype.card ((RingSwitching.pSpecBatching κ L K).ChallengeIdx) = 1 := by
+      change Fintype.card { i // ![Direction.P_to_V, Direction.V_to_P] i = Direction.V_to_P } = 1
+      decide
+    rw [Finset.sum_const]
+    simp [h_batching_card, RingSwitching.BatchingPhase.batchingRBRKnowledgeError]
+  rw [h_batching]
+  have h_core_le :
+      (∑ i : (BinaryBasefold.pSpecCoreInteraction K β (ϑ := ϑ)
+          (h_ℓ_add_R_rate := h_ℓ_add_R_rate)).ChallengeIdx,
+        FRIBinius.CoreInteractionPhase.coreInteractionOracleRbrKnowledgeError κ L K β ℓ' 𝓡 ϑ
+          h_ℓ_add_R_rate i)
+      ≤ 2 * (ℓ' : ℝ≥0) / (Fintype.card L : ℝ≥0)
+          + (2 ^ (ℓ' + 𝓡) : ℝ≥0) / (Fintype.card L : ℝ≥0) :=
+    FRIBinius.CoreInteractionPhase.coreInteractionOracleRbrKnowledgeError_le
+      (κ := κ) (L := L) (K := K) (β := β) (ℓ' := ℓ') (𝓡 := 𝓡) (ϑ := ϑ)
+      (h_ℓ_add_R_rate := h_ℓ_add_R_rate)
+  have h_query :
+      (∑ i : (BinaryBasefold.pSpecQuery K β γ_repetitions
+          (h_ℓ_add_R_rate := h_ℓ_add_R_rate)).ChallengeIdx,
+        QueryPhase.queryRbrKnowledgeError K β γ_repetitions
+          (h_ℓ_add_R_rate := h_ℓ_add_R_rate) i)
+      = querySingleRepetitionError (𝓡 := 𝓡) ^ γ_repetitions := by
+    simp [QueryPhase.queryRbrKnowledgeError, QueryPhase.queryRbrKnowledgeError_singleRepetition,
+      querySingleRepetitionError, BinaryBasefold.pSpecQuery, ChallengeIdx]
+  have h_le_mid :
+      (κ : ℝ≥0) / (Fintype.card L : ℝ≥0)
+        + (∑ i : (BinaryBasefold.pSpecCoreInteraction K β (ϑ := ϑ)
+              (h_ℓ_add_R_rate := h_ℓ_add_R_rate)).ChallengeIdx,
+            FRIBinius.CoreInteractionPhase.coreInteractionOracleRbrKnowledgeError κ L K β ℓ' 𝓡 ϑ
+              h_ℓ_add_R_rate i)
+        + (∑ i : (BinaryBasefold.pSpecQuery K β γ_repetitions
+              (h_ℓ_add_R_rate := h_ℓ_add_R_rate)).ChallengeIdx,
+            QueryPhase.queryRbrKnowledgeError K β γ_repetitions
+              (h_ℓ_add_R_rate := h_ℓ_add_R_rate) i)
+      ≤ concreteFRIBiniusKnowledgeError κ L ℓ' 𝓡 γ_repetitions := by
+    have hx :
+        (κ : ℝ≥0) / (Fintype.card L : ℝ≥0)
+          + (∑ i : (BinaryBasefold.pSpecCoreInteraction K β (ϑ := ϑ)
+                (h_ℓ_add_R_rate := h_ℓ_add_R_rate)).ChallengeIdx,
+              FRIBinius.CoreInteractionPhase.coreInteractionOracleRbrKnowledgeError κ L K β ℓ' 𝓡 ϑ
+                h_ℓ_add_R_rate i)
+          + (∑ i : (BinaryBasefold.pSpecQuery K β γ_repetitions
+                (h_ℓ_add_R_rate := h_ℓ_add_R_rate)).ChallengeIdx,
+              QueryPhase.queryRbrKnowledgeError K β γ_repetitions
+                (h_ℓ_add_R_rate := h_ℓ_add_R_rate) i)
+        ≤ (κ : ℝ≥0) / (Fintype.card L : ℝ≥0)
+            + (2 * (ℓ' : ℝ≥0) / (Fintype.card L : ℝ≥0)
+                + (2 ^ (ℓ' + 𝓡) : ℝ≥0) / (Fintype.card L : ℝ≥0))
+            + querySingleRepetitionError (𝓡 := 𝓡) ^ γ_repetitions := by
+      have hκ_core :=
+        add_le_add (le_refl ((κ : ℝ≥0) / (Fintype.card L : ℝ≥0))) h_core_le
+      exact
+        add_le_add hκ_core
+          (le_of_eq h_query)
+    have h_div :
+        (κ : ℝ≥0) / (Fintype.card L : ℝ≥0)
+          + 2 * (ℓ' : ℝ≥0) / (Fintype.card L : ℝ≥0)
+        = ((κ : ℝ≥0) + 2 * (ℓ' : ℝ≥0)) / (Fintype.card L : ℝ≥0) := by
+      rw [← add_div]
+    have h_rhs :
+        (κ : ℝ≥0) / (Fintype.card L : ℝ≥0)
+          + (2 * (ℓ' : ℝ≥0) / (Fintype.card L : ℝ≥0)
+              + (2 ^ (ℓ' + 𝓡) : ℝ≥0) / (Fintype.card L : ℝ≥0))
+          + querySingleRepetitionError (𝓡 := 𝓡) ^ γ_repetitions
+        = concreteFRIBiniusKnowledgeError κ L ℓ' 𝓡 γ_repetitions := by
+      rw [concreteFRIBiniusKnowledgeError]
+      calc
+        (κ : ℝ≥0) / (Fintype.card L : ℝ≥0)
+            + (2 * (ℓ' : ℝ≥0) / (Fintype.card L : ℝ≥0)
+                + (2 ^ (ℓ' + 𝓡) : ℝ≥0) / (Fintype.card L : ℝ≥0))
+            + querySingleRepetitionError (𝓡 := 𝓡) ^ γ_repetitions
+            = ((κ : ℝ≥0) / (Fintype.card L : ℝ≥0)
+                + 2 * (ℓ' : ℝ≥0) / (Fintype.card L : ℝ≥0))
+                + (2 ^ (ℓ' + 𝓡) : ℝ≥0) / (Fintype.card L : ℝ≥0)
+                + querySingleRepetitionError (𝓡 := 𝓡) ^ γ_repetitions := by
+                rw [← add_assoc]
+        _ = ((κ : ℝ≥0) + 2 * (ℓ' : ℝ≥0)) / (Fintype.card L : ℝ≥0)
+              + (2 ^ (ℓ' + 𝓡) : ℝ≥0) / (Fintype.card L : ℝ≥0)
+              + querySingleRepetitionError (𝓡 := 𝓡) ^ γ_repetitions := by
+              rw [h_div]
+    exact hx.trans (le_of_eq h_rhs)
+  exact h_le_mid
+
+/-- Scalar KS for the full stack with error **`concreteFRIBiniusKnowledgeError`**, i.e. **DP24 §5.2
+(43)** / **Construction 5.1** concrete soundness (lifted to KS via OracleReduction; Diamond–Posen
+ePrint 2024/504). Aligns with §5.2 “Concrete soundness” (Theorems **3.5**, **4.17**; **Propositions 4.23**,
+**4.24**).
+
+Proof strategy:
+1. `fullOracleVerifier_rbrKnowledgeSoundness` gives RBR-KS (on OracleVerifier)
+2. RBR-KS → KS via `Verifier.rbrKnowledgeSoundness_implies_knowledgeSoundness` on `toVerifier`
+3. `fullRbrKnowledgeError_sum_le_concrete` bounds `∑ εᵢ` by **(43)** for
+   `Verifier.knowledgeSoundness_error_mono`
+4. `Verifier.knowledgeSoundness_error_mono` inflates to the concrete bound
+-/
+theorem fullOracleVerifier_knowledgeSoundness :
+    (fullOracleVerifier κ L K β ℓ ℓ' 𝓡 ϑ γ_repetitions h_ℓ_add_R_rate h_l
+      (𝓑 := 𝓑)).toVerifier.knowledgeSoundness init impl
+    (relIn := BatchingPhase.batchingInputRelation κ L K (booleanHypercubeBasis κ L K β) ℓ ℓ' h_l
+      (BinaryBasefoldAbstractOStmtIn κ L K β ℓ' 𝓡 ϑ h_ℓ_add_R_rate))
+    (relOut := acceptRejectOracleRel)
+    (knowledgeError := concreteFRIBiniusKnowledgeError κ L ℓ' 𝓡 γ_repetitions) := by
+  -- Same `relIn` / `fullOracleVerifier` / error spine as the elaborated `fullOracleVerifier_rbrKnowledgeSoundness`.
+  let relInFull :=
+    BatchingPhase.batchingInputRelation κ L K (booleanHypercubeBasis κ L K β) ℓ ℓ' h_l
+      (BinaryBasefoldAbstractOStmtIn κ L K β ℓ' 𝓡 ϑ h_ℓ_add_R_rate)
+  let fullV := fullOracleVerifier κ L K β ℓ ℓ' 𝓡 ϑ γ_repetitions h_ℓ_add_R_rate h_l (𝓑 := 𝓑)
+  let εFull := fullRbrKnowledgeError κ L K β ℓ' 𝓡 ϑ γ_repetitions h_ℓ_add_R_rate
+  -- Step 1: RBR-KS on `toVerifier` — defeq to `OracleVerifier.rbrKnowledgeSoundness`.
+  have h_rbr : fullV.toVerifier.rbrKnowledgeSoundness init impl relInFull acceptRejectOracleRel εFull := by
+    change OracleVerifier.rbrKnowledgeSoundness init impl relInFull acceptRejectOracleRel fullV εFull
+    exact fullOracleVerifier_rbrKnowledgeSoundness
+      (κ := κ) (L := L) (K := K) (β := β) (ℓ := ℓ) (ℓ' := ℓ') (𝓡 := 𝓡) (ϑ := ϑ)
+      (γ_repetitions := γ_repetitions) (h_ℓ_add_R_rate := h_ℓ_add_R_rate) (h_l := h_l)
+      (𝓑 := 𝓑) (init := init) (impl := impl)
+  -- Step 2: `rbrKS ⇒ KS` is a function `(rbrKS → KS)` after fixing `relIn`, `relOut`, `verifier`, `ε`.
+  have h_ks : fullV.toVerifier.knowledgeSoundness init impl relInFull acceptRejectOracleRel
+      (∑ i, εFull i) :=
+    (Verifier.rbrKnowledgeSoundness_implies_knowledgeSoundness (init := init) (impl := impl)
+      relInFull acceptRejectOracleRel fullV.toVerifier εFull)
+      h_rbr
+  -- Step 3: Inflate ∑ εᵢ to the concrete DP24 bound.
+  have h_mono := Verifier.knowledgeSoundness_error_mono
+    (init := init) (impl := impl)
+    (hε := fullRbrKnowledgeError_sum_le_concrete (κ := κ) (L := L) (K := K) (β := β)
+      (ℓ' := ℓ') (𝓡 := 𝓡) (ϑ := ϑ) (γ_repetitions := γ_repetitions)
+      (h_ℓ_add_R_rate := h_ℓ_add_R_rate))
+    h_ks
+  exact h_mono
 
 end CanonicalB
 
