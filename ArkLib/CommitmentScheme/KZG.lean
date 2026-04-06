@@ -740,7 +740,6 @@ lemma h₁_not_zero (hp : p ≥ n + 2) (hpG1 : Nat.card G₁ = p) (hn : 1 ≤ n)
     calc Zₛ.eval τ = ↑(Zₛ.eval τ).val := (ZMod.natCast_zmod_val _).symm
       _ = 0 := by simp [hval]
 
--- TODO lemma h1 eq h2
 lemma h₁Zₛ_eq_h₂ (hp : p ≥ n + 2) (hpG1 : Nat.card G₁ = p) (hn : 1 ≤ n) (α₁ α₂ β₁ β₂ τ : ZMod p)
   (c pf₁ pf₂ : G₁) (hα : α₁ = α₂) (hβ : β₁ ≠ β₂) (srs : Vector G₁ (n + 1) × Vector G₂ 2)
   (hsrs : srs = generateSrs (g₁ := g₁) (g₂ := g₂) n τ) (hgen : srs.1[0] ≠ 1)
@@ -864,6 +863,7 @@ lemma h₁Zₛ_eq_h₂ (hp : p ≥ n + 2) (hpG1 : Nat.card G₁ = p) (hn : 1 ≤
 
 -- case 2: there's no conflicting evaluation, but more than D distinct evaluations (degree failure)
 
+-- Old Approach
 /-- needed to satisfy #S = D+1 -/
 def erase_duplicates : List (ZMod p × ZMod p × G₁) → List (ZMod p × ZMod p × G₁)
   | [] => []
@@ -888,17 +888,38 @@ def find_S (srs : Vector G₁ (n + 1) × Vector G₂ 2) (cm : G₁) (diversion :
     let L : CPolynomial (ZMod p) := sorry -- interpolate candidate
     if commit srs.1 (fun i : Fin (n + 1) => L.coeff i) ≠ cm
     then some candidate.toFinset
-    else find_S srs cm diversion xs (prefix_acc ++ [x])
+    else find_S srs cm diversion xs (prefix_acc ++ [x])--
+
+/- step 4a) find A ⊆ {αᵢ,βᵢ,pfᵢ}, i ∈ [L], such that Lagrange(A).degree = n
+def find_A  (points : List (ZMod p × ZMod p × G₁)) (A : List (ZMod p × ZMod p × G₁)) (n : ℕ)
+  : List (ZMod p × ZMod p × G₁) :=
+      match points with
+      | [] => A
+      | (α, β, pf) :: rest =>
+        if A.length = n then A else
+
+        let new_A := A ++ [(α, β, pf)]
+        find_A new_A rest n-/
+
+/- step 4b) Assume A has size n+1, check all n-sized subsets of A until you find a subset whose interpolation
+commitment differs from the adversaries commitment c. --
+def find_S {τ : ZMod p} (A : List (ZMod p × ZMod p × G₁)) (srs : Vector G₁ (n + 1) × Vector G₂ 2)
+  (c : G₁) (hsrs : srs = generateSrs (g₁ := g₁) (g₂ := g₂) n τ) (hgen : srs.1[0] ≠ 1)
+  : List (ZMod p × ZMod p × G₁) :=
+  sorry-/
+
+
 
 -- put all steps together
 
 /-- These are steps 3 and 4 of the reduction listed in the paper (Proof of Lemma 9.1 in https://eprint.iacr.org/2025/902.pdf) -/
 def map_FB_instance_to_ARSDH_inst' {L : ℕ} (hn : 1 ≤ n)
-  (val : (Vector G₁ (n + 1) × Vector G₂ 2) × G₁ × Vector (ZMod p × ZMod p × Bool × G₁) L)
+  (val : (Vector G₁ (n + 1) × Vector G₂ 2) × G₁ ×
+    (Fin L → ZMod p) × (Fin L → ZMod p) × (Fin L → Bool) × (Fin L → G₁))
   : Option (Finset (ZMod p) × G₁ × G₁) :=
   do
-  let (srs, cm, fb_instance) := val
-  let points := fb_instance.toList.map (fun (αᵢ,βᵢ,bᵢ,pfᵢ) => (αᵢ,βᵢ,pfᵢ))
+  let (srs, cm, queryOf, responseOf, _accepts, proofs) := val
+  let points := List.ofFn (fun (i : Fin L) => (queryOf i, responseOf i, proofs i))
   if let some ((α₁,β₁,pf₁),(α₂,β₂,pf₂)) := find_conflict points then
     -- step 3
     let S := choose_S_conflict α₁ srs hn
@@ -908,6 +929,10 @@ def map_FB_instance_to_ARSDH_inst' {L : ℕ} (hn : 1 ≤ n)
     return (S ∪ {α₁}, h₁, h₂)
   else
     -- step 4
+    -- step 4a) find_A
+    -- step 4b) check all subsets of A until diversion is found (find_S)
+    -- step 4c)compute dᵢ
+    -- step 4d) compute h₁ and h₂
     let distinct_points := erase_duplicates points
     let L₀ : CPolynomial (ZMod p) := sorry -- interpolate distinct_points.take (D+1)
     let diversion ← find_diversion L₀ (distinct_points.take (n+1))
@@ -922,17 +947,19 @@ def map_FB_instance_to_ARSDH_inst' {L : ℕ} (hn : 1 ≤ n)
     return (S, h₁, h₂)
 
 def map_FB_instance_to_ARSDH_inst {L : ℕ} (hn : 1 ≤ n)
-  (val : (Vector G₁ (n + 1) × Vector G₂ 2) × G₁ × Vector (ZMod p × ZMod p × Bool × G₁) L)
+  (val : (Vector G₁ (n + 1) × Vector G₂ 2) × G₁ ×
+    (Fin L → ZMod p) × (Fin L → ZMod p) × (Fin L → Bool) × (Fin L → G₁))
   : (Finset (ZMod p) × G₁ × G₁)
   -- for instances that break function binding map_FB_instance_to_ARSDH_inst' should always
   -- be 'Some'
   := Option.getD (map_FB_instance_to_ARSDH_inst' hn val) (∅, 1, 1)
 
 def map_FB_to_ARSDH {L : ℕ} (hn : 1 ≤ n)
-  (val : ZMod p × (Vector G₁ (n + 1) × Vector G₂ 2) × G₁ × Vector (ZMod p × ZMod p × Bool × G₁) L)
+  (val : ZMod p × (Vector G₁ (n + 1) × Vector G₂ 2) × G₁ ×
+    (Fin L → ZMod p) × (Fin L → ZMod p) × (Fin L → Bool) × (Fin L → G₁))
   : (ZMod p × Finset (ZMod p) × G₁ × G₁)
   := (val.1, map_FB_instance_to_ARSDH_inst hn val.2)
-    -- val.1 = τ, val.2 = (srs, cm, fb_instance)
+    -- val.1 = τ, val.2 = (srs, cm, queryOf, responseOf, accepts, proofs)
 
 /-- Abbreviation for a function binding adversary for KZG. -/
 abbrev KZGFunctionBindingAdversary (p : ℕ) [Fact (Nat.Prime p)] (G₁ G₂ : Type) [Group G₁]
@@ -951,8 +978,7 @@ def reduction (L : ℕ) (hn : 1 ≤ n) (AuxState : Type)
     letI kzgScheme := KZG (n := n) (g₁ := g₁) (g₂ := g₂) (pairing := pairing)
     -- designed such that ProbEvent_comp can be applied and thus the main task of reasoning
     -- is discharged to the predicate level.
-    map_FB_instance_to_ARSDH_inst hn <$> -- TODO replace this option wrapper and use monad instead?
-    -- map_FB_instance_to_ARSDH_inst (Step 3 and 4 of the reduction) is applied to the result
+    -- map_FB_instance_to_ARSDH_inst' (Step 3 and 4 of the reduction) is applied to the result
     -- of the adversary (step 1 and 2 of the reduction)
     letI so : QueryImpl _ (StateT unifSpec.QueryCache ProbComp) :=
       QueryImpl.addLift
@@ -961,19 +987,27 @@ def reduction (L : ℕ) (hn : 1 ≤ n) (AuxState : Type)
     (simulateQ so
           (do
             let (ck, vk) := (srs, srs)
-            let (cm, claims) ← liftComp (adversary.claim ck) _
+            let claimResult ←
+              liftComp (adversary.claim ck) _
+            let cm := claimResult.1
+            let queryOf := claimResult.2.1
+            let responseOf := claimResult.2.2.1
+            let stateOf := claimResult.2.2.2
             let reduction := Reduction.mk (adversary.prover ck)
               (kzgScheme.opening (ck, vk)).verifier
-            let evals ← claims.mapM (fun ⟨q, r, st⟩ =>
-              do
-                let result ← (reduction.run (cm, ⟨q, r⟩) st).run
-                match result with -- TODO double check this. Why match necessary?
-                | some ⟨⟨transcript, _⟩, verifier_accept⟩ =>
-                  let pf := transcript 0
-                  return (q, (r : ZMod p), verifier_accept, pf)
-                | none => return (q, (r : ZMod p), false, (1 : G₁))
-              )
-            return (srs, cm, evals)
+            let opts ← (Vector.ofFn id).mapM (fun (i : Fin L) => do
+              let result ← (reduction.run (cm, ⟨queryOf i, responseOf i⟩) (stateOf i)).run
+              return (result.map (fun ((transcript_data, verifier_accept) :
+                (FullTranscript ⟨!v[.P_to_V], !v[G₁]⟩ × Bool × Unit) × Bool) =>
+                (verifier_accept, transcript_data.1 0))))
+            let resultPairs : Option (Vector (Bool × G₁) L) := opts.mapM id
+            let accepts : Option (Fin L → Bool) :=
+              resultPairs.map (fun v => fun i => (v[i] : Bool × G₁).1)
+            let proofs : Option (Fin L → G₁) :=
+              resultPairs.map (fun v => fun i => (v[i] : Bool × G₁).2)
+            return (accepts.bind (fun accepts => proofs.bind (fun proofs =>
+              map_FB_instance_to_ARSDH_inst' hn
+                (srs, cm, queryOf, responseOf, accepts, proofs))))
           ))
 
 /-- ARSDH condition for an adversary "to win" -/
@@ -984,23 +1018,19 @@ def ARSDH_cond (D : ℕ) : (ZMod p × Finset (ZMod p) × G₁ × G₁) → Prop 
 
 /-- Function binding condition for an adversary "to win" -/
 def FB_cond (n L : ℕ) :
-    Vector ((q : OracleInterface.Query (Fin (n + 1) → ZMod p)) ×
-      OracleInterface.Response q × Bool) L → Prop :=
-  fun x =>
-    (∀ (i : Fin x.size), x[i].2.2 = true) -- ∀i. verifier_accept
-    ∧ (¬ ∃ (d : Fin (n + 1) → ZMod p),
-      ∀ (i : Fin x.size), OracleInterface.answer d x[i].1 = x[i].2.1)
-      -- ∄ coeffs s.t. ∀i poly(coeffs).eval q = verifier_accept
+    (queryOf : Fin L → OracleInterface.Query (Fin (n + 1) → ZMod p)) ×
+      ((i : Fin L) → OracleInterface.Response (queryOf i)) × (Fin L → Bool) → Prop :=
+  fun ⟨queryOf, responseOf, acceptedOf⟩ =>
+    let S : Finset (Fin L) := Finset.univ
+    (∀ i ∈ S, acceptedOf i = true)
+    ∧ (¬ ∃ (d : Fin (n + 1) → ZMod p), ∀ i ∈ S, OracleInterface.answer d (queryOf i) = responseOf i)
+    ∧ Function.Injective queryOf
 
 /-- Extended function binding condition (taking more input values, logic unchanged) -/
 def FB_cond_ext (n L : ℕ) : (ZMod p × (Vector G₁ (n + 1) × Vector G₂ 2) × G₁ ×
-  Vector (ZMod p × ZMod p × Bool × G₁) L) → Prop :=
-  fun (x : ZMod p × (Vector G₁ (n + 1) × Vector G₂ 2) × G₁ ×
-    Vector (ZMod p × ZMod p × Bool × G₁) L) =>
-    let evals := x.2.2.2.map (fun (a, b, c, _) =>
-      (⟨a, b, c⟩ : (q : OracleInterface.Query (Fin (n + 1) → ZMod p)) ×
-        OracleInterface.Response q × Bool))
-    FB_cond n L evals
+  (Fin L → ZMod p) × (Fin L → ZMod p) × (Fin L → Bool) × (Fin L → G₁)) → Prop :=
+  fun ⟨_, _, _, queryOf, responseOf, accepts, _proofs⟩ =>
+    FB_cond n L ⟨queryOf, responseOf, accepts⟩
 
 /-- Function binding game -/
 def FB_game {n L : ℕ} (AuxState : Type)
@@ -1013,51 +1043,53 @@ def FB_game {n L : ℕ} (AuxState : Type)
         QueryImpl _ (StateT unifSpec.QueryCache ProbComp)) <|
         (do
           let (ck, vk) ← liftComp scheme.keygen _
-          let (cm, claims) ← liftComp (adversary.claim ck) _
+          let ⟨cm, queryOf, responseOf, stateOf⟩ ← liftComp (adversary.claim ck) _
           let reduction := Reduction.mk (adversary.prover ck) (scheme.opening (ck, vk)).verifier
-          let opts ← claims.mapM (fun (claim :
-              (q : OracleInterface.Query (Fin (n + 1) → ZMod p)) ×
-                OracleInterface.Response q × AuxState) => do
-            let ⟨query, response, state⟩ := claim
+          let boolOpts ← (Vector.ofFn id).mapM (fun (i : Fin L) => do
             let stmt : G₁ × (q : OracleInterface.Query (Fin (n + 1) → ZMod p)) ×
-              OracleInterface.Response q := (cm, ⟨query, response⟩)
-            let result ← (reduction.run stmt state).run
-            let mapped : Option ((q : OracleInterface.Query (Fin (n + 1) → ZMod p)) ×
-                OracleInterface.Response q × Bool) :=
-              match result with -- TODO double check this. Why match necessary?
-              | some (_, verifier_result) =>
-                some (Sigma.mk query (response, verifier_result))
-              | none => none
-            return mapped)
-          pure (opts.mapM id)
+                OracleInterface.Response q := (cm, ⟨queryOf i, responseOf i⟩)
+            let result ← (reduction.run stmt (stateOf i)).run
+            return (result.map (fun ((_, vr) : (FullTranscript ⟨!v[.P_to_V], !v[G₁]⟩ ×
+                Bool × Unit) × Bool) => vr)))
+          let accepts : Option (Fin L → Bool) :=
+            (boolOpts.mapM id).map (fun accepted => fun i => accepted[i])
+          pure (accepts.map (fun accepts => (⟨queryOf, responseOf, accepts⟩ :
+              (queryOf : Fin L → OracleInterface.Query (Fin (n + 1) → ZMod p)) ×
+                ((i : Fin L) → OracleInterface.Response (queryOf i)) × (Fin L → Bool))))
         : OracleComp _ _)).run' ∅
 
 /-- Extended function binding game (returning more internal values, logic unchanged) -/
 def FB_game_ext {n L : ℕ} {g₁ : G₁} {g₂ : G₂} (AuxState : Type)
     (adversary : KZGFunctionBindingAdversary p G₁ G₂ n unifSpec L AuxState)
     (scheme : Commitment.Scheme unifSpec (Fin (n + 1) → ZMod p) Unit G₁
-      (Vector G₁ (n + 1) × Vector G₂ 2) (Vector G₁ (n + 1) × Vector G₂ 2) ⟨!v[.P_to_V], !v[G₁]⟩) :=
+      (Vector G₁ (n + 1) × Vector G₂ 2) (Vector G₁ (n + 1) × Vector G₂ 2) ⟨!v[.P_to_V], !v[G₁]⟩) :
+    OptionT ProbComp (ZMod p × (Vector G₁ (n + 1) × Vector G₂ 2) × G₁ ×
+      (Fin L → ZMod p) × (Fin L → ZMod p) × (Fin L → Bool) × (Fin L → G₁)) :=
   let pSpec' : ProtocolSpec 1 := ⟨!v[.P_to_V], !v[G₁]⟩
-  (simulateQ
-    (QueryImpl.addLift randomOracle (challengeQueryImpl (pSpec := pSpec')) :
-      QueryImpl _ (StateT unifSpec.QueryCache ProbComp))
-    <|
-    (do
-      let a ← liftComp ($ᵗ (ZMod p)) _
-      let srs := generateSrs (g₁ := g₁) (g₂ := g₂) n a
-      let (cm, claims) ← liftComp (adversary.claim srs) _
-      let reduction := Reduction.mk (adversary.prover srs) (scheme.opening (srs, srs)).verifier
-      let evals ← claims.mapM (fun ⟨q, r, st⟩ =>
-        do
-          let result ← (reduction.run (cm, ⟨q, r⟩) st).run
-          match result with -- TODO this can't be right.. redo
-          | some ⟨⟨transcript, _⟩, verifier_accept⟩ =>
-            let pf := transcript 0
-            return (q, (r : ZMod p), verifier_accept, pf)
-          | none => return (q, (r : ZMod p), false, (1 : G₁))
-        )
-      return (a, srs, cm, evals) : OracleComp _ _)
-  ).run' ∅
+  OptionT.mk do
+    (simulateQ
+      (QueryImpl.addLift randomOracle (challengeQueryImpl (pSpec := pSpec')) :
+        QueryImpl _ (StateT unifSpec.QueryCache ProbComp))
+      <|
+      (do
+        let a ← liftComp ($ᵗ (ZMod p)) _
+        let srs := generateSrs (g₁ := g₁) (g₂ := g₂) n a
+        let ⟨cm, queryOf, responseOf, stateOf⟩ ← liftComp (adversary.claim srs) _
+        let reduction := Reduction.mk (adversary.prover srs) (scheme.opening (srs, srs)).verifier
+        let opts ← (Vector.ofFn id).mapM (fun (i : Fin L) => do
+          let stmt : G₁ × (q : OracleInterface.Query (Fin (n + 1) → ZMod p)) ×
+            OracleInterface.Response q := (cm, ⟨queryOf i, responseOf i⟩)
+          let result ← (reduction.run stmt (stateOf i)).run
+          return (result.map (fun ((transcript_data, verifier_accept) :
+            (FullTranscript ⟨!v[.P_to_V], !v[G₁]⟩ × Bool × Unit) × Bool) =>
+            (verifier_accept, transcript_data.1 0))))
+        let resultPairs : Option (Vector (Bool × G₁) L) := opts.mapM id
+        let accepts : Option (Fin L → Bool) :=
+          resultPairs.map (fun v => fun i => (v[i] : Bool × G₁).1)
+        let proofs : Option (Fin L → G₁) := resultPairs.map (fun v => fun i => (v[i] : Bool × G₁).2)
+        pure (accepts.bind (fun accepts => proofs.map (fun proofs =>
+          (a, srs, cm, queryOf, (fun i => responseOf i : Fin L → ZMod p), accepts, proofs))))
+      : OracleComp _ _)).run' ∅
 
 omit [DecidableEq G₁] in
 /-- Transition 1: extending output for proofs and commitment preserves the condition -/
@@ -1143,7 +1175,8 @@ lemma map_instance_drag {n L : ℕ} {AuxState : Type} [SampleableType G₁]
     (hn : 1 ≤ n) (adversary : KZGFunctionBindingAdversary p G₁ G₂ n unifSpec L AuxState)
     (scheme : Commitment.Scheme unifSpec (Fin (n + 1) → ZMod p) Unit G₁
       (Vector G₁ (n + 1) × Vector G₂ 2) (Vector G₁ (n + 1) × Vector G₂ 2) ⟨!v[.P_to_V], !v[G₁]⟩) :
-    Pr[(ARSDH_cond n) ∘ map_FB_to_ARSDH hn | FB_game_ext (g₁ := g₁) (g₂ := g₂) AuxState adversary scheme]
+    Pr[(ARSDH_cond n) ∘ map_FB_to_ARSDH hn |
+      FB_game_ext (g₁ := g₁) (g₂ := g₂) AuxState adversary scheme]
     = Pr[(ARSDH_cond n) |
       map_FB_to_ARSDH hn <$> FB_game_ext (g₁ := g₁) (g₂ := g₂) AuxState adversary scheme] := by
   exact probEvent_comp _ _ _
@@ -1226,7 +1259,7 @@ theorem functionBinding {g₁ : G₁} {g₂ : G₂}
       (reduction (g₁ := g₁) (g₂ := g₂) (pairing := pairing) L hn AuxState adversary) :=
       ARSDH_game_eq (g₁ := g₁) (g₂ := g₂) (pairing := pairing) hn adversary
     _ ≤ ARSDHerror := ARSDH_error_bound (g₁ := g₁) (g₂ := g₂) (pairing := pairing) hn ARSDHerror
-      hARSDH adversary) ; sorry
+      hARSDH adversary)
 
 --#check probEvent_mono
 #check probEvent_map

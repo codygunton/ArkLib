@@ -179,16 +179,19 @@ def extractability (scheme : Scheme oSpec Data Randomness Commitment ComKey Veri
 
 -- TODO: multi-instance versions?
 
-/-- An adversary in the function binding game returns a commitment `cm`, and a vector of length `L`
-  of queries, claimed responses to the queries, and auxiliary private states (to be passed to the
-  malicious prover in the opening procedure). -/
+/-- An adversary in the function binding game returns a commitment `cm`, and for each index in
+  `Fin L`, a query, a claimed response to the query, and an auxiliary private state (to be passed
+  to the malicious prover in the opening procedure). -/
 structure FunctionBindingAdversary (oSpec : OracleSpec ι) (Data Commitment AuxState : Type)
   [O : OracleInterface Data] (L : ℕ) {n : ℕ} (pSpec : ProtocolSpec n) (ComKey : Type)
 where
   claim : (ComKey →
-    OracleComp oSpec (Commitment × Vector ( (q : O.Query) × O.Response q × AuxState) L))
+    OracleComp oSpec (Commitment ×
+      (queryOf : Fin L → O.Query) ×
+      ((i : Fin L) → O.Response (queryOf i)) ×
+      (Fin L → AuxState)))
   prover : (ComKey →
-    Prover oSpec (Commitment ×  (q : O.Query) × O.Response q) AuxState Bool Unit pSpec)
+    Prover oSpec (Commitment × (q : O.Query) × O.Response q) AuxState Bool Unit pSpec)
 
 /-- The probabillity of breaking function binding for a specific adversary. -/
 def functionBinding_Experiment {L : ℕ} (hn : n = 1) (hpSpec : NonInteractive (hn ▸ pSpec))
@@ -198,24 +201,34 @@ def functionBinding_Experiment {L : ℕ} (hn : n = 1) (hpSpec : NonInteractive (
     (scheme : Scheme oSpec Data Randomness Commitment ComKey VerifKey (hn ▸ pSpec))
     (adversary : FunctionBindingAdversary oSpec Data Commitment AuxState L (hn ▸ pSpec) ComKey)
     : ℝ≥0∞ :=
-    Pr[fun (x : Vector ((q : O.Query) × O.Response q × Bool) L) =>
-        (∀ (i : Fin x.size), x[i].2.2 = true)
-        ∧ (¬ ∃ (d : Data), ∀ (i : Fin x.size), O.answer d x[i].1 = x[i].2.1)
-       | OptionT.mk do (simulateQ
-          (QueryImpl.addLift impl (challengeQueryImpl (pSpec := hn ▸ pSpec)) :
-          QueryImpl _ (StateT σ ProbComp)) <|
-          (do
-            let (ck,vk) ← liftComp scheme.keygen _
-            let (cm, claims) ← liftComp (adversary.claim ck) _
-            let reduction := Reduction.mk (adversary.prover ck) (scheme.opening (ck,vk)).verifier
-            let opts ← claims.mapM (fun (⟨query, response, state⟩ : (q : O.Query) × O.Response q × AuxState) => do
-              let stmt : Commitment × (q : O.Query) × O.Response q := (cm, ⟨query, response⟩)
-              let result ← (reduction.run stmt state).run
-              return (result.map (fun ((_, verifier_result) : (FullTranscript (hn ▸ pSpec) × Bool × Unit) × Bool) =>
-                ((⟨query, response, verifier_result⟩ : (q : O.Query) × O.Response q × Bool))))
-              )
-            pure (opts.mapM id)
-          : OracleComp _ _)).run' (← init)]
+    Pr[fun (⟨queryOf, responseOf, acceptedOf⟩) =>
+        let S : Finset (Fin L) := Finset.univ
+        (∀ i ∈ S, acceptedOf i = true)
+        ∧ (¬ ∃ (d : Data), ∀ i ∈ S, O.answer d (queryOf i) = responseOf i)
+        ∧ Function.Injective queryOf
+       | OptionT.mk do
+          (simulateQ
+            (QueryImpl.addLift impl (challengeQueryImpl (pSpec := hn ▸ pSpec)) :
+            QueryImpl _ (StateT σ ProbComp))
+            <|
+            (do
+                let (ck,vk) ← liftComp scheme.keygen _
+                let ⟨cm, queryOf, responseOf, stateOf⟩ ← liftComp (adversary.claim ck) _
+                let reduction := Reduction.mk (adversary.prover ck)
+                  (scheme.opening (ck,vk)).verifier
+                let boolOpts ← (Vector.ofFn id).mapM (fun (i : Fin L) => do
+                  let stmt : Commitment × (q : O.Query) × O.Response q :=
+                    (cm, ⟨queryOf i, responseOf i⟩)
+                  let result ← (reduction.run stmt (stateOf i)).run
+                  return (result.map (fun ((_, vr) : (FullTranscript (hn ▸ pSpec) × Bool × Unit)
+                    × Bool) => vr)))
+                let accepts : Option (Fin L → Bool) := (boolOpts.mapM id).map
+                  (fun accepted => fun i => accepted[i])
+                pure (accepts.map (fun accepts => (⟨queryOf, responseOf, accepts⟩ :
+                  (queryOf : Fin L → O.Query) × ((i : Fin L) → O.Response (queryOf i))
+                    × (Fin L → Bool))))
+              : OracleComp _ _)
+            ).run' (← init)]
 
 /-- A commitment scheme satisfies **function binding** with error `functionBindingError` if for all
 adversaries that output a commitment `cm`, and a vector of length `L` of queries `q_i`, claimed
@@ -239,9 +252,11 @@ def functionBinding {L : ℕ} (hn : n = 1) (hpSpec : NonInteractive (hn ▸ pSpe
     (scheme : Scheme oSpec Data Randomness Commitment ComKey VerifKey (hn ▸ pSpec))
     (functionBindingError : ℝ≥0) : Prop :=
     ∀ adversary : FunctionBindingAdversary oSpec Data Commitment AuxState L (hn ▸ pSpec) ComKey,
-      Pr[fun (x : Vector ((q : O.Query) × O.Response q × Bool) L) =>
-        (∀ (i : Fin x.size), x[i].2.2 = true)
-        ∧ (¬ ∃ (d : Data), ∀ (i : Fin x.size), O.answer d x[i].1 = x[i].2.1)
+      Pr[fun (⟨queryOf, responseOf, acceptedOf⟩) =>
+        let S : Finset (Fin L) := Finset.univ
+        (∀ i ∈ S, acceptedOf i = true)
+        ∧ (¬ ∃ (d : Data), ∀ i ∈ S, O.answer d (queryOf i) = responseOf i)
+        ∧ Function.Injective queryOf
        | OptionT.mk do
           (simulateQ
             (QueryImpl.addLift impl (challengeQueryImpl (pSpec := hn ▸ pSpec)) :
@@ -249,16 +264,20 @@ def functionBinding {L : ℕ} (hn : n = 1) (hpSpec : NonInteractive (hn ▸ pSpe
             <|
             (do
                 let (ck,vk) ← liftComp scheme.keygen _
-                let (cm, claims) ← liftComp (adversary.claim ck) _
+                let ⟨cm, queryOf, responseOf, stateOf⟩ ← liftComp (adversary.claim ck) _
                 let reduction := Reduction.mk (adversary.prover ck)
                   (scheme.opening (ck,vk)).verifier
-                let opts ← claims.mapM (fun (⟨query, response, state⟩ : (q : O.Query) × O.Response q × AuxState) => do
-                  let stmt : Commitment × (q : O.Query) × O.Response q := (cm, ⟨query, response⟩)
-                  let result ← (reduction.run stmt state).run
-                  return (result.map (fun ((_, verifier_result) : (FullTranscript (hn ▸ pSpec) × Bool × Unit) × Bool) =>
-                    ((⟨query, response, verifier_result⟩ : (q : O.Query) × O.Response q × Bool))))
-                  )
-                pure (opts.mapM id)
+                let boolOpts ← (Vector.ofFn id).mapM (fun (i : Fin L) => do
+                  let stmt : Commitment × (q : O.Query) × O.Response q :=
+                    (cm, ⟨queryOf i, responseOf i⟩)
+                  let result ← (reduction.run stmt (stateOf i)).run
+                  return (result.map (fun ((_, vr) : (FullTranscript (hn ▸ pSpec) × Bool × Unit)
+                    × Bool) => vr)))
+                let accepts : Option (Fin L → Bool) := (boolOpts.mapM id).map
+                  (fun accepted => fun i => accepted[i])
+                pure (accepts.map (fun accepts => (⟨queryOf, responseOf, accepts⟩ :
+                  (queryOf : Fin L → O.Query) × ((i : Fin L) → O.Response (queryOf i))
+                    × (Fin L → Bool))))
               : OracleComp _ _)
             ).run' (← init)] ≤ functionBindingError
 

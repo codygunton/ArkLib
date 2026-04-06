@@ -57,7 +57,7 @@ def generateSrs (n : ℕ) (a : ZMod p) : Vector G₁ (n + 1) × Vector G₂ 2 :=
 the srs. -/
 def ARSDHAdversary (D : ℕ) :=
   Vector G₁ (D + 1) × Vector G₂ 2 →
-    StateT unifSpec.QueryCache ProbComp (Finset (ZMod p) × G₁ × G₁)
+    StateT unifSpec.QueryCache ProbComp (Option (Finset (ZMod p) × G₁ × G₁))
 
 /-- The probabillity of breaking ARSDH for a specific adversary. -/
 noncomputable def ARSDH_Experiment [∀ i, SampleableType (unifSpec.Range i)]
@@ -68,11 +68,12 @@ noncomputable def ARSDH_Experiment [∀ i, SampleableType (unifSpec.Range i)]
     let Zₛ : CompPoly.CPolynomial (ZMod p) :=
       ∏ s ∈ S, (CompPoly.CPolynomial.X - CompPoly.CPolynomial.C s)
     S.card = D + 1 ∧ h₁ ≠ 1 ∧ h₂ = h₁ ^ (1 / Zₛ.eval τ).val
-  | (do
+  | OptionT.mk ((do
     let τ ← simulateQ randomOracle ($ᵗ(ZMod p))
     let srs := generateSrs (g₁ := g₁) (g₂ := g₂) D τ
-    let (S, h₁, h₂) ← adversary srs
-    return (τ, S, h₁, h₂)).run' (∅) -- TODO this empty state could be an arbitrary init?
+    let result ← adversary srs
+    pure (result.map (fun ((S, h₁, h₂) : Finset (ZMod p) × G₁ × G₁) =>
+      (τ, S, h₁, h₂)))).run' (∅))
   ]
 
 /- a note on why simulateQ is only applied to the τ sampling:
