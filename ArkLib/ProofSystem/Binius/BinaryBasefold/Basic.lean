@@ -3,8 +3,9 @@ Copyright (c) 2025 ArkLib Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Chung Thai Nguyen, Quang Dao
 -/
-
+test
 import ArkLib.ProofSystem.Binius.BinaryBasefold.Prelude
+import ArkLib.Data.MvPolynomial.MultilinearComputational
 
 noncomputable section
 namespace Binius.BinaryBasefold
@@ -365,6 +366,45 @@ section SumcheckOperations
 
 abbrev MultilinearPoly (L : Type) [CommSemiring L] (ℓ : ℕ) := L⦃≤ 1⦄[X Fin ℓ]
 abbrev MultiquadraticPoly (L : Type) [CommSemiring L] (ℓ : ℕ) := L⦃≤ 2⦄[X Fin ℓ]
+
+/-- Computable multilinear polynomial from hypercube evaluations (`CMvPolynomial` / `CMLE'`).
+See `MvPolynomial.Computational.fromCMvPolynomial_CMLE'_eq_MLE'`. -/
+def MultilinearPoly.ofCMLEEvals {L : Type} [CommRing L] [BEq L] [LawfulBEq L] {ℓ : ℕ}
+    (evals : Fin (2 ^ ℓ) → L) : MultilinearPoly L ℓ :=
+  ⟨CPoly.fromCMvPolynomial (MvPolynomial.Computational.CMLE' evals), by
+    rw [MvPolynomial.Computational.fromCMvPolynomial_CMLE'_eq_MLE']
+    unfold MLE'
+    exact MLE_mem_restrictDegree (evals ∘ finFunctionFinEquiv)⟩
+
+theorem MultilinearPoly.ofCMLEEvals_val {L : Type} [CommRing L] [BEq L] [LawfulBEq L] {ℓ : ℕ}
+    (evals : Fin (2 ^ ℓ) → L) :
+    (ofCMLEEvals evals).val = MLE' evals := by
+  simpa [ofCMLEEvals] using MvPolynomial.Computational.fromCMvPolynomial_CMLE'_eq_MLE' evals
+
+/-- Same carrier as `⟨MLE evals, MLE_mem_restrictDegree evals⟩`, built via `CMLE'`. -/
+def MultilinearPoly.ofHypercubeEvals {L : Type} [CommRing L] [BEq L] [LawfulBEq L] {ℓ : ℕ}
+    (evals : (Fin ℓ → Fin 2) → L) : MultilinearPoly L ℓ :=
+  ofCMLEEvals (fun i => evals (finFunctionFinEquiv.symm i))
+
+theorem MultilinearPoly.ofHypercubeEvals_val {L : Type} [CommRing L] [BEq L] [LawfulBEq L] {ℓ : ℕ}
+    (evals : (Fin ℓ → Fin 2) → L) :
+    (ofHypercubeEvals evals).val = MLE evals := by
+  rw [ofHypercubeEvals, ofCMLEEvals_val, MLE']
+  congr 1
+  funext x
+  simp only [Function.comp_apply, Equiv.symm_apply_apply]
+
+theorem MultilinearPoly.ofCMLEEvals_eval_zeroOne {L : Type} [CommRing L] [BEq L] [LawfulBEq L] {ℓ : ℕ}
+    (evals : Fin (2 ^ ℓ) → L) (x : Fin ℓ → Fin 2) :
+    MvPolynomial.eval (x : Fin ℓ → L) (ofCMLEEvals evals).val = evals (finFunctionFinEquiv x) := by
+  simpa [ofCMLEEvals_val] using MLE'_eval_zeroOne x evals
+
+theorem MultilinearPoly.ofCMLEEvals_cmEval_eq_val_eval {L : Type} [CommRing L] [BEq L] [LawfulBEq L]
+    {ℓ : ℕ} (evals : Fin (2 ^ ℓ) → L) (x : Fin ℓ → Fin 2) :
+    CPoly.CMvPolynomial.eval (x : Fin ℓ → L) (MvPolynomial.Computational.CMLE' evals) =
+      MvPolynomial.eval (x : Fin ℓ → L) (ofCMLEEvals evals).val := by
+  rw [CPoly.eval_equiv]
+  simpa [ofCMLEEvals]
 
 /-- We treat the multiplier poly as a blackbox for protocol abstraction.
 For example, in Binary Basefold it's `eqTilde(r₀, .., r_{ℓ-1}, X₀, .., X_{ℓ-1})` -/
