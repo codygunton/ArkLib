@@ -44,3 +44,7 @@ For reusable cross-cutting workflows that are not tied to one repo area, see
   driven roadmap for protocol families and future `Interaction` frontends.
 - [`../../INTERACTION_BRACHA_VERIFICATION.md`](../../INTERACTION_BRACHA_VERIFICATION.md) -
   Bracha reliable broadcast benchmark note and verified-protocol landscape.
+- [`../../INTERACTION_UC_MPC_LANDSCAPE.md`](../../INTERACTION_UC_MPC_LANDSCAPE.md) -
+  UC/MPC landscape note and benchmark survey.
+- [`../../INTERACTION_UC_CORE_SKETCH.md`](../../INTERACTION_UC_CORE_SKETCH.md) -
+  first-pass `Interaction`-native UC-core design sketch.
