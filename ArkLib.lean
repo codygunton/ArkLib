@@ -83,6 +83,10 @@ import ArkLib.Data.Polynomial.RationalFunctions
 import ArkLib.Data.Polynomial.SplitFold
 import ArkLib.Data.Probability.Instances
 import ArkLib.Data.Probability.Notation
+import ArkLib.Interaction.BCS.HybridDecoration
+import ArkLib.Interaction.BCS.HybridReduction
+import ArkLib.Interaction.BCS.HybridSpec
+import ArkLib.Interaction.BCS.Verifier
 import ArkLib.Interaction.Boundary.Compatibility
 import ArkLib.Interaction.Boundary.Core
 import ArkLib.Interaction.Boundary.Oracle
@@ -100,7 +104,6 @@ import ArkLib.Interaction.OracleReification
 import ArkLib.Interaction.OracleSecurity
 import ArkLib.Interaction.Reduction
 import ArkLib.Interaction.Security
-import ArkLib.OracleReduction.BCS.Basic
 import ArkLib.OracleReduction.Basic
 import ArkLib.OracleReduction.Cast
 import ArkLib.OracleReduction.Composition.Parallel.Basic
