@@ -36,6 +36,7 @@ jobs:
       contents: read
       pull-requests: write
     steps:
+      - uses: actions/checkout@v6
       - name: Extract arguments from comment
         id: get_args
         if: github.event_name == 'issue_comment'
@@ -50,11 +51,13 @@ jobs:
             BEGIN {
               ext = ""
               repo = ""
+              cite = ""
               com = ""
               section = ""
             }
             /^External:/ { section="ext"; next }
             /^Internal:/ { section="repo"; next }
+            /^Citations:/ { section="cite"; next }
             /^Comments:/ { section="com"; next }
             { 
               gsub(/\r/, "", $0);
@@ -69,6 +72,10 @@ jobs:
                 sub(/^- +/, "");
                 if (repo != "") { repo = repo "," $0 } else { repo = $0 }
               }
+              else if (section == "cite") {
+                sub(/^- +/, "");
+                if (cite != "") { cite = cite "," $0 } else { cite = $0 }
+              }
               else if (section == "com") {
                 if (com != "") { com = com "\n" $0 } else { com = $0 }
               }
@@ -76,17 +83,67 @@ jobs:
             END {
               printf "external_refs=%s\n", ext >> gh_out
               printf "repo_context_refs=%s\n", repo >> gh_out
+              printf "citation_keys=%s\n", cite >> gh_out
               printf "additional_comments<<%s\n", eof >> gh_out
               printf "%s\n", com >> gh_out
               printf "%s\n", eof >> gh_out
             }
           ' <<< "$COMMENT_BODY"
         shell: bash
+      - name: Augment Review Context From KB
+        id: kb_context
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
+          MANUAL_EXTERNAL_REFS: ${{ steps.get_args.outputs.external_refs }}
+          MANUAL_REPO_CONTEXT_REFS: ${{ steps.get_args.outputs.repo_context_refs }}
+          MANUAL_CITATION_KEYS: ${{ steps.get_args.outputs.citation_keys }}
+        run: |
+          set -euo pipefail
+
+          changed_files="$(
+            gh pr view "$PR_NUMBER" --json files --jq '.files[].path' \
+              | awk '/\.lean$/ { print }' \
+              | paste -sd, -
+          )"
+
+          helper_output="$(
+            python3 ./scripts/kb/review_context.py \
+              --files "${changed_files:-}" \
+              --keys "${MANUAL_CITATION_KEYS:-}"
+          )"
+
+          helper_repo="$(printf '%s\n' "$helper_output" | awk -F= '$1=="repo_context_refs" {print $2}')"
+          helper_ext="$(printf '%s\n' "$helper_output" | awk -F= '$1=="external_refs" {print $2}')"
+
+          python3 - "$GITHUB_OUTPUT" \
+            "${MANUAL_REPO_CONTEXT_REFS:-}" "${helper_repo:-}" \
+            "${MANUAL_EXTERNAL_REFS:-}" "${helper_ext:-}" <<'PY'
+          import sys
+
+          gh_out, manual_repo, helper_repo, manual_ext, helper_ext = sys.argv[1:]
+
+          def merge_csv(*chunks: str) -> str:
+              items: list[str] = []
+              seen: set[str] = set()
+              for chunk in chunks:
+                  for raw in chunk.split(","):
+                      item = raw.strip()
+                      if not item or item in seen:
+                          continue
+                      seen.add(item)
+                      items.append(item)
+              return ",".join(items)
+
+          with open(gh_out, "a", encoding="utf-8") as fh:
+              fh.write(f"external_refs={merge_csv(manual_ext, helper_ext)}\n")
+              fh.write(f"repo_context_refs={merge_csv(manual_repo, helper_repo)}\n")
+          PY
       - uses: alexanderlhicks/lean-review-workflow@main
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           pr_number: ${{ github.event.issue.number || github.event.pull_request.number }}
-          external_refs: "${{ steps.get_args.outputs.external_refs }}"
-          repo_context_refs: "${{ steps.get_args.outputs.repo_context_refs }}"
+          external_refs: "${{ steps.kb_context.outputs.external_refs }}"
+          repo_context_refs: "${{ steps.kb_context.outputs.repo_context_refs }}"
           additional_comments: "${{ steps.get_args.outputs.additional_comments }}"
