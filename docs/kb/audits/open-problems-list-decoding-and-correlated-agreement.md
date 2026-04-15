@@ -1,6 +1,6 @@
 # Paper Audit: `paper.pdf`
 
-This page records a paper-to-ArkLib audit for [`paper.pdf`](../../../paper.pdf),
+This page records a paper-to-ArkLib audit for the local source `paper.pdf`,
 *Open Problems in List Decoding and Correlated Agreement* (dated April 8, 2026).
 
 The goal is to list the paper's named formal items and check whether each one is already present in
