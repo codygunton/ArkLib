@@ -160,13 +160,14 @@ variable [∀ i, SampleableType (pSpec.Challenge i)]
 theorem fiatShamir_completeness (relIn : Set (StmtIn × WitIn)) (relOut : Set (StmtOut × WitOut))
     (completenessError : ℝ≥0) (R : Reduction oSpec StmtIn WitIn StmtOut WitOut pSpec) :
   R.completeness init impl relIn relOut completenessError →
-    R.fiatShamir.completeness (do
+    R.fiatShamir.completeness (init := do
         let challengeImpl : QueryImpl (srChallengeOracle StmtIn pSpec) Id :=
+          -- This is not a standard pre-sampling of
           fun ⟨i, _⟩ => (default : pSpec.Challenge i)
         return (← init, challengeImpl))
-      (impl.addLift fsChallengeQueryImpl' :
+      (impl := (impl.addLift fsChallengeQueryImpl' :
         QueryImpl (oSpec + srChallengeOracle StmtIn pSpec)
-          (StateT (σ × QueryImpl (srChallengeOracle StmtIn pSpec) Id) ProbComp))
+          (StateT (σ × QueryImpl (srChallengeOracle StmtIn pSpec) Id) ProbComp)))
         relIn relOut completenessError := sorry
 
 -- TODO: state-restoration (knowledge) soundness implies (knowledge) soundness after Fiat-Shamir
