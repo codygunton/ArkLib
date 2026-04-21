@@ -146,7 +146,7 @@ noncomputable def canonicalRepOf𝒪 {H : F[X][Y]} (β : 𝒪 H) : F[X][Y] :=
 a polynomial is the maximal weight of all monomials appearing in it with non-zero coefficients.
 The weight of the zero polynomial is `−∞`.
 Requires `D ≥ Bivariate.totalDegree H` to match definition in [BCIKS20]. -/
-def weight_Λ (f H : F[X][Y]) (D : ℕ) : WithBot ℕ :=
+noncomputable def weight_Λ (f H : F[X][Y]) (D : ℕ) : WithBot ℕ :=
   Finset.sup
     f.support
     (fun deg =>

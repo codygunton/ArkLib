@@ -420,25 +420,23 @@ export InterleavedStructure (eq_iff_all_rows_eq eq_iff_all_symbols_eq eq_iff_all
 
 -- WordStack
 @[simp] instance (priority := 500) instInterleavedStructureWordStack :
-    ∀ κ, InterleavedStructure (α := WordStack A κ ι) (RowIdx := κ) (SymbolIdx := ι)
-      (RowType := Word A ι) (SymbolType := InterleavedSymbol A κ) (CellTy := A) := fun κ => by
-  exact {
-    getRow u k := WordStack.getRowWord u k
-    getSymbol u i := WordStack.getSymbol u i
-    getCell u k i := (WordStack.getRowWord u k) i
-    eq_iff_all_rows_eq := by
-      intro u v; constructor
-      · intro h; exact fun i ↦ congrFun h i
-      · intro h; ext i k; exact congrFun (h i) k
-    eq_iff_all_symbols_eq := by
-      intro u v; constructor
-      · intro h; exact fun k ↦ congrFun (congrArg Matrix.transpose h) k
-      · intro h; ext i k; exact congrFun (h k) i
-    eq_iff_all_cells_eq := by
-      intro u v; constructor
-      · intro h; exact fun i k ↦ congrFun (congrFun h i) k
-      · intro h; ext i k; exact h i k
-  }
+    InterleavedStructure (α := WordStack A κ ι) (RowIdx := κ) (SymbolIdx := ι)
+      (RowType := Word A ι) (SymbolType := InterleavedSymbol A κ) (CellTy := A) where
+  getRow u k := WordStack.getRowWord u k
+  getSymbol u i := WordStack.getSymbol u i
+  getCell u k i := (WordStack.getRowWord u k) i
+  eq_iff_all_rows_eq := by
+    intro u v; constructor
+    · intro h; exact fun i ↦ congrFun h i
+    · intro h; ext i k; exact congrFun (h i) k
+  eq_iff_all_symbols_eq := by
+    intro u v; constructor
+    · intro h; exact fun k ↦ congrFun (congrArg Matrix.transpose h) k
+    · intro h; ext i k; exact congrFun (h k) i
+  eq_iff_all_cells_eq := by
+    intro u v; constructor
+    · intro h; exact fun i k ↦ congrFun (congrFun h i) k
+    · intro h; ext i k; exact h i k
 
 -- CodewordStack
 @[simp] instance instInterleavedStructureCodewordStack :
@@ -550,9 +548,10 @@ omit [AddCommMonoid A] [Fintype κ] [Fintype ι] in
 @[simp]
 lemma getRowOfCodewordStack_mem_code (C : Set (ι → A))
     (u : CodewordStack A κ ι C) (rowIdx : κ) :
-    getRow (u.val) rowIdx ∈ C := by
-  let getRowAsIC := getRow (show InterleavedCodeword A κ ι C from ⋈|u) rowIdx
-  exact getRowAsIC.property
+    u.val rowIdx ∈ C := by
+  have := u.property
+  rw [mem_codewordStack_iff] at this
+  exact this rowIdx
 
 /-- Notation for stacking one stack on top of another -/
 infixl:65 " ++ₕ " => HAppend.hAppend

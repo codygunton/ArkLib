@@ -22,26 +22,6 @@ import ArkLib.OracleReduction.Security.RoundByRound
 
 open OracleSpec OracleComp OracleQuery OracleInterface ProtocolSpec
 
-/-- Peel `simulateQ` map layers from a support membership hypothesis,
-    reducing the computation to its core pure form. -/
-elab "peel_simulateQ" " at " h:ident : tactic => do
-  let n := h.getId.toString
-  let env ← Lean.getEnv
-  let tactics := #[
-    s!"simp only [bind_pure_comp] at {n}",
-    s!"erw [simulateQ_map] at {n}",
-    s!"erw [simulateQ_map] at {n}",
-    s!"erw [simulateQ_map] at {n}",
-    s!"erw [Option.elimM_map] at {n}",
-    s!"simp only [Option.elim_some] at {n}",
-    s!"dsimp only [OptionT.run] at {n}",
-    s!"simp at {n}"]
-  for t in tactics do
-    let stx := Lean.Parser.runParserCategory env `tactic t
-    match stx with
-    | .ok s => Lean.Elab.Tactic.evalTactic s
-    | .error e => throwError "peel_simulateQ: parse error: {e}"
-
 namespace SendClaim
 
 variable {ι : Type} (oSpec : OracleSpec ι) (Statement : Type)
@@ -127,7 +107,6 @@ it also holds in the ideal setting, etc.
 instance : ProverOnly (pSpec OStatement) where
   prover_first' := by simp
 
-set_option synthInstance.maxHeartbeats 800000 in
 theorem completeness [Nonempty σ] :
     (oracleReduction oSpec Statement OStatement relComp).perfectCompleteness
     init impl relIn (relOut OStatement) := by
@@ -176,7 +155,20 @@ theorem completeness [Nonempty σ] :
     -- x = some val, s'' = s₀; hs depends on val : Option (...)
     dsimp only [] at hs
     rcases val with _ | ⟨a⟩
-    · exfalso; peel_simulateQ at hval
+    · exfalso
+      simp only [bind_pure_comp] at hval
+      erw [simulateQ_map] at hval
+      erw [simulateQ_map] at hval
+      erw [simulateQ_map] at hval
+      erw [Option.elimM_map] at hval
+      simp only [Option.elim_some] at hval
+      dsimp only [OptionT.run] at hval
+      simp only [bind_pure_comp] at hval
+      rw [simulateQ_map, simulateQ_map] at hval
+      rw [StateT.run_map] at hval
+      simp only [support_map, Set.mem_image] at hval
+      obtain ⟨⟨_, _⟩, _, h⟩ := hval
+      simp [Prod.mk.injEq] at h
     · simp only [Option.getM, pure_bind] at hs
       erw [simulateQ_pure] at hs
       simp only [StateT.run_pure, support_pure, Set.mem_singleton_iff] at hs
@@ -205,18 +197,39 @@ theorem completeness [Nonempty σ] :
     -- y = some val; hx depends on val : Option (...)
     dsimp only [] at hx
     rcases val with _ | ⟨a⟩
-    · exfalso; peel_simulateQ at hval
+    · exfalso
+      simp only [bind_pure_comp] at hval
+      erw [simulateQ_map] at hval
+      erw [simulateQ_map] at hval
+      erw [simulateQ_map] at hval
+      erw [Option.elimM_map] at hval
+      simp only [Option.elim_some] at hval
+      dsimp only [OptionT.run] at hval
+      simp only [bind_pure_comp] at hval
+      rw [simulateQ_map, simulateQ_map] at hval
+      rw [StateT.run_map] at hval
+      simp only [support_map, Set.mem_image] at hval
+      obtain ⟨⟨_, _⟩, _, h⟩ := hval
+      simp [Prod.mk.injEq] at h
     · simp only [Option.getM, pure_bind] at hx
       erw [simulateQ_pure] at hx
       simp only [StateT.run_pure, support_pure, Set.mem_singleton_iff, Prod.mk.injEq,
         Option.some.injEq] at hx
       obtain ⟨rfl, -⟩ := hx
-      peel_simulateQ at hval
-      obtain ⟨_, _, rfl⟩ := hval
-      -- a is now concrete, goal should be provable
+      simp only [bind_pure_comp] at hval
+      erw [simulateQ_map] at hval
+      erw [simulateQ_map] at hval
+      erw [simulateQ_map] at hval
+      erw [Option.elimM_map] at hval
+      simp only [Option.elim_some] at hval
+      dsimp only [OptionT.run] at hval
+      simp only [bind_pure_comp] at hval
+      rw [simulateQ_map, simulateQ_map] at hval
+      rw [StateT.run_map] at hval
+      simp only [support_map, Set.mem_image, Prod.mk.injEq, Option.some.injEq] at hval
+      obtain ⟨⟨_, _⟩, _, rfl, rfl⟩ := hval
       simp only [Set.mem_setOf_eq]
       refine ⟨trivial, Prod.ext (Subsingleton.elim _ _) ?_⟩
-      -- Goal: prover oracle fn = verifier oracle fn
       funext i
       rcases i with j | j <;> {
         have hj : j = default := Unique.uniq _ j

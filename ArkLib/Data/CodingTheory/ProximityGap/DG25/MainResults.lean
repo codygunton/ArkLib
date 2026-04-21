@@ -83,10 +83,9 @@ lemma dist_row_le_dist_ToInterleavedCode (U : InterleavedWord A (Fin m) ι) :
   intro i
   let d_To_interleaved := Code.distFromCode (u := U) (C := C ^⋈ (Fin m))
   -- There exists M achieving this distance e_int
-  letI :   Nonempty ↑(C ^⋈ (Fin m)) :=
-    instNonemptyInterleavedCode A (κ := Fin m) (ι := ι) C
   have h_exists : ∃ M ∈ C ^⋈ (Fin m), Δ₀(U, M) = d_To_interleaved :=
-    Code.exists_closest_codeword_of_Nonempty_Code (C := C ^⋈ (Fin m)) (u := U)
+    @Code.exists_closest_codeword_of_Nonempty_Code _ _ _ _
+      (C ^⋈ (Fin m)) (instNonemptyInterleavedCode (κ := Fin m) (C := C)) U
   rcases h_exists with ⟨M, hM_mem, hM_dist⟩
   let Uᵢ := getRow U i
   let iM : InterleavedCodeword (A := A) (κ := Fin m) (ι := ι) (C := C):= ⟨M, hM_mem⟩
@@ -182,13 +181,13 @@ def constructInterleavedCodewordsAndRowWiseCA
     -- Apply proximity gap of C to get correlated agreement at this row
     have h_corr_agree_row: Δ₀(u₀ ⋈₂ u₁, C ^⋈ (Fin 2)) ≤ e := by
       exact hC_gap (u₀) (u₁) (h_P_affineCombineRow)
-    letI : Nonempty (C ^⋈ (Fin 2)) := instNonemptyInterleavedCode A (κ := Fin 2) (ι := ι) C
-    let V_rowIdx := Code.pickClosestCodeword_of_Nonempty_Code (C := C ^⋈ (Fin 2)) (u := u₀ ⋈₂ u₁)
+    have hne : Nonempty ↑(C ^⋈ (Fin 2)) := instNonemptyInterleavedCode (κ := Fin 2) (C := C)
+    let V_rowIdx := @Code.pickClosestCodeword_of_Nonempty_Code _ _ _ _ (C ^⋈ (Fin 2)) hne (u₀ ⋈₂ u₁)
     let v₀ := getRow (show (InterleavedCodeword A (Fin 2) ι C) from V_rowIdx) 0
     let v₁ := getRow (show (InterleavedCodeword A (Fin 2) ι C) from V_rowIdx) 1
     use v₀, v₁
-    have h_dist_min := Code.distFromPickClosestCodeword_of_Nonempty_Code
-      (C := C ^⋈ (Fin 2)) (u := u₀ ⋈₂ u₁)
+    have h_dist_min := @Code.distFromPickClosestCodeword_of_Nonempty_Code
+      _ _ _ _ (C ^⋈ (Fin 2)) hne (u₀ ⋈₂ u₁)
     rw [h_dist_min] at h_corr_agree_row
     have h_v₀_interleaved_v₁ : (V_rowIdx).val = (v₀.val ⋈₂ v₁.val) := by
       -- apply Subtype.ext;
@@ -197,24 +196,21 @@ def constructInterleavedCodewordsAndRowWiseCA
       · rw [h]; rfl
       · have h' : rowIdx₀₁ = 1 := by omega
         rw [h']; rfl
-    rw [h_v₀_interleaved_v₁] at h_corr_agree_row
     unfold pairJointProximity₂
-    simp only [Nat.cast_le] at h_corr_agree_row
-    simp only
-    exact h_corr_agree_row -- TODO: try using `exact`
+    rw [h_v₀_interleaved_v₁] at h_corr_agree_row; exact_mod_cast h_corr_agree_row
   let V₀_wordStack : WordStack A (Fin m) ι := fun rowIdx => (V₀₁ rowIdx).1.val
   let V₁_wordStack : WordStack A (Fin m) ι := fun rowIdx => (V₀₁ rowIdx).2.1.val
   let V₀ : C ^⋈ (Fin m) := ⟨⋈| V₀_wordStack, by
-    simp only [Word, instCodeInterleavableSetForallMatrix, interleavedCodeSet,
+    simp only [Word, interleavedCodeSet,
       interleavedCode_eq_interleavedCodeSet, WordStack, InterleavedWord,
-      instInterleavableWordStackInterleavedWord, interleave_wordStack_eq, Set.mem_setOf_eq,
+      interleave_wordStack_eq, Set.mem_setOf_eq,
       Matrix.transpose_transpose]
     intro rowIdx; exact Subtype.coe_prop (V₀₁ rowIdx).fst
   ⟩
   let V₁ : C ^⋈ (Fin m) := ⟨⋈| V₁_wordStack, by
-    simp only [Word, instCodeInterleavableSetForallMatrix, interleavedCodeSet,
+    simp only [Word, interleavedCodeSet,
       interleavedCode_eq_interleavedCodeSet, WordStack, InterleavedWord,
-      instInterleavableWordStackInterleavedWord, interleave_wordStack_eq, Set.mem_setOf_eq,
+      interleave_wordStack_eq, Set.mem_setOf_eq,
       Matrix.transpose_transpose]
     intro rowIdx; exact Subtype.coe_prop (V₀₁ rowIdx).snd.fst
   ⟩
@@ -278,7 +274,8 @@ lemma affineWord_close_to_affineInterleavedCodeword
   -- We must show Vᵣ* = Vᵣ. We do this row-by-row.
   -- Goal is Δ₀(Uᵣ, Vᵣ) ≤ e. We will prove Vᵣ = Vᵣ_star, then rw.
   have h_Vᵣ_eq_Vᵣ_star : Vᵣ = Vᵣ_star.val := by
-    rw [InterleavedCode.eq_iff_all_rows_eq (α := InterleavedWord A (Fin m) ι)]
+    change @Eq (InterleavedWord A (Fin m) ι) Vᵣ Vᵣ_star.val
+    rw [eq_iff_all_rows_eq]
     intro rowIdx
     -- Get the i-th rows of Vᵣ and Vᵣ*
     set Vᵣ_i := getRow (show (InterleavedWord A (Fin m) ι) from Vᵣ) rowIdx
@@ -334,10 +331,8 @@ lemma affineWord_close_to_affineInterleavedCodeword
     -- Vᵣ_star_i is a codeword because it's a row of Vᵣ_star ∈ C^m
     have hVᵣ_star_i_mem : Vᵣ_star_i ∈ MC := by
       have hVᵣ_star := Vᵣ_star.property
-      dsimp only [Word, instCodeInterleavableSetForallMatrix,
-        CodeInterleavable.interleaveCode] at hVᵣ_star -- this is quite long
-      rw [mem_moduleInterleavedCode_iff (F := F) (A := A) (κ := Fin m) (ι := ι) (MC := MC)
-        (v := Vᵣ_star.val)] at hVᵣ_star
+      simp only [CodeInterleavable.interleaveCode,
+        ModuleCode.moduleInterleavedCode] at hVᵣ_star
       exact hVᵣ_star rowIdx
     -- Vᵣ_i is a codeword because it's an affine combo of rows from V₀, V₁ ∈ C^m
     have hVᵣ_i_mem : Vᵣ_i ∈ MC := by
@@ -412,17 +407,17 @@ lemma disjoint_R_star_star_filter_columns_in_D_not_in_D (U₀ U₁ : Interleaved
   -- The goal is now `Disjoint (R_ss.filter P) (R_ss.filter (¬P))`
   apply disjoint_filter_filter_not
 
+set_option maxHeartbeats 400000 in
+-- Destructured `let` avoids repeated elaboration of
+-- `constructInterleavedCodewordsAndRowWiseCA`
 omit [NoZeroDivisors F] [DecidableEq F] [Fintype A] [Module.Free F A] in
 lemma D_card_le_e_implies_interleaved_correlatedAgreement₂
     (U₀ U₁ : InterleavedWord A (Fin m) ι)
   (hC_gap : e_ε_correlatedAgreementAffineLinesNat (F := F) (C := MC) e ε)
   (hR_star_card : (R_star (A := A) (F := F) (ι := ι) (C := MC) (m := m) (e := e) U₀ U₁).card > ε) :
-    let V₀ := (constructInterleavedCodewordsAndRowWiseCA (F := F)
+    let ⟨V₀, V₁, _⟩ := constructInterleavedCodewordsAndRowWiseCA (F := F)
       (A := A) (ι := ι) (C := MC) (U₀ := U₀) (U₁ := U₁) (hC_gap := by exact hC_gap)
-      (hR_star_card := hR_star_card)).1
-    let V₁ := (constructInterleavedCodewordsAndRowWiseCA (F := F)
-      (A := A) (ι := ι) (C := MC) (U₀ := U₀) (U₁ := U₁) (hC_gap := by exact hC_gap)
-      (hR_star_card := hR_star_card)).2.1
+      (hR_star_card := hR_star_card)
     (disagreementSet U₀ U₁ V₀ V₁).card ≤ e
     → jointProximityNat₂ (C := MC ^⋈ (Fin m)) U₀ U₁ e := by
   -- 1. Unfold definitions and simplify
@@ -493,8 +488,7 @@ lemma D_card_le_e_implies_interleaved_correlatedAgreement₂
   -- Δ₀(⋈|finMapTwoWords U₀ U₁, v) ≤ e
   use V_colwise
   constructor
-  · rw [mem_interleavedCode_iff]
-    intro k
+  · intro k
     match k with
     | ⟨0, _⟩ => exact V₀.property
     | ⟨1, _⟩ => exact V₁.property
@@ -1204,7 +1198,8 @@ lemma prob_R_star_gt_threshold
     simp only [one_mul]
     rw [ENNReal.add_div]
     rw [add_comm, ENNReal.add_sub_cancel_right]
-    omega
+    exact ENNReal.div_ne_top (ENNReal.mul_ne_top (ENNReal.natCast_ne_top _) ENNReal.coe_ne_top)
+      hq_ne_zero
   rw [h_sub_eq_goal] at h_lt_sub
   exact h_lt_sub
 

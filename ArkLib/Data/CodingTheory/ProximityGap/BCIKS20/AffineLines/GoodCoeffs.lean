@@ -346,7 +346,7 @@ theorem RS_BW_homMatrix_det_submatrix_eq_zero_of_goodCoeffs_card_gt_fun
       -- unfold Injective and push negation
       have : ¬ (∀ i j, r i = r j → i = j) := by
         simpa [Function.Injective] using hinj
-      push_neg at this
+      push Not at this
       -- `this` is now ∃ i j, r i = r j ∧ i ≠ j
       simpa [and_left_comm, and_assoc, and_comm] using this
     rcases hinj' with ⟨i, j, hij, hne⟩

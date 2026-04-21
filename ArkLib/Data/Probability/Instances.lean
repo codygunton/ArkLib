@@ -180,7 +180,7 @@ theorem prob_split_uniform_sampling_of_prod {γ δ : Type}
     mul_zero, Prod.mk.eta]
   by_cases hP : P xy
   · simp only [hP, ↓reduceIte]
-    rw [ENNReal.mul_inv_rev_ENNReal (ha := Fintype.card_ne_zero) (hb := Fintype.card_ne_zero)]
+    rw [ENNReal.mul_inv_rev_ENNReal (ha := Fintype.card_ne_zero)]
   · simp only [hP, ↓reduceIte]
 
 /--
@@ -206,7 +206,7 @@ theorem do_two_uniform_sampling_eq_uniform_prod {α β : Type} [Fintype α] [Fin
   rw [←ENNReal.tsum_prod]
   rw [ENNReal.tsum_mul_left]
   rw [←mul_assoc]
-  rw [ENNReal.mul_inv_rev_ENNReal (ha := Fintype.card_ne_zero) (hb := Fintype.card_ne_zero)]
+  rw [ENNReal.mul_inv_rev_ENNReal (ha := Fintype.card_ne_zero)]
   conv_rhs =>
     rw [←mul_one (a := ((Fintype.card α : ENNReal) *  (Fintype.card β : ENNReal) : ENNReal)⁻¹)]
   congr 1
@@ -289,7 +289,7 @@ theorem prob_split_uniform_sampling_of_equiv_prod {α γ δ : Type}
     by_cases hP : P i
     · simp only [hP, ↓reduceIte]
       rw [hcard_of_equiv]
-      rw [ENNReal.mul_inv_rev_ENNReal (ha := Fintype.card_ne_zero) (hb := Fintype.card_ne_zero)]
+      rw [ENNReal.mul_inv_rev_ENNReal (ha := Fintype.card_ne_zero)]
       rw [Fintype.card_prod]; rw [Nat.cast_mul]
     · simp only [hP, ↓reduceIte]
   )]

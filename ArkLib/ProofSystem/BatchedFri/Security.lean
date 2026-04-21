@@ -122,7 +122,7 @@ def cosetEnum' (s₀ : evalDomainSigma s ω ↑i)
   (j : Fin (2 ^ (s i).1)) : cosetG n s s₀ :=
   ⟨
     cosetEnum n s s₀ k_le_n j,
-    by simp [cosetG, k_le_n]
+    by simp only [cosetG, k_le_n, ↓reduceDIte]; exact mem_image_of_mem _ (mem_univ _)
   ⟩
 
 noncomputable def fin_equiv_coset (s₀ : evalDomainSigma s ω ↑i)
@@ -150,9 +150,9 @@ noncomputable def fin_equiv_coset (s₀ : evalDomainSigma s ω ↑i)
     simp only [FftDomain.subdomainNatReversed,
       FftDomain.subdomainNat,
       finRangeTo.eq_1, Subtype.mk.injEq]
-    simp only [finRangeTo.eq_1, cosetG, k_le_n,
-      ↓reduceDIte, mem_image, mem_univ, cosetEnum, Subtype.mk.injEq, true_and] at h
-    exact h
+    simp only [cosetG, k_le_n, ↓reduceDIte] at h
+    obtain ⟨a, -, ha⟩ := Finset.mem_image.mp h
+    exact ⟨a, congr_arg Subtype.val ha⟩
 
 def invertibleDomain (s₀ : evalDomainSigma s ω ↑i) : Invertible (VDM n s s₀) := by
   haveI : NeZero (VDM n s s₀).det := by
@@ -327,7 +327,7 @@ noncomputable def oracleImpl
                 ([Spec.FinalOracleStatement s (ω := ω)]ₒ +
                   [(Spec.QueryRound.pSpec l (ω := ω)).Message]ₒ)).Range
               (Sum.inr (Sum.inr ⟨i, t⟩))))
-          (by simp [OracleSpec.Range])
+          (by rfl)
           (query (spec := [(Spec.QueryRound.pSpec l (ω := ω)).Message]ₒ) ⟨i, t⟩)
 
 instance {l : ℕ} : ([(Spec.QueryRound.pSpec l (ω := ω)).Message]ₒ).Inhabited where

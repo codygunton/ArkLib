@@ -433,7 +433,7 @@ def oracleVerifier : OracleVerifier oSpec (StmtIn R) (OStmtIn R deg) (StmtOut R)
     -- Needs to convert `evals` to `R⦃≤ deg⦄[X]`, and then evaluate at `chal`
     pure (sorry, chal default)
   embed := .inl
-  hEq := fun i => by simp [pSpec]
+  hEq := fun i => by simp [pSpec]; rfl
 
 def oracleReduction : OracleReduction oSpec (StmtIn R) (OStmtIn R deg) Unit
                                             (StmtOut R) (OStmtOut R deg) Unit (pSpec R deg) where
@@ -482,7 +482,7 @@ theorem reduction_perfectCompleteness :
   -- 2. Resolve round 0 direction (P_to_V)
   split <;> rename_i hDir0
   · exact absurd hDir0 (by decide)
-  simp only [pure_bind, map_pure, Functor.map_map, Function.comp, bind_pure_comp]
+  try simp only [pure_bind, map_pure, Functor.map_map, Function.comp, bind_pure_comp]
   -- 3. Resolve round 1 direction (V_to_P)
   split <;> rename_i hDir1
   swap
@@ -541,45 +541,50 @@ theorem reduction_perfectCompleteness :
       erw [StateT.run_bind] at hval
       rw [mem_support_bind_iff] at hval
       obtain ⟨⟨chal_res, s₂⟩, hchal, hval⟩ := hval
-      -- Try combined simp to peel liftComp_map + simulateQ_map
-      -- Strip liftComp layers using addLift/add decomposition
-      simp only [QueryImpl.addLift_def,
-        QueryImpl.simulateQ_add_liftComp_right, QueryImpl.simulateQ_add_liftComp_left,
-        OracleComp.liftComp_map, OracleComp.liftComp_pure] at hchal hval
-      -- hchal is now: simulateQ impl_add (liftM (query ...))
-      -- Peel the query
-      erw [simulateQ_query] at hchal
-      rw [StateT.run_map] at hchal
-      simp only [support_map, Set.mem_image] at hchal
-      obtain ⟨⟨oracle_resp, s_o⟩, _, heq_c⟩ := hchal
+      -- v4.29.0: hchal is a do-block (pure + liftComp query), need extra bind peel
+      erw [simulateQ_bind] at hchal
+      erw [StateT.run_bind] at hchal
+      rw [mem_support_bind_iff] at hchal
+      obtain ⟨⟨discr_val, s_d⟩, hchal_fst, hchal_rest⟩ := hchal
+      erw [simulateQ_map] at hchal_fst
+      erw [simulateQ_pure] at hchal_fst
+      rw [StateT.run_map, StateT.run_pure] at hchal_fst
+      simp only [support_map, support_pure, Set.mem_image, Set.mem_singleton_iff] at hchal_fst
+      obtain ⟨_, rfl, heq_d⟩ := hchal_fst
+      obtain ⟨rfl, rfl⟩ := Prod.mk.inj heq_d
+      -- Second part: f <$> liftComp query — peel map, then liftComp, then query
+      erw [simulateQ_map] at hchal_rest
+      erw [StateT.run_map] at hchal_rest
+      simp only [support_map, Set.mem_image] at hchal_rest
+      obtain ⟨⟨inner_val, s_inner⟩, hinner, heq_c⟩ := hchal_rest
       obtain ⟨rfl, rfl⟩ := Prod.mk.inj heq_c
-      -- chal_res = (query ...).cont oracle_resp — should be concrete tuple
-      -- Now hval has chal_res with known structure; match should reduce
+      simp only [QueryImpl.addLift_def,
+        QueryImpl.simulateQ_add_liftComp_right, QueryImpl.simulateQ_add_liftComp_left] at hinner
+      erw [simulateQ_query] at hinner
+      erw [StateT.run_map] at hinner
+      simp only [support_map, Set.mem_image] at hinner
+      obtain ⟨⟨oracle_resp, s_o⟩, _, heq_q⟩ := hinner
+      obtain ⟨rfl, rfl⟩ := Prod.mk.inj heq_q
       erw [simulateQ_pure] at hval
       simp only [StateT.run_pure, support_pure, Set.mem_singleton_iff] at hval
       obtain ⟨rfl, rfl⟩ := Prod.mk.inj hval
-      -- val is now concrete. Force Fin.snoc evaluation, then resolve guard.
-      -- dsimp evaluates Fin.snoc definitionally, making val.1 0 = oStmt ()
-      -- Then if_pos hValid resolves the guard
-      simp only [QueryImpl.addLift_def,
+      -- Now decompose hval2
+      simp only [QueryImpl.addLift_def, QueryImpl.liftTarget_apply,
+        QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
+        simulateQ_query, simulateQ_pure, simulateQ_bind, simulateQ_map,
         QueryImpl.simulateQ_add_liftComp_right, QueryImpl.simulateQ_add_liftComp_left,
         OracleComp.liftComp_map, OracleComp.liftComp_pure,
-        simulateQ_pure, simulateQ_query, pure_bind, map_pure, bind_pure_comp,
-        StateT.run_pure, StateT.run_map,
-        support_pure, support_map, Set.mem_singleton_iff, Set.mem_image,
-        Prod.mk.injEq, Option.some.injEq] at hval2
-      -- The inner simulateQ is definitionally liftComp; erw bridges
-      erw [QueryImpl.simulateQ_add_liftComp_left] at hval2
-      -- Evaluate Fin.snoc using norm_num, then resolve guard
-      simp only [Fin.snoc] at hval2
+        pure_bind, map_pure, Functor.map_map, Function.comp,
+        OracleQuery.cont, OracleQuery.input_query,
+        StateT.run_bind, StateT.run_map, StateT.run_pure,
+        support_map, support_pure, Set.mem_singleton_iff, Set.mem_image,
+        Prod.mk.injEq, Option.some.injEq, Fin.snoc] at hval2
       norm_num at hval2
-      -- Guard is ∑ x, eval (D x) ... = target; rewrite hValid to match
       rw [Finset.sum_map] at hValid
-      rw [if_pos hValid] at hval2
-      -- Guard resolved: pure () → liftComp_pure → simulateQ_pure → done
-      simp only [OptionT.run_pure, OracleComp.liftComp_pure,
-        simulateQ_pure, pure_bind, map_pure,
-        StateT.run_pure, support_pure, Set.mem_singleton_iff, Prod.mk.injEq] at hval2
+      simp only [apply_ite, simulateQ_ite, OptionT.run_pure] at hval2
+      erw [if_pos hValid] at hval2
+      simp only [simulateQ_pure,
+        StateT.run_pure, support_pure, Set.mem_singleton_iff] at hval2
       simp at hval2
     · -- val2 = some out: getM succeeds, final map wraps in some, contradicts none
       simp only [Option.getM, pure_bind] at hs
@@ -629,35 +634,54 @@ theorem reduction_perfectCompleteness :
       erw [simulateQ_pure] at hx_rest
       simp only [StateT.run_pure, support_pure, Set.mem_singleton_iff] at hx_rest
       obtain ⟨rfl, rfl⟩ := hx_rest
-      -- Decompose hval to get val's concrete form (same as sorry 1's Layer 6)
-      simp only [QueryImpl.addLift_def,
-        QueryImpl.simulateQ_add_liftComp_right, QueryImpl.simulateQ_add_liftComp_left,
-        OracleComp.liftComp_map, OracleComp.liftComp_pure] at hval
       erw [simulateQ_bind] at hval
       erw [StateT.run_bind] at hval
       rw [mem_support_bind_iff] at hval
       obtain ⟨⟨chal_res, s₂⟩, hchal, hval⟩ := hval
-      simp only [QueryImpl.addLift_def,
-        QueryImpl.simulateQ_add_liftComp_right, QueryImpl.simulateQ_add_liftComp_left,
-        OracleComp.liftComp_map, OracleComp.liftComp_pure] at hchal hval
-      erw [simulateQ_query] at hchal
-      rw [StateT.run_map] at hchal
-      simp only [support_map, Set.mem_image] at hchal
-      obtain ⟨⟨oracle_resp, s_o⟩, _, heq_c⟩ := hchal
+      -- v4.29.0: hchal is a do-block, need extra bind peel
+      erw [simulateQ_bind] at hchal
+      erw [StateT.run_bind] at hchal
+      rw [mem_support_bind_iff] at hchal
+      obtain ⟨⟨discr_val, s_d⟩, hchal_fst, hchal_rest⟩ := hchal
+      erw [simulateQ_map] at hchal_fst
+      erw [simulateQ_pure] at hchal_fst
+      rw [StateT.run_map, StateT.run_pure] at hchal_fst
+      simp only [support_map, support_pure, Set.mem_image, Set.mem_singleton_iff] at hchal_fst
+      obtain ⟨_, rfl, heq_d⟩ := hchal_fst
+      obtain ⟨rfl, rfl⟩ := Prod.mk.inj heq_d
+      -- Second part: f <$> liftComp query — peel map, then liftComp, then query
+      erw [simulateQ_map] at hchal_rest
+      erw [StateT.run_map] at hchal_rest
+      simp only [support_map, Set.mem_image] at hchal_rest
+      obtain ⟨⟨inner_val, s_inner⟩, hinner, heq_c⟩ := hchal_rest
       obtain ⟨rfl, rfl⟩ := Prod.mk.inj heq_c
+      simp only [QueryImpl.addLift_def,
+        QueryImpl.simulateQ_add_liftComp_right, QueryImpl.simulateQ_add_liftComp_left] at hinner
+      erw [simulateQ_query] at hinner
+      erw [StateT.run_map] at hinner
+      simp only [support_map, Set.mem_image] at hinner
+      obtain ⟨⟨oracle_resp, s_o⟩, _, heq_q⟩ := hinner
+      obtain ⟨rfl, rfl⟩ := Prod.mk.inj heq_q
       erw [simulateQ_pure] at hval
       simp only [StateT.run_pure, support_pure, Set.mem_singleton_iff] at hval
       obtain ⟨rfl, rfl⟩ := Prod.mk.inj hval
-      -- Decompose hval2 (same as sorry 1's Layer 7): resolve guard, make out concrete
-      erw [QueryImpl.simulateQ_add_liftComp_left] at hval2
-      simp only [Fin.snoc] at hval2
+      -- Decompose hval2: resolve guard
+      simp only [QueryImpl.addLift_def, QueryImpl.liftTarget_apply,
+        QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
+        simulateQ_query, simulateQ_pure, simulateQ_bind, simulateQ_map,
+        QueryImpl.simulateQ_add_liftComp_right, QueryImpl.simulateQ_add_liftComp_left,
+        OracleComp.liftComp_map, OracleComp.liftComp_pure,
+        pure_bind, map_pure, Functor.map_map, Function.comp,
+        OracleQuery.cont, OracleQuery.input_query,
+        StateT.run_bind, StateT.run_map, StateT.run_pure,
+        support_map, support_pure, Set.mem_singleton_iff, Set.mem_image,
+        Prod.mk.injEq, Option.some.injEq, Fin.snoc] at hval2
       norm_num at hval2
       rw [Finset.sum_map] at hValid
-      rw [if_pos hValid] at hval2
-      simp only [OptionT.run_pure, OracleComp.liftComp_pure,
-        pure_bind, map_pure,
-        StateT.run_pure, support_pure, Set.mem_singleton_iff, Prod.mk.injEq] at hval2
-      -- hval2 is an existential giving out's concrete form
+      simp only [apply_ite, simulateQ_ite, OptionT.run_pure] at hval2
+      erw [if_pos hValid] at hval2
+      simp only [simulateQ_pure,
+        StateT.run_pure, support_pure, Set.mem_singleton_iff] at hval2
       obtain ⟨_, ⟨_, rfl⟩, _, rfl⟩ := hval2
       simp only [Set.mem_setOf_eq, outputRelation]
       constructor <;> simp

@@ -264,7 +264,7 @@ theorem proximity_gap_affineSubspace {ι : Type} [Fintype ι] [Nonempty ι] [Dec
     have hScoe : (S : Set (ι → F)) = Affine.AffSpanSet (U := C 0) := by
       dsimp [S, Affine.AffSpanFinset]
       -- coercion of `toFinset` gives back the set
-      simpa using (Affine.AffSpanSet.instFinite (u := C 0)).coe_toFinset
+      simp
     simpa [h_AffSpanSet] using hScoe.symm
   -- Build an equivalence between U and S (identity on the underlying word)
   let eUS : U ≃ S :=

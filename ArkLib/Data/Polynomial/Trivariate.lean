@@ -63,10 +63,10 @@ noncomputable def toRatFuncPoly (p : F[Z][X][Y]) : (RatFunc F)[X][Y] :=
   p.map (Polynomial.mapRingHom (algebraMap F[X] (RatFunc F)))
 
 /-- Following [BCIKS20] this the `Y`-degree of a trivariate polynomial `Q`. -/
-def D_Y (Q : F[Z][X][Y]) : ℕ := Bivariate.natDegreeY Q
+noncomputable def D_Y (Q : F[Z][X][Y]) : ℕ := Bivariate.natDegreeY Q
 
 /-- The `YZ`-degree of a trivariate polynomial. -/
-def D_YZ (Q : F[Z][X][Y]) : ℕ :=
+noncomputable def D_YZ (Q : F[Z][X][Y]) : ℕ :=
   Option.getD (dflt := 0) <| Finset.max
     (Finset.image
             (
