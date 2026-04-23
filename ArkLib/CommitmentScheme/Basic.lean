@@ -205,7 +205,7 @@ def functionBinding_Experiment {L : ℕ} (hn : n = 1) (hpSpec : NonInteractive (
         let S : Finset (Fin L) := Finset.univ
         (∀ i ∈ S, acceptedOf i = true)
         ∧ (¬ ∃ (d : Data), ∀ i ∈ S, O.answer d (queryOf i) = responseOf i)
-        ∧ Function.Injective queryOf
+        ∧ Function.Injective queryOf -- TODO change to injective **on S**
        | OptionT.mk do
           (simulateQ
             (QueryImpl.addLift impl (challengeQueryImpl (pSpec := hn ▸ pSpec)) :
