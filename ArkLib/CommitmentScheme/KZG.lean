@@ -362,78 +362,13 @@ open OracleSpec OracleComp SubSpec ProtocolSpec
 
 section Correctness
 
-/-
--- TODO next two lemmas should be in VCV-io
-/-- randomOracle never fails on any query.
-    The proof follows from the fact that randomOracle either returns a cached value (pure)
-    or samples uniformly (which never fails). -/
-lemma neverFails_randomOracle_impl {ι : Type} [DecidableEq ι] {spec : OracleSpec ι}
-    [spec.DecidableEq] [∀ i, SelectableType (spec.range i)]
-    (β : Type) (q : OracleQuery spec β) (s : spec.QueryCache) :
-    ((randomOracle.impl q).run s).neverFails := by
-  cases q with
-  | query i t =>
-    simp only [randOracle.apply_eq, StateT.run_bind, StateT.run_get, pure_bind]
-    cases h : s i t with -- case split on whether the query is cached
-    | some u =>
-      simp only [StateT.run_pure]
-      exact neverFails_pure _
-    | none =>
-      simp only [StateT.run_bind, StateT.run_monadLift, StateT.run_modifyGet]
-      rw [neverFails_bind_iff]
-      constructor
-      · rw [neverFails_bind_iff]
-        refine ⟨neverFails_uniformOfFintype _, ?_⟩
-        intro u _
-        exact neverFails_pure _
-      · intro ⟨u, s'⟩ _
-        exact neverFails_pure _
-
-lemma neverFails_stateT_run_simulateQ {ι ι' : Type} {spec : OracleSpec ι} {spec' : OracleSpec ι'}
-    {α σ : Type}
-    (so : QueryImpl spec (StateT σ (OracleComp spec'))) (oa : OracleComp spec α) (s : σ)
-    (hso : ∀ (β : Type) (q : OracleQuery spec β) (s' : σ), ((so.impl q).run s').neverFails)
-    (h : oa.neverFails) : ((simulateQ so oa).run s).neverFails := by
-  induction oa using OracleComp.inductionOn generalizing s with
-  | pure x => simp [simulateQ_pure, StateT.run_pure, neverFails_pure]
-  | query_bind i t oa ih =>
-    simp only [neverFails_query_bind_iff] at h
-    simp only [simulateQ_bind, simulateQ_query, StateT.run_bind, neverFails_bind_iff]
-    refine ⟨hso _ (query i t) s, ?_⟩
-    intro ⟨r, s'⟩ _
-    exact ih r s' (h r)
-  | failure => simp [neverFails] at h -/
-
 /- the KZG satisfies perfect correctness as defined in `CommitmentScheme` -/
-omit [DecidableEq G₁] in
 theorem correctness (hpG1 : Nat.card G₁ = p) (_a : ZMod p) {g₁ : G₁} {g₂ : G₂}
     [SampleableType G₁] :
     Commitment.perfectCorrectness (pure ∅) (randomOracle)
     (KZG (n:=n) (g₁:=g₁) (g₂:=g₂) (pairing:=pairing)) := by
     intro data randomness query
-    have hpSpec : ProverOnly ⟨!v[.P_to_V], !v[G₁]⟩ := by
-      refine { prover_first' := ?_ }; simp
-    simp only [Reduction.run_of_prover_first]
-    simp [KZG]
     sorry
-    /-
-    constructor
-    · apply neverFails_stateT_run_simulateQ
-      · -- The oracle implementation (randomOracle ++ₛₒ challengeQueryImpl) never fails
-        intro β q s'
-        cases q with
-        | query i t =>
-          cases i with
-          | inl i₁ => exact neverFails_randomOracle_impl _ (OracleQuery.query i₁ t) s'
-          | inr i₂ => fin_cases i₂
-      · -- liftComp of uniform sampling never fails
-        simp only [neverFails_lift_comp_iff, neverFails_uniformOfFintype]
-    · intro a_sample _ _
-      constructor
-      · simp [acceptRejectRel]
-        exact KZG.correctness (g₁:=g₁) (g₂:=g₂) (pairing:=pairing) hpG1 n a_sample data query
-      · exact KZG.correctness (g₁:=g₁) (g₂:=g₂) (pairing:=pairing) hpG1 n a_sample data query
-    -/
 
 end Correctness
 
@@ -463,7 +398,7 @@ lemma find_conflict_unsuccessful (points : List (ZMod p × ZMod p × G₁))
   unfold find_conflict at hfc
   rw [List.findSome?_eq_none_iff] at hfc
   simp only [List.findSome?_eq_none_iff] at hfc
-  push_neg
+  push Not
   intro ⟨α₁, β₁, pf₁⟩ ha ⟨α₂, β₂, pf₂⟩ hb hcond
   have hfc' := hfc (α₁, β₁, pf₁) ha (α₂, β₂, pf₂) hb
   simp only [bne_iff_ne, beq_iff_eq, Bool.and_eq_true, ne_eq, decide_eq_true_eq] at hfc' hcond
@@ -498,9 +433,9 @@ lemma filterMap_conflict_nodup
   simp only [Option.mem_def] at hb hb'
   -- Extract a < p from hb (outer dite must take the then-branch)
   have ha : a < p := by
-    by_contra h; push_neg at h; rw [dif_neg (by omega)] at hb; simp at hb
+    by_contra h; push Not at h; rw [dif_neg (by omega)] at hb; simp at hb
   have ha' : a' < p := by
-    by_contra h; push_neg at h; rw [dif_neg (by omega)] at hb'; simp at hb'
+    by_contra h; push Not at h; rw [dif_neg (by omega)] at hb'; simp at hb'
   -- Simplify: both must hit the `some x` branch, giving b = ↑↑⟨a, ha⟩ and b = ↑↑⟨a', ha'⟩
   simp only [ha, ha', dite_true] at hb hb'
   split at hb <;> simp at hb
@@ -581,7 +516,7 @@ lemma filterMap_conflict_length (hp : p ≥ n + 2) (hn : 1 ≤ n)
       simp only [Finset.mem_sdiff, Finset.mem_univ, true_and] at hx
       simp only [Finset.mem_union, Finset.mem_filter, Finset.mem_univ, true_and,
         Finset.mem_singleton]
-      by_contra h; push_neg at h
+      by_contra h; push Not at h
       exact hx (hmem x h.1 h.2)
     -- The filter set has ≤ 1 element (injectivity of g^·)
     have hfilt : (Finset.univ.filter (fun x : ZMod p =>
@@ -872,33 +807,6 @@ lemma h₁Zₛ_eq_h₂ (hp : p ≥ n + 2) (hpG1 : Nat.card G₁ = p) (hn : 1 ≤
 
 -- case 2: there's no conflicting evaluation, but more than D distinct evaluations (degree failure)
 
--- Old Approach
-/-- needed to satisfy #S = D+1 -/
-def erase_duplicates : List (ZMod p × ZMod p × G₁) → List (ZMod p × ZMod p × G₁)
-  | [] => []
-  | (αᵢ,βᵢ,pfᵢ)::xs => if xs.any (fun (αⱼ,_,_) => αⱼ = αᵢ) then erase_duplicates xs
-    else (αᵢ,βᵢ,pfᵢ)::erase_duplicates xs
-
-/-- step 4 b) Find i∗ ∈ {D + 2,...,L} such that βi∗ ≠ Lₒ(αi∗) -/
-def find_diversion (L₀ : CPolynomial (ZMod p))
-  : List (ZMod p × ZMod p × G₁) → Option (ZMod p × ZMod p × G₁)
-  | [] => none
-  | (αᵢ,βᵢ,pfᵢ)::xs => if eval αᵢ L₀ ≠ βᵢ then some (αᵢ,βᵢ,pfᵢ) else find_diversion L₀ xs
-
-/-- Step 4 c) Find S := {αij}j∈[D+1] from {αi}i∈[D+1]∪{αi∗} such that [Lagrange(S)]₁ ≠ cm
-Try replacing each element in the list with `diversion` and check if the interpolated
-polynomial's commitment differs from `cm`. Returns the first such replacement as a Finset. -/
-def find_S (srs : Vector G₁ (n + 1) × Vector G₂ 2) (cm : G₁) (diversion : ZMod p × ZMod p × G₁)
-  : List (ZMod p × ZMod p × G₁) → List (ZMod p × ZMod p × G₁) →
-    Option (Finset (ZMod p × ZMod p × G₁))
-  | [], _ => none
-  | x::xs, prefix_acc =>
-    let candidate := prefix_acc ++ [diversion] ++ xs
-    let L : CPolynomial (ZMod p) := sorry -- interpolate candidate
-    if commit srs.1 (fun i : Fin (n + 1) => L.coeff i) ≠ cm
-    then some candidate.toFinset
-    else find_S srs cm diversion xs (prefix_acc ++ [x])
-
 /-- step 4a) find A ⊆ {αᵢ,βᵢ,pfᵢ}, i ∈ [L], such that Lagrange(A).degree = n -/
 def find_A {L : ℕ} (n : ℕ) (query : Fin L → ZMod p) (response : Fin L → ZMod p)
   : Option (Finset (Fin L)) :=
@@ -1036,54 +944,55 @@ commitment differs from the adversaries commitment c. -/
 def find_S' {L : ℕ} (n : ℕ) (A : Finset (Fin L)) (c : G₁)
   (srs : Vector G₁ (n + 1) × Vector G₂ 2) (query : Fin L → ZMod p) (response : Fin L → ZMod p)
   : Option (Finset (Fin L)) :=
-    let candidateslist := (A.sort (· ≤ ·)).sublistsLen n
+    let candidateslist := (A.sort (· ≤ ·)).sublistsLen (n+1)
     let candidates := candidateslist.map List.toFinset
     candidates.find? fun s =>
       commit srs.1 ((CLagrange.interpolate s query response).val.coeff ∘ Fin.val) ≠ c
 
 lemma find_S'_existence {L : ℕ} (n : ℕ) (τ c : ZMod p) (A : Finset (Fin L))
   (query : Fin L → ZMod p) (response : Fin L → ZMod p)
-  (hA : (CLagrange.interpolate A query response).degree = n) (hquery : Function.Injective query)
+  (hA : (CLagrange.interpolate A query response).degree = n + 1)
+  (hquery : Function.Injective query)
   (hn : 1 ≤ n)
-  : ∃ S ⊆ A, S.card = n
+  : ∃ S ⊆ A, S.card = n + 1
   ∧ (CLagrange.interpolate S query response).eval τ ≠ c
   := by
   by_contra h_all
-  push_neg at h_all
+  push Not at h_all
   -- Bridge h_all to Polynomial world
-  have h_poly : ∀ S ⊆ A, S.card = n →
+  have h_poly : ∀ S ⊆ A, S.card = n + 1 →
       (Lagrange.interpolate S query response).eval τ = c := by
     intro S hS hcard
     have h := h_all S hS hcard
     rwa [eval_toPoly, CLagrange.cinterpolate_eq_interpolate] at h
   -- Bridge hA to Polynomial world
-  have hA_poly : (Lagrange.interpolate A query response).degree = ↑n := by
-    rw [← CLagrange.cinterpolate_eq_interpolate, ← degree_toPoly]; exact hA
-  -- Step A: n < A.card
-  have hn_lt : n < A.card := by
+  have hA_poly : (Lagrange.interpolate A query response).degree = ↑(n + 1) := by
+    rw [← CLagrange.cinterpolate_eq_interpolate, ← degree_toPoly]; exact_mod_cast hA
+  -- Step A: n + 1 < A.card
+  have hn_lt : n + 1 < A.card := by
     have h := Lagrange.degree_interpolate_lt response (hquery.injOn (s := (A : Set (Fin L))))
     rw [hA_poly] at h; exact_mod_cast h
-  -- Step B: Pick A' ⊆ A with |A'| = n + 1
-  obtain ⟨A', hA'_sub, hA'_card⟩ := Finset.exists_subset_card_eq (show n + 1 ≤ A.card by omega)
+  -- Step B: Pick A' ⊆ A with |A'| = n + 2
+  obtain ⟨A', hA'_sub, hA'_card⟩ := Finset.exists_subset_card_eq (show n + 2 ≤ A.card by omega)
   -- Step C: interpolate A = interpolate A' (by uniqueness, since deg < |A'| and agrees on A')
   have hA'_eq : Lagrange.interpolate A query response =
       Lagrange.interpolate A' query response :=
     Lagrange.eq_interpolate_of_eval_eq response
       (hquery.injOn (s := (A' : Set (Fin L))))
-      (by rw [hA_poly, hA'_card]; exact_mod_cast (show n < n + 1 by omega))
+      (by rw [hA_poly, hA'_card]; exact_mod_cast (show n + 1 < n + 2 by omega))
       (fun i hi => Lagrange.eval_interpolate_at_node response
         (hquery.injOn (s := (A : Set (Fin L)))) (hA'_sub hi))
-  -- Degree of interpolate A' equals n
-  have hA'_deg : (Lagrange.interpolate A' query response).degree = ↑n := by
+  -- Degree of interpolate A' equals n + 1
+  have hA'_deg : (Lagrange.interpolate A' query response).degree = ↑(n + 1) := by
     rw [← hA'_eq]; exact hA_poly
-  -- Step D: Pick two distinct elements i, j ∈ A' (possible since |A'| = n+1 ≥ 2)
+  -- Step D: Pick two distinct elements i, j ∈ A' (possible since |A'| = n+2 ≥ 2)
   obtain ⟨i, j, hi, hj, hij⟩ := Finset.one_lt_card_iff.mp (show 1 < A'.card by omega)
   -- Erase subset/cardinality facts
   have hej_sub : A'.erase j ⊆ A := (Finset.erase_subset j A').trans hA'_sub
   have hei_sub : A'.erase i ⊆ A := (Finset.erase_subset i A').trans hA'_sub
-  have hej_card : (A'.erase j).card = n := by
+  have hej_card : (A'.erase j).card = n + 1 := by
     rw [Finset.card_erase_of_mem hj, hA'_card]; omega
-  have hei_card : (A'.erase i).card = n := by
+  have hei_card : (A'.erase i).card = n + 1 := by
     rw [Finset.card_erase_of_mem hi, hA'_card]; omega
   -- Step E: Show (interpolate A').eval τ = c via decomposition
   --   PA' = P_{A'\j} · basisDivisor(qi,qj) + P_{A'\i} · basisDivisor(qj,qi)
@@ -1106,27 +1015,27 @@ lemma find_S'_existence {L : ℕ} (n : ℕ) (τ c : ZMod p) (A : Finset (Fin L))
         simp only [Finset.mem_image]
         rintro ⟨x, hxe, hxq⟩
         exact Finset.ne_of_mem_erase hxe (hquery (hxq.trans hkq.symm))⟩
-    · push_neg at hτ
+    · push Not at hτ
       obtain ⟨k, hk⟩ := Finset.card_pos.mp (show 0 < A'.card by omega)
       exact ⟨k, hk, by
         simp only [Finset.mem_image]
         rintro ⟨x, hxe, hxq⟩
         exact hτ x (Finset.mem_of_mem_erase hxe) hxq⟩
   -- Erase-k facts
-  have hek_card : (A'.erase k).card = n := by
+  have hek_card : (A'.erase k).card = n + 1 := by
     rw [Finset.card_erase_of_mem hk, hA'_card]; omega
   have hek_sub : A'.erase k ⊆ A := (Finset.erase_subset k A').trans hA'_sub
-  -- Degree of interpolate (A'.erase k) < n
-  have h_deg_ek : (Lagrange.interpolate (A'.erase k) query response).degree < ↑n := by
+  -- Degree of interpolate (A'.erase k) < n + 1
+  have h_deg_ek : (Lagrange.interpolate (A'.erase k) query response).degree < ↑(n + 1) := by
     rw [← hek_card]
     exact Lagrange.degree_interpolate_lt response (hquery.injOn (s := (A'.erase k : Set (Fin L))))
-  -- Step G: The difference polynomial vanishes at n+1 distinct field values, so it is zero
+  -- Step G: The difference polynomial vanishes at n+2 distinct field values, so it is zero
   have hQ_zero : Lagrange.interpolate A' query response -
       Lagrange.interpolate (A'.erase k) query response = 0 := by
     apply Polynomial.eq_zero_of_degree_lt_of_eval_finset_eq_zero
       ((A'.erase k).image query ∪ {τ})
     · -- degree < |T|
-      have hT_card : ((A'.erase k).image query ∪ {τ}).card = n + 1 := by
+      have hT_card : ((A'.erase k).image query ∪ {τ}).card = n + 2 := by
         rw [Finset.card_union_of_disjoint (Finset.disjoint_singleton_right.mpr hk_fresh),
             Finset.card_image_of_injOn
               (hquery.injOn (s := (A'.erase k : Set (Fin L)))),
@@ -1137,8 +1046,8 @@ lemma find_S'_existence {L : ℕ} (n : ℕ) (τ c : ZMod p) (A : Finset (Fin L))
           ≤ max (Lagrange.interpolate A' query response).degree
                 (Lagrange.interpolate (A'.erase k) query response).degree :=
             Polynomial.degree_sub_le _ _
-        _ ≤ ↑n := max_le (le_of_eq hA'_deg) (le_of_lt h_deg_ek)
-        _ < ↑(n + 1) := by exact_mod_cast (show n < n + 1 by omega)
+        _ ≤ ↑(n + 1) := max_le (le_of_eq hA'_deg) (le_of_lt h_deg_ek)
+        _ < ↑(n + 2) := by exact_mod_cast (show n + 1 < n + 2 by omega)
     · -- vanishes on T
       intro x hx
       simp only [Finset.mem_union, Finset.mem_image, Finset.mem_singleton] at hx
@@ -1177,7 +1086,7 @@ private lemma finset_subset_mem_sublistsLen_map {L : ℕ} (S A : Finset (Fin L))
 lemma find_S'_successful {L : ℕ} (n : ℕ) (τ: ZMod p) (c : G₁) (A : Finset (Fin L))
   (query : Fin L → ZMod p) (response : Fin L → ZMod p) (srs : Vector G₁ (n + 1) × Vector G₂ 2)
   (hsrs : srs = generateSrs (g₁ := g₁) (g₂ := g₂) n τ) (hgen : srs.1[0] ≠ 1)
-  (hA : (CLagrange.interpolate A query response).degree = n)
+  (hA : (CLagrange.interpolate A query response).degree = n + 1)
   (hquery : Function.Injective query) (hn : 1 ≤ n)
   : (find_S' n A c srs query response).isSome := by
   by_contra h_not
@@ -1208,7 +1117,7 @@ lemma find_S'_successful {L : ℕ} (n : ℕ) (τ: ZMod p) (c : G₁) (A : Finset
   have hc_eq : c = g₁ ^ c'.val := by
     rw [ZMod.val_natCast, ← hk, ← pow_mod_orderOf g₁ k, hord]
   -- For every candidate S, commit = c means eval τ = c'
-  have h_all_eq : ∀ S ⊆ A, S.card = n →
+  have h_all_eq : ∀ S ⊆ A, S.card = n + 1 →
       (CLagrange.interpolate S query response).eval τ = c' := by
     intro S hSA hScard
     -- S is in the candidate list
@@ -1216,12 +1125,8 @@ lemma find_S'_successful {L : ℕ} (n : ℕ) (τ: ZMod p) (c : G₁) (A : Finset
     -- The hypothesis says commit = c for S
     have hcommit_eq := h_none S hS_mem
     -- Degree bound for interpolation over S
-    have hdeg : (CLagrange.interpolate S query response).degree ≤ ↑n := by
-      rw [degree_toPoly, CLagrange.cinterpolate_eq_interpolate]
-      have hle := Lagrange.degree_interpolate_lt response
-        (hquery.injOn (s := (S : Set (Fin L))))
-      rw [hScard] at hle
-      exact le_of_lt hle
+    have hdeg : (CLagrange.interpolate S query response).degree ≤ ↑n :=
+      interp_degree_le_of_card S query response hquery hScard
     -- Rewrite commit using commit_eq_CPolynomial
     have hcommit_rw : commit srs.1 ((CLagrange.interpolate S query response).val.coeff ∘ Fin.val)
         = g₁ ^ ((CLagrange.interpolate S query response).eval τ).val := by
@@ -1247,7 +1152,7 @@ lemma find_S'_card
   {L : ℕ} (n : ℕ) (c : G₁) (A S : Finset (Fin L))
   (srs : Vector G₁ (n + 1) × Vector G₂ 2) (query : Fin L → ZMod p)
   (response : Fin L → ZMod p) (hres : some (S) = find_S' n A c srs query response)
-  : S.card = n := by
+  : S.card = n + 1 := by
     unfold find_S' at hres
     have hS_mem := List.mem_of_find?_eq_some hres.symm
     rw [List.mem_map] at hS_mem
@@ -1255,18 +1160,6 @@ lemma find_S'_card
     rw [List.mem_sublistsLen] at hl_mem
     obtain ⟨hl_sub, hl_len⟩ := hl_mem
     rw [← hl_eq, List.toFinset_card_of_nodup ((A.sort_nodup (· ≤ ·)).sublist hl_sub), hl_len]
-
-/-
-lemma find_S'_deg {L : ℕ} (n : ℕ) (hn : n ≥ 1) (c : G₁) (A S : Finset (Fin L))
-  (srs : Vector G₁ (n + 1) × Vector G₂ 2) (query : Fin L → ZMod p)
-  (response : Fin L → ZMod p)
-  (hAcard : A.card = n + 2)
-  (hAdeg : (CLagrange.interpolate A query response).degree = n + 1)
-  (hquery : Function.Injective query)
-  (hres : some (S) = find_S' n A c srs query response)
-  : (CLagrange.interpolate S query response).degree = ↑(n-1) :=
-  by sorry --TODO this statement is not ready yet.. Do we even need it?
--/
 
 lemma find_S'_diverges
   {L : ℕ} (n : ℕ) (c : G₁) (A S : Finset (Fin L))
@@ -1389,7 +1282,7 @@ lemma h₁Zₛ_eq_h₂' {L : ℕ} (n : ℕ) (τ : ZMod p) (cm : G₁) (S : Finse
   (hVerify : ∀ i ∈ S, verifyOpening (pairing := pairing) (g₁ := g₁) (g₂ := g₂) srs.2 cm (proofs i)
     (query i) (response i))
   (hgen : srs.1[0] ≠ 1) (hpair : pairing g₁ g₂ ≠ 0)
-  (hS : (CLagrange.interpolate S query response).degree = n)
+  (hS : (CLagrange.interpolate S query response).degree ≤ n) (hS_ne : S.Nonempty)
   (hquery : Function.Injective query)
   : let Zₛ := ∏ s ∈ S.image query, (X - C s)
     let c' : G₁ := commit srs.1 ((CLagrange.interpolate S query response).val.coeff ∘ Fin.val)
@@ -1406,7 +1299,7 @@ lemma h₁Zₛ_eq_h₂' {L : ℕ} (n : ℕ) (τ : ZMod p) (cm : G₁) (S : Finse
       unfold c'
       conv_lhs => rw [hsrs, generateSrs]
       exact commit_eq_CPolynomial (g₁ := g₁) hpG1
-        (CLagrange.interpolate S query response) (le_of_eq hS)
+        (CLagrange.interpolate S query response) hS
     rw [hcommit_rw]
     have hg₁ : g₁ ≠ 1 := by
       rw [hsrs] at hgen
@@ -1471,15 +1364,6 @@ lemma h₁Zₛ_eq_h₂' {L : ℕ} (n : ℕ) (τ : ZMod p) (cm : G₁) (S : Finse
         response x / (eval (query x) (Zₛ.divByMonic (X - C (query x))) * (τ - query x))) := by
       simp only [sub_div, Finset.sum_sub_distrib]
     rw [hsplit]
-    -- S is nonempty (degree = n ≥ 1 rules out empty S)
-    have hS_ne : S.Nonempty := by
-      by_contra hemp
-      rw [Finset.not_nonempty_iff_eq_empty] at hemp
-      have h0 : (CLagrange.interpolate S query response).toPoly = 0 := by
-        rw [hemp, CLagrange.cinterpolate_eq_interpolate, Lagrange.interpolate_apply]
-        simp
-      rw [degree_toPoly, h0, Polynomial.degree_zero] at hS
-      exact absurd hS WithBot.bot_ne_coe
     -- Rewrite the response sum using lagrange_Zₛ_conversion
     rw [← lagrange_Zₛ_conversion τ S query response hτ hquery]
     -- Factor cm' from the first sum and simplify to cm' / Zₛ.eval τ
@@ -1536,7 +1420,7 @@ def map_FB_instance_to_ARSDH_inst' {L : ℕ} (hn : 1 ≤ n)
     -- h₂ = h₁ ^ (1 / Zₛ.eval τ).val with h₁:= g₁
   else
     -- step 4
-    let A ← find_A (n+1) queryOf responseOf --TODO add Finset for query and reponse here
+    let A ← find_A (n+1) queryOf responseOf --TODO add Finset for query and reponse here TODO was n+1
     let S ← find_S' n A cm srs queryOf responseOf
     let Zₛ := ∏ s ∈ S.image queryOf, (X - C s)
     let c' : G₁ := commit srs.1 ((CLagrange.interpolate S queryOf responseOf).val.coeff ∘ Fin.val)
@@ -1672,8 +1556,8 @@ def FB_game_ext {n L : ℕ} {g₁ : G₁} {g₂ : G₂} (AuxState : Type)
         QueryImpl _ (StateT unifSpec.QueryCache ProbComp))
       <|
       (do
-        let a ← liftComp ($ᵗ (ZMod p)) _
-        let srs := generateSrs (g₁ := g₁) (g₂ := g₂) n a
+        let τ ← liftComp ($ᵗ (ZMod p)) _
+        let srs := generateSrs (g₁ := g₁) (g₂ := g₂) n τ
         let ⟨cm, queryOf, responseOf, stateOf⟩ ← liftComp (adversary.claim srs) _
         let reduction := Reduction.mk (adversary.prover srs) (scheme.opening (srs, srs)).verifier
         let opts ← (Vector.ofFn id).mapM (fun (i : Fin L) => do
@@ -1688,7 +1572,7 @@ def FB_game_ext {n L : ℕ} {g₁ : G₁} {g₂ : G₂} (AuxState : Type)
           resultPairs.map (fun v => fun i => (v[i] : Bool × G₁).1)
         let proofs : Option (Fin L → G₁) := resultPairs.map (fun v => fun i => (v[i] : Bool × G₁).2)
         pure (accepts.bind (fun accepts => proofs.map (fun proofs =>
-          (a, srs, cm, queryOf, (fun i => responseOf i : Fin L → ZMod p), accepts, proofs))))
+          (τ, srs, cm, queryOf, (fun i => responseOf i : Fin L → ZMod p), accepts, proofs))))
       : OracleComp _ _)).run' ∅
 
 omit [DecidableEq G₁] in
@@ -1755,9 +1639,62 @@ lemma FB_game_ext_eq_FB_game {n L : ℕ} {AuxState : Type} [SampleableType G₁]
   rw [vector_map_mapM]
   simp_all only [Function.comp_apply, Prod.forall, Fin.isValue, Functor.map_map, proj, projf]-/
 
+-- TODO should be in VCV-io
+/-- Properties of `Option`-valued outputs of an underlying `OracleComp`
+    propagate to elements in the support of the simulated, run, and `OptionT`-wrapped
+    version. -/
+lemma OptionT.aux_mem_support_simulateQ_run'
+    {ι σ α : Type} {spec : OracleSpec ι}
+    (impl : QueryImpl spec (StateT σ ProbComp))
+    (oa : OracleComp spec (Option α)) (s₀ : σ) (P : α → Prop)
+    (h : ∀ x ∈ support oa, ∀ a, x = some a → P a)
+    {x : α} (hx : x ∈ support (OptionT.mk ((simulateQ impl oa).run' s₀))) : P x := by
+  sorry
+
+-- TODO should be in VCV-io
+/-- Index-extraction for `(Vector.ofFn id).mapM` over an `OracleComp`: any element in the
+    support of the monadic `mapM` has each component lying in the support of the corresponding
+    inner computation. -/
+lemma OracleComp.support_ofFn_mapM_index
+    {ι α : Type} {spec : OracleSpec ι} {L : ℕ}
+    (f : Fin L → OracleComp spec α)
+    {v : Vector α L}
+    (hv : v ∈ support ((Vector.ofFn (fun i : Fin L => i)).mapM f))
+    (i : Fin L) : v[i] ∈ support (f i) := by
+  sorry
+
+-- TODO should be in VCV-io
+/-- For a `Vector` of `Option` values, if `mapM id` yields `some w`, then each entry is
+    `some` of the corresponding entry in `w`. -/
+lemma Vector.mapM_id_some_index
+    {α : Type} {L : ℕ} {v : Vector (Option α) L} {w : Vector α L}
+    (h : v.mapM id = some w) (i : Fin L) : v[i] = some w[i] := by
+  sorry
+
+-- TODO should be in VCV-io
+/-- If a reduction's verifier is a pure function `f` of the input statement and full transcript,
+    then the verifier output of any complete result in the support of `Reduction.run` equals
+    `f stmt td` applied to the input statement and the produced transcript. -/
+lemma Reduction.support_run_pure_verifier
+    {ι : Type} {oSpec : OracleSpec ι} {StmtIn WitIn StmtOut WitOut : Type}
+    {n : ℕ} {pSpec : ProtocolSpec n}
+    (reduction : Reduction oSpec StmtIn WitIn StmtOut WitOut pSpec)
+    (f : StmtIn → FullTranscript pSpec → StmtOut)
+    (hf : ∀ stmt td,
+      reduction.verifier.verify stmt td =
+        (pure (f stmt td) : OptionT (OracleComp oSpec) StmtOut))
+    (stmt : StmtIn) (wit : WitIn)
+    {y : Option ((FullTranscript pSpec × StmtOut × WitOut) × StmtOut)}
+    (hy : y ∈ support (reduction.run stmt wit).run)
+    {td : FullTranscript pSpec} {prv : StmtOut × WitOut} {vOut : StmtOut}
+    (heq : y = some ((td, prv), vOut)) : vOut = f stmt td := by
+  sorry
+
+include g₁ g₂ pairing in
 /-- Transition 2: FB condition implies ARSDH condition after mapping -/
 lemma FB_cond_le_ARSDH_cond {n L : ℕ} {AuxState : Type} [SampleableType G₁]
-    (hn : 1 ≤ n) (adversary : KZGFunctionBindingAdversary p G₁ G₂ n unifSpec L AuxState) :
+    (hn : 1 ≤ n) (hp : p ≥ n + 2) (hg₁ : g₁ ≠ 1) (hpair : pairing g₁ g₂ ≠ 0)
+    (adversary : KZGFunctionBindingAdversary p G₁ G₂ n unifSpec L AuxState) :
     Pr[FB_cond_ext n L | FB_game_ext (g₁ := g₁) (g₂ := g₂) AuxState adversary
       (KZG (n := n) (g₁ := g₁) (g₂ := g₂) (pairing := pairing))]
     ≤ Pr[(ARSDH_cond n) ∘ map_FB_to_ARSDH hn |
@@ -1765,9 +1702,507 @@ lemma FB_cond_le_ARSDH_cond {n L : ℕ} {AuxState : Type} [SampleableType G₁]
         (KZG (n := n) (g₁ := g₁) (g₂ := g₂) (pairing := pairing))] := by
   apply probEvent_mono
   simp only [FB_game_ext, KZG]
-  intro x hgame hFBcond
+  intro (τ, srs, cm, queryOf, responseOf, accepts, proofs) hgame hFBcond
+  have hsrs : srs = generateSrs n τ (g₂ := g₂) (g₁ := g₁) := by
+    refine OptionT.aux_mem_support_simulateQ_run' _ _ _
+      (fun y => y.2.1 = generateSrs (g₁ := g₁) (g₂ := g₂) n y.1) ?_ hgame
+    -- Walk through the `do`-block's binds in the underlying OracleComp.
+    intro x hx ⟨τ', srs', cm', queryOf', responseOf', accepts', proofs'⟩ hxeq
+    rw [mem_support_bind_iff] at hx
+    obtain ⟨τ_v, _, hx⟩ := hx
+    rw [mem_support_bind_iff] at hx
+    obtain ⟨⟨cm_v, queryOf_v, responseOf_v, stateOf_v⟩, _, hx⟩ := hx
+    rw [mem_support_bind_iff] at hx
+    obtain ⟨opts_v, _, hx⟩ := hx
+    rw [mem_support_pure_iff] at hx
+    -- `hx` now equates `x` with the syntactic `pure (... (τ_v, generateSrs n τ_v, ...))`
+    subst hx
+    -- Case-analyze the resulting `Option.bind` / `Option.map` to obtain the equality
+    cases hres : opts_v.mapM id with
+    | none => simp [hres] at hxeq
+    | some v =>
+        simp only [Option.bind, Option.map, hres, Fin.getElem_fin, Option.some.injEq, Prod.mk.injEq]
+          at hxeq
+        obtain ⟨hτ, hsrs', _⟩ := hxeq
+        simp [← hτ, ← hsrs']
+  have hgen : srs.1[0] ≠ 1 := by
+    rw [hsrs]
+    simp only [generateSrs, towerOfExponents, Nat.reduceAdd, Vector.getElem_ofFn,
+      pow_zero, pow_one, ne_eq]
+    exact hg₁
+  -- For every index `i`, if `accepts i = true` then the KZG verification holds.
+  have hverify_all : ∀ i : Fin L, accepts i = true →
+      KZG.verifyOpening (g₁ := g₁) (g₂ := g₂) (pairing := pairing)
+        srs.2 cm (proofs i) (queryOf i) (responseOf i) := by
+    intro i_idx hai
+    -- Define the predicate to be propagated through the OptionT/simulateQ wrapper.
+    let P : ZMod p × (Vector G₁ (n + 1) × Vector G₂ 2) × G₁ ×
+        (Fin L → ZMod p) × (Fin L → ZMod p) × (Fin L → Bool) × (Fin L → G₁) → Prop :=
+      fun y => y.2.2.2.2.2.1 i_idx = true →
+        KZG.verifyOpening (g₁ := g₁) (g₂ := g₂) (pairing := pairing)
+          y.2.1.2 y.2.2.1 (y.2.2.2.2.2.2 i_idx) (y.2.2.2.1 i_idx) (y.2.2.2.2.1 i_idx)
+    have hP : P (τ, srs, cm, queryOf, responseOf, accepts, proofs) := by
+      refine OptionT.aux_mem_support_simulateQ_run' _ _ _ P ?_ hgame
+      -- Walk the do-block in the underlying `OracleComp`.
+      intro x hx ⟨τ', srs', cm', queryOf', responseOf', accepts', proofs'⟩ hxeq hai'
+      rw [mem_support_bind_iff] at hx
+      obtain ⟨τ_v, _, hx⟩ := hx
+      rw [mem_support_bind_iff] at hx
+      obtain ⟨⟨cm_v, queryOf_v, responseOf_v, stateOf_v⟩, _, hx⟩ := hx
+      rw [mem_support_bind_iff] at hx
+      obtain ⟨opts_v, hopts, hx⟩ := hx
+      rw [mem_support_pure_iff] at hx
+      subst hx
+      -- Case analyze the resulting `Option.bind`/`Option.map`.
+      cases hres : opts_v.mapM id with
+      | none => simp [hres] at hxeq
+      | some v =>
+        simp only [Option.bind, Option.map, hres, Fin.getElem_fin, Option.some.injEq,
+          Prod.mk.injEq] at hxeq
+        obtain ⟨h_τ, h_srs, h_cm, h_q, h_r, h_a, h_p⟩ := hxeq
+        -- From `mapM id = some v`, the entry at `i_idx` is `some v[i_idx]`.
+        have hv_i : opts_v[i_idx] = some v[i_idx] :=
+          Vector.mapM_id_some_index hres i_idx
+        -- The entry of `opts_v` at `i_idx` lies in the support of the inner OracleComp.
+        have hopts_i := OracleComp.support_ofFn_mapM_index _ hopts i_idx
+        rw [hv_i] at hopts_i
+        -- The inner computation is `bind (reduction.run ...).run (fun result => return ...)`.
+        rw [mem_support_bind_iff] at hopts_i
+        obtain ⟨result, hresult, hres_eq⟩ := hopts_i
+        rw [mem_support_pure_iff] at hres_eq
+        -- `result : Option ((FullTranscript × Bool × Unit) × Bool)`.
+        cases hr : result with
+        | none =>
+            rw [hr] at hres_eq
+            simp [Option.map] at hres_eq
+        | some pair =>
+            obtain ⟨td_data, va⟩ := pair
+            rw [hr] at hres_eq
+            simp only [Option.map_some, Option.some.injEq] at hres_eq
+            -- `hres_eq : (va, td_data.1 0) = v[i_idx]`
+            -- Apply the generic Reduction.run pure-verifier helper.
+            have hverif :=
+              Reduction.support_run_pure_verifier
+                (Reduction.mk (adversary.prover (generateSrs (g₁ := g₁) (g₂ := g₂) n τ_v))
+                  ((KZG (n := n) (g₁ := g₁) (g₂ := g₂) (pairing := pairing)).opening
+                    (generateSrs (g₁ := g₁) (g₂ := g₂) n τ_v,
+                     generateSrs (g₁ := g₁) (g₂ := g₂) n τ_v)).verifier)
+                (fun stmt td =>
+                  KZG.verifyOpening (g₁ := g₁) (g₂ := g₂) (pairing := pairing)
+                    (generateSrs (g₁ := g₁) (g₂ := g₂) n τ_v).2 stmt.1
+                    (td ⟨0, by decide⟩) stmt.2.1 stmt.2.2)
+                (by intros; rfl)
+                (cm_v, ⟨queryOf_v i_idx, responseOf_v i_idx⟩)
+                (stateOf_v i_idx)
+                hresult hr
+            -- `hverif : va = verifyOpening (generateSrs...).2 cm_v (td_data.1 ⟨0,_⟩) ...`
+            -- From `hres_eq` extract: va = v[i_idx].1 and td_data.1 0 = v[i_idx].2.
+            have hva_eq_v : va = v[i_idx].1 := by
+              have h := congrArg Prod.fst hres_eq
+              exact h.symm
+            have htd_eq_v : td_data.1 0 = v[i_idx].2 := by
+              have h := congrArg Prod.snd hres_eq
+              exact h.symm
+            -- Component equalities from `hxeq`: accepts'/proofs' come from v.
+            have h_a_i : accepts' i_idx = v[i_idx].1 := by
+              have := congrFun h_a i_idx
+              simpa using this.symm
+            have h_p_i : proofs' i_idx = v[i_idx].2 := by
+              have := congrFun h_p i_idx
+              simpa using this.symm
+            -- Combine to get accepts' i_idx = va and proofs' i_idx = td_data.1 0.
+            have h_va_acc : va = accepts' i_idx := by rw [hva_eq_v, h_a_i]
+            have h_td_prf : td_data.1 0 = proofs' i_idx := by rw [htd_eq_v, ← h_p_i]
+            have hva_true : va = true := h_va_acc.trans hai'
+            -- queryOf'/responseOf' are also tied to queryOf_v/responseOf_v.
+            have h_q_i : queryOf' i_idx = queryOf_v i_idx := by
+              have := congrFun h_q i_idx
+              simpa using this.symm
+            have h_r_i : responseOf' i_idx = responseOf_v i_idx := by
+              have := congrFun h_r i_idx
+              simpa using this.symm
+            -- The goal: verifyOpening srs'.2 cm' (proofs' i_idx) (queryOf' i_idx)
+            --                                    (responseOf' i_idx) = true
+            change KZG.verifyOpening (g₁ := g₁) (g₂ := g₂) (pairing := pairing)
+              srs'.2 cm' (proofs' i_idx) (queryOf' i_idx) (responseOf' i_idx)
+            rw [← h_srs, ← h_cm, ← h_td_prf, h_q_i, h_r_i]
+            -- Goal: verifyOpening (generateSrs n τ_v).2 cm_v (td_data.1 0)
+            --                     (queryOf_v i_idx) (responseOf_v i_idx)
+            -- From `hverif` and `hva_true`:
+            have heq : KZG.verifyOpening (g₁ := g₁) (g₂ := g₂) (pairing := pairing)
+                (generateSrs (g₁ := g₁) (g₂ := g₂) n τ_v).2 cm_v
+                (td_data.1 ⟨0, by decide⟩) (queryOf_v i_idx) (responseOf_v i_idx)
+                  = true := hverif.symm.trans hva_true
+            -- `td_data.1 ⟨0, by decide⟩` is definitionally `td_data.1 0` for `Fin 1`.
+            exact heq
+    exact hP hai
+  unfold map_FB_to_ARSDH
+  unfold map_FB_instance_to_ARSDH_inst map_FB_instance_to_ARSDH_inst'
+  simp only [one_div, Finset.union_singleton, Option.pure_def, beq_iff_eq, Option.bind_eq_bind,
+    Function.comp_apply]
 
-  sorry
+
+  -- first branch from map_FB_instance_to_ARSDH_inst'
+  set fc := find_conflict (List.ofFn fun i ↦ (queryOf i, responseOf i, proofs i)) with hfc_def
+  cases hfc : fc with
+  | some c =>
+      obtain ⟨⟨α₁, β₁, pf₁⟩, α₂, β₂, pf₂⟩ := c
+      -- goal for the first branch
+      simp only [ARSDH_cond, Option.getD_some, ne_eq, one_div]
+      constructor
+      · rw [← Finset.union_singleton]
+        exact choose_S_conflict_size_adjoined hp hn α₁ srs hgen
+      · constructor
+        · exact h₁_not_zero (g₁ := g₁) (g₂ := g₂) hp PrimeOrderWith.hCard hn α₁ τ srs hsrs hgen
+        · -- h₂ = h₁ ^ (1 / Zₛᵤₐ.eval τ).val by `h₁Zₛ_eq_h₂`.
+          -- Extract `α₁ = α₂` and `β₁ ≠ β₂` from the success of `find_conflict`.
+          have hfc' : find_conflict (List.ofFn fun i ↦ (queryOf i, responseOf i, proofs i))
+              = some ((α₁, β₁, pf₁), (α₂, β₂, pf₂)) := hfc_def ▸ hfc
+          have hαβ : α₁ = α₂ ∧ β₁ ≠ β₂ := by
+            unfold find_conflict at hfc'
+            obtain ⟨_, ⟨a₁', b₁', p₁'⟩, _, _, h_inner, _⟩ :=
+              List.findSome?_eq_some_iff.mp hfc'
+            simp only at h_inner
+            obtain ⟨_, ⟨a₂', b₂', p₂'⟩, _, _, h_cond, _⟩ :=
+              List.findSome?_eq_some_iff.mp h_inner
+            simp only at h_cond
+            by_cases hif : (a₁' == a₂' && b₁' != b₂') = true
+            · rw [if_pos hif] at h_cond
+              simp only [Option.some.injEq, Prod.mk.injEq] at h_cond
+              simp only [Bool.and_eq_true, beq_iff_eq, bne_iff_ne] at hif
+              grind
+            · rw [if_neg hif] at h_cond
+              exact absurd h_cond (by simp)
+          obtain ⟨hα, hβ⟩ := hαβ
+          -- `hverify_all` is provided by the outer scope: every accepting index passes
+          -- KZG verification.
+          -- Find indices `i₁`, `i₂` in `List.ofFn` corresponding to the conflict pairs.
+          have h_in₁ : (α₁, β₁, pf₁) ∈
+              List.ofFn (fun i ↦ (queryOf i, responseOf i, proofs i)) := by
+            obtain ⟨pre₁, ⟨a₁', b₁', p₁'⟩, suf₁, hdec₁, h_inner, _⟩ :=
+              List.findSome?_eq_some_iff.mp hfc'
+            simp only at h_inner
+            obtain ⟨_, ⟨a₂', b₂', p₂'⟩, _, _, h_cond, _⟩ :=
+              List.findSome?_eq_some_iff.mp h_inner
+            simp only at h_cond
+            by_cases hif : (a₁' == a₂' && b₁' != b₂') = true
+            · rw [if_pos hif] at h_cond
+              simp only [Option.some.injEq, Prod.mk.injEq] at h_cond
+              obtain ⟨⟨ha, hb, hp⟩, _⟩ := h_cond
+              rw [← ha, ← hb, ← hp, hdec₁]
+              simp
+            · rw [if_neg hif] at h_cond
+              exact absurd h_cond (by simp)
+          have h_in₂ : (α₂, β₂, pf₂) ∈
+              List.ofFn (fun i ↦ (queryOf i, responseOf i, proofs i)) := by
+            obtain ⟨_, ⟨a₁', b₁', p₁'⟩, _, _, h_inner, _⟩ :=
+              List.findSome?_eq_some_iff.mp hfc'
+            simp only at h_inner
+            obtain ⟨pre₂, ⟨a₂', b₂', p₂'⟩, suf₂, hdec₂, h_cond, _⟩ :=
+              List.findSome?_eq_some_iff.mp h_inner
+            simp only at h_cond
+            by_cases hif : (a₁' == a₂' && b₁' != b₂') = true
+            · rw [if_pos hif] at h_cond
+              simp only [Option.some.injEq, Prod.mk.injEq] at h_cond
+              obtain ⟨_, ⟨ha, hb, hp⟩⟩ := h_cond
+              rw [← ha, ← hb, ← hp, hdec₂]
+              simp
+            · rw [if_neg hif] at h_cond
+              exact absurd h_cond (by simp)
+          obtain ⟨i₁, hi₁⟩ := List.mem_ofFn.mp h_in₁
+          obtain ⟨i₂, hi₂⟩ := List.mem_ofFn.mp h_in₂
+          have h_acc_all : ∀ i ∈ (Finset.univ : Finset (Fin L)), accepts i = true :=
+            hFBcond.1
+          have hai₁ : accepts i₁ = true := h_acc_all i₁ (Finset.mem_univ _)
+          have hai₂ : accepts i₂ = true := h_acc_all i₂ (Finset.mem_univ _)
+          have hverify₁ : KZG.verifyOpening (g₁ := g₁) (g₂ := g₂) (pairing := pairing)
+              srs.2 cm pf₁ α₁ β₁ := by
+            have h := hverify_all i₁ hai₁
+            -- hi₁ : (queryOf i₁, responseOf i₁, proofs i₁) = (α₁, β₁, pf₁)
+            simp only [Prod.mk.injEq] at hi₁
+            obtain ⟨hq, hr, hp⟩ := hi₁
+            rw [← hq, ← hr, ← hp]
+            exact h
+          have hverify₂ : KZG.verifyOpening (g₁ := g₁) (g₂ := g₂) (pairing := pairing)
+              srs.2 cm pf₂ α₂ β₂ := by
+            have h := hverify_all i₂ hai₂
+            simp only [Prod.mk.injEq] at hi₂
+            obtain ⟨hq, hr, hp⟩ := hi₂
+            rw [← hq, ← hr, ← hp]
+            exact h
+          have key := h₁Zₛ_eq_h₂ (g₁ := g₁) (g₂ := g₂) (pairing := pairing)
+            hp PrimeOrderWith.hCard hn α₁ α₂ β₁ β₂ τ cm pf₁ pf₂
+            hα hβ srs hsrs hgen hpair hverify₁ hverify₂
+          simpa [Finset.union_singleton, one_div] using key
+
+
+  | none => -- second branch from map_FB_instance_to_ARSDH_inst'
+      set fs := List.findSome?
+        (fun i ↦ if srs.1[0] ^ (queryOf i).val = srs.1[1] then some (queryOf i) else none)
+        (List.finRange L) with hfs_def
+      cases hfs : fs with
+      | some α₁ =>
+          simp only [ARSDH_cond, Option.getD_some, ne_eq, one_div]
+          -- branch where `List.findSome? = some α₁`
+          -- Extract the precondition: `srs.1[0] ^ α₁.val = srs.1[1]`.
+          have hfs' : List.findSome?
+              (fun i ↦ if srs.1[0] ^ (queryOf i).val
+                            = srs.1[1]'(Nat.lt_add_of_pos_left hn)
+                        then some (queryOf i) else none)
+              (List.finRange L) = some α₁ := hfs_def.symm.trans hfs
+          have hcond : srs.1[0] ^ α₁.val = srs.1[1]'(Nat.lt_add_of_pos_left hn) := by
+            obtain ⟨_, i, _, _, hbody, _⟩ := List.findSome?_eq_some_iff.mp hfs'
+            by_cases hif : srs.1[0] ^ (queryOf i).val
+                              = srs.1[1]'(Nat.lt_add_of_pos_left hn)
+            · rw [if_pos hif] at hbody
+              simp only [Option.some.injEq] at hbody
+              rw [← hbody]; exact hif
+            · rw [if_neg hif] at hbody
+              exact absurd hbody (by simp)
+          -- The order of `g₁` is `p`.
+          have hord : orderOf g₁ = p := by
+            have hdvd := orderOf_dvd_natCard (G := G₁) g₁
+            rw [PrimeOrderWith.hCard] at hdvd
+            rcases (Nat.dvd_prime Fact.out).1 hdvd with h1 | hp'
+            · exact absurd (orderOf_eq_one_iff.1 h1) hg₁
+            · exact hp'
+          -- Identify `srs.1[0] = g₁` and `srs.1[1] = g₁ ^ τ.val`.
+          have h_srs0 : srs.1[0] = g₁ := by
+            rw [hsrs]; simp [generateSrs, towerOfExponents]
+          have h_srs1 : srs.1[1]'(Nat.lt_add_of_pos_left hn) = g₁ ^ τ.val := by
+            rw [hsrs]; simp [generateSrs, towerOfExponents]
+          have hpow : g₁ ^ α₁.val = g₁ ^ τ.val := by
+            have h := hcond
+            rw [h_srs0, h_srs1] at h
+            exact h
+          -- Conclude `α₁ = τ`.
+          have hα_τ : α₁ = τ := by
+            have hmod : α₁.val ≡ τ.val [MOD orderOf g₁] :=
+              pow_eq_pow_iff_modEq.mp hpow
+            rw [hord] at hmod
+            have hα_lt : α₁.val < p := ZMod.val_lt α₁
+            have hτ_lt : τ.val < p := ZMod.val_lt τ
+            have h_eq : α₁.val = τ.val := by
+              have hm : α₁.val % p = τ.val % p := hmod
+              rwa [Nat.mod_eq_of_lt hα_lt, Nat.mod_eq_of_lt hτ_lt] at hm
+            exact ZMod.val_injective p h_eq
+          refine ⟨?_, ?_, ?_⟩
+          · -- `S.card = n + 1`
+            have h_inj : Set.InjOn ((↑) : ℕ → ZMod p) ↑(Finset.range (n + 1)) := by
+              intro a ha b hb hab
+              simp only [Finset.coe_range, Set.mem_Iio] at ha hb
+              have hap : a < p := lt_of_lt_of_le ha (by omega)
+              have hbp : b < p := lt_of_lt_of_le hb (by omega)
+              have hv := congrArg ZMod.val hab
+              rwa [ZMod.val_natCast_of_lt hap, ZMod.val_natCast_of_lt hbp] at hv
+            rw [Finset.card_image_of_injOn h_inj, Finset.card_range]
+          · -- `srs.1[0] ≠ 1`
+            exact hgen
+          · -- `h₂ = h₁ ^ (1 / eval τ Zₛ).val`
+            rw [hα_τ]
+
+
+      | none => -- third branch from map_FB_instance_to_ARSDH_inst'
+          set fa := find_A (n+1) queryOf responseOf with hfa_def
+          -- The interpolation has degree ≥ n + 1, since otherwise its first n + 1 coefficients would witness a
+          -- degree-`n` polynomial fitting all `(queryOf i, responseOf i)` pairs, contradicting the
+          -- function-binding hypothesis `hFBcond`.
+          have hquery : Function.Injective queryOf := hFBcond.2.2
+          have huniv_deg : (↑(n + 1) : WithBot ℕ) ≤
+              (CLagrange.interpolate (Finset.univ : Finset (Fin L))
+                queryOf responseOf).degree := by
+            by_contra hlt
+            push Not at hlt
+            -- Bridge to Mathlib polynomial.
+            set Q : Polynomial (ZMod p) :=
+              Lagrange.interpolate (Finset.univ : Finset (Fin L)) queryOf responseOf with hQ_def
+            have hQdeg_lt : Q.degree < (↑(n + 1) : WithBot ℕ) := by
+              have h := hlt
+              rw [show
+                  (CLagrange.interpolate (Finset.univ : Finset (Fin L))
+                    queryOf responseOf).degree
+                    = Q.degree from by
+                    rw [hQ_def, ← CLagrange.cinterpolate_eq_interpolate, ← degree_toPoly]] at h
+              exact h
+            have hQ_mem : Q ∈ Polynomial.degreeLT (ZMod p) (n + 1) :=
+              Polynomial.mem_degreeLT.mpr hQdeg_lt
+            -- The coefficient vector witness.
+            apply hFBcond.2.1
+            refine ⟨Polynomial.degreeLTEquiv (ZMod p) (n + 1) ⟨Q, hQ_mem⟩, ?_⟩
+            intro i _
+            -- Show: `OracleInterface.answer d (queryOf i) = responseOf i`.
+            -- Using the local instance, the answer at `z` is `∑ k, d k * z ^ k.val`.
+            have hQ_eval : Q.eval (queryOf i) = responseOf i := by
+              rw [hQ_def]
+              exact Lagrange.eval_interpolate_at_node responseOf
+                (hquery.injOn (s := (Finset.univ : Finset (Fin L)))) (Finset.mem_univ i)
+            -- Reduce the answer to a `Fin (n+1)` sum and identify with `Q.eval`.
+            have hQ_sum :
+                Q.eval (queryOf i) =
+                  ∑ k : Fin (n + 1),
+                    Polynomial.degreeLTEquiv (ZMod p) (n + 1) ⟨Q, hQ_mem⟩ k *
+                      (queryOf i) ^ (k : ℕ) :=
+              Polynomial.eval_eq_sum_degreeLTEquiv hQ_mem (queryOf i)
+            -- The OracleInterface answer reduces (definitionally) to evaluating the
+            -- canonical CPolynomial built from the coefficient vector.
+            set d : Fin (n + 1) → ZMod p :=
+              Polynomial.degreeLTEquiv (ZMod p) (n + 1) ⟨Q, hQ_mem⟩ with hd_def
+            let P_C : CPolynomial (ZMod p) :=
+              ⟨(CompPoly.CPolynomial.Raw.mk (Array.ofFn d)).trim,
+                CompPoly.CPolynomial.Raw.Trim.isCanonical_trim _⟩
+            change CPolynomial.eval (queryOf i) P_C = responseOf i
+            -- Bridge CPolynomial.eval to Polynomial.eval, then identify polynomials by coeffs.
+            rw [eval_toPoly]
+            have hPC_eq : P_C.toPoly = Q := by
+              apply Polynomial.ext
+              intro k
+              rw [← coeff_toPoly]
+              -- The CPolynomial built from `Array.ofFn d` has coefficients `d k` for `k < n + 1`
+              -- and zero elsewhere.
+              change ((CompPoly.CPolynomial.Raw.mk (Array.ofFn d)).trim).coeff k = Q.coeff k
+              rw [CompPoly.CPolynomial.Raw.Trim.coeff_eq_coeff]
+              change (Array.ofFn d).getD k 0 = Q.coeff k
+              rw [Array.getD_eq_getD_getElem?, Array.getElem?_ofFn]
+              by_cases hk : k < n + 1
+              · simp [hk, hd_def, Polynomial.degreeLTEquiv]
+              · push Not at hk
+                simp only [hk.not_gt, dite_false, Option.getD_none]
+                symm
+                exact Polynomial.coeff_eq_zero_of_degree_lt
+                  (lt_of_lt_of_le hQdeg_lt (by exact_mod_cast hk))
+            rw [hPC_eq]
+            exact hQ_eval
+          -- From `huniv_deg` we also get `n + 1 < L`.
+          have hL : n + 1 < L := by
+            have h_lt :=
+              Lagrange.degree_interpolate_lt responseOf
+                (hquery.injOn (s := (Finset.univ : Finset (Fin L))))
+            have h_ge : (↑(n + 1) : WithBot ℕ) ≤
+                (Lagrange.interpolate (Finset.univ : Finset (Fin L))
+                  queryOf responseOf).degree := by
+              have h := huniv_deg
+              rwa [show
+                  (CLagrange.interpolate (Finset.univ : Finset (Fin L))
+                    queryOf responseOf).degree
+                    = (Lagrange.interpolate (Finset.univ : Finset (Fin L))
+                        queryOf responseOf).degree from by
+                    rw [← CLagrange.cinterpolate_eq_interpolate, ← degree_toPoly]] at h
+            have h_card_gt :
+                (↑(n + 1) : WithBot ℕ) < ((Finset.univ : Finset (Fin L)).card : WithBot ℕ) :=
+              lt_of_le_of_lt h_ge h_lt
+            simp only [Finset.card_univ, Fintype.card_fin, Nat.cast_lt] at h_card_gt
+            omega
+          cases hfa : fa with
+          | some a =>
+              set fs' := find_S' n a cm srs queryOf responseOf with hfs'_def
+              cases hfs' : fs' with
+              | some a' =>
+                  -- third branch actual content (rest are irrelevant corner cases)
+                  -- Recover the underlying option equalities from the `set`+`cases` shells.
+                  have hresA : find_A (n+1) queryOf responseOf = some a :=
+                    hfa_def.symm.trans hfa
+                  have hresS : find_S' n a cm srs queryOf responseOf = some a' :=
+                    hfs'_def.symm.trans hfs'
+                  have hres_a' : some a' = find_S' n a cm srs queryOf responseOf := hresS.symm
+                  -- Reduce the do-block to its `some` value, then unfold `ARSDH_cond`.
+                  simp only [hresS, Option.bind, ARSDH_cond, Option.getD_some,
+                    ne_eq, one_div]
+                  refine ⟨?_, ?_, ?_⟩
+                  · -- `(a'.image queryOf).card = n + 1`
+                    rw [Finset.card_image_of_injective _ hquery]
+                    exact find_S'_card n cm a a' srs queryOf responseOf hres_a'
+                  · -- `cm / c' ≠ 1`, equivalently `cm ≠ c'`, from `find_S'_diverges`.
+                    intro hdiv
+                    have hcm_eq_c' : cm =
+                        commit srs.1
+                          ((CLagrange.interpolate a' queryOf responseOf).val.coeff ∘ Fin.val) :=
+                      div_eq_one.mp hdiv
+                    exact (find_S'_diverges n cm a a' queryOf responseOf srs hres_a')
+                      hcm_eq_c'.symm
+                  · -- `h₂ = h₁ ^ (1 / Zₛ.eval τ).val`
+                    -- Card and degree bound for `a'` (|a'| = n+1 ⇒ degree ≤ n).
+                    have hcard : a'.card = n + 1 :=
+                      find_S'_card n cm a a' srs queryOf responseOf hres_a'
+                    have hdeg :
+                        (CLagrange.interpolate a' queryOf responseOf).degree
+                          ≤ (n : WithBot ℕ) := by
+                      have h_lt :
+                          (Lagrange.interpolate a' queryOf responseOf).degree
+                            < ((n + 1 : ℕ) : WithBot ℕ) := by
+                        have := Lagrange.degree_interpolate_lt responseOf
+                          (hquery.injOn (s := a'))
+                        rw [hcard] at this
+                        exact_mod_cast this
+                      have h_eq :
+                          (CLagrange.interpolate a' queryOf responseOf).degree
+                            = (Lagrange.interpolate a' queryOf responseOf).degree := by
+                        rw [← CLagrange.cinterpolate_eq_interpolate, ← degree_toPoly]
+                      rw [h_eq]
+                      rcases hd :
+                          (Lagrange.interpolate a' queryOf responseOf).degree with _ | k
+                      · exact bot_le
+                      · rw [hd] at h_lt
+                        have hk : k < n + 1 := WithBot.coe_lt_coe.mp h_lt
+                        exact WithBot.coe_le_coe.mpr (Nat.lt_succ_iff.mp hk)
+                    have ha'_ne : a'.Nonempty := by
+                      rw [← Finset.card_pos, hcard]; exact Nat.succ_pos _
+                    -- `srs.1[0] = g₁`, `srs.1[1] = g₁ ^ τ.val`.
+                    have h_srs0 : srs.1[0] = g₁ := by
+                      rw [hsrs]; simp [generateSrs, towerOfExponents]
+                    have h_srs1 :
+                        srs.1[1]'(Nat.lt_add_of_pos_left hn) = g₁ ^ τ.val := by
+                      rw [hsrs]; simp [generateSrs, towerOfExponents]
+                    -- Queries in `a'` cannot equal τ (else the second branch would have fired).
+                    have hτneq : ∀ i ∈ a', queryOf i ≠ τ := by
+                      intro i _ hqτ
+                      have hfs_none :
+                          List.findSome?
+                            (fun i ↦ if srs.1[0] ^ (queryOf i).val
+                                          = srs.1[1]'(Nat.lt_add_of_pos_left hn)
+                                      then some (queryOf i) else none)
+                            (List.finRange L) = none := hfs_def.symm.trans hfs
+                      have hall := List.findSome?_eq_none_iff.mp hfs_none
+                      have h_at_i := hall i (List.mem_finRange i)
+                      have hpow : srs.1[0] ^ (queryOf i).val
+                          = srs.1[1]'(Nat.lt_add_of_pos_left hn) := by
+                        rw [h_srs0, h_srs1, hqτ]
+                      simp [hpow] at h_at_i
+                    -- Every accepted index passes verification.
+                    have hVer : ∀ i ∈ a',
+                        KZG.verifyOpening (g₁ := g₁) (g₂ := g₂) (pairing := pairing)
+                          srs.2 cm (proofs i) (queryOf i) (responseOf i) := by
+                      intro i _
+                      exact hverify_all i (hFBcond.1 i (Finset.mem_univ _))
+                    have key := h₁Zₛ_eq_h₂' (g₁ := g₁) (g₂ := g₂) (pairing := pairing)
+                      n τ cm a' queryOf responseOf proofs srs hn hsrs hτneq hVer
+                      hgen hpair hdeg ha'_ne hquery
+                    simp only [one_div] at key
+                    exact key
+              | none =>
+                  -- `find_S'` failed: contradicts `find_S'_successful`.
+                  exfalso
+                  have hres_a : some a = find_A (n+1) queryOf responseOf := by
+                    rw [← hfa_def]; exact hfa.symm
+                  have hAdeg :=
+                    find_A_deg (n+1) a queryOf responseOf hres_a
+                  have hsome :=
+                    find_S'_successful (g₁ := g₁) n τ cm a queryOf responseOf srs hsrs hgen
+                      (by exact_mod_cast hAdeg) hquery hn
+                  have hnone :
+                      find_S' n a cm srs queryOf responseOf = none := by
+                    rw [← hfs'_def]; exact hfs'
+                  rw [hnone] at hsome
+                  simp at hsome
+          | none =>
+              -- `find_A` failed: contradicts `find_A_successful` via `huniv_deg`.
+              exfalso
+              have hsome :=
+                find_A_successful (n+1) hL (Finset.univ : Finset (Fin L)) queryOf responseOf
+                  hquery huniv_deg
+              have hnone : find_A (n+1) queryOf responseOf = none := by
+                rw [← hfa_def]; exact hfa
+              rw [hnone] at hsome
+              simp at hsome
 
 omit [Module (ZMod p) (Additive G₁)] [Module (ZMod p) (Additive G₂)] in
 /-- Transition 3: dragging the map into the probability event -/
@@ -1836,7 +2271,8 @@ lemma ARSDH_error_bound {n L : ℕ} {AuxState : Type} [SampleableType G₁] (hn 
 
 /- the KZG satisfies function binding as defined in `CommitmentScheme` provided ARSDH holds. -/
 theorem functionBinding {g₁ : G₁} {g₂ : G₂}
-    (L : ℕ) (hn : 1 ≤ n) (AuxState : Type) [SampleableType G₁] (ARSDHerror : ℝ≥0)
+    (L : ℕ) (hn : 1 ≤ n) (hp : p ≥ n + 2) (hg₁ : g₁ ≠ 1) (hpair : pairing g₁ g₂ ≠ 0)
+    (AuxState : Type) [SampleableType G₁] (ARSDHerror : ℝ≥0)
     (hARSDH : Groups.ARSDHAssumption (G₁ := G₁) (G₂ := G₂) (g₁ := g₁) (g₂ := g₂)
      n ARSDHerror) :
     Commitment.functionBinding (L := L) (init := pure ∅) (impl := randomOracle)
@@ -1852,7 +2288,7 @@ theorem functionBinding {g₁ : G₁} {g₂ : G₂}
     _ = Pr[FB_cond_ext n L | game_ext] :=
       FB_game_ext_eq_FB_game (pairing := pairing) adversary
     _ ≤ Pr[(ARSDH_cond n) ∘ map_FB_to_ARSDH hn | game_ext] :=
-      FB_cond_le_ARSDH_cond (pairing := pairing) hn adversary
+      FB_cond_le_ARSDH_cond (pairing := pairing) hn hp hg₁ hpair adversary
     _ = Pr[(ARSDH_cond n) | map_FB_to_ARSDH hn <$> game_ext] :=
       map_instance_drag hn adversary scheme
     _ = Groups.ARSDH_Experiment (g₁ := g₁) (g₂ := g₂) n
