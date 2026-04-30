@@ -1575,6 +1575,54 @@ def FB_game_ext {n L : ℕ} {g₁ : G₁} {g₂ : G₂} (AuxState : Type)
           (τ, srs, cm, queryOf, (fun i => responseOf i : Fin L → ZMod p), accepts, proofs))))
       : OracleComp _ _)).run' ∅
 
+-- TODO should be in VCV-io
+/-- Bridge lemma: when two `OptionT ProbComp` computations have underlying `run`s related by
+    an `Option.map` of a function `f`, their probability events of `P` and `P ∘ f` agree. -/
+lemma OptionT.probEvent_eq_of_run_map_eq {α β : Type}
+    (mx : OptionT ProbComp α) (my : OptionT ProbComp β) (f : β → α) (P : α → Prop)
+    (h : mx.run = (Option.map f) <$> my.run) :
+    Pr[P | mx] = Pr[P ∘ f | my] := by
+  have hmx : mx = f <$> my := by
+    change mx.run = (f <$> my).run
+    rw [OptionT.run_map]; exact h
+  rw [hmx, probEvent_map]
+
+-- TODO should be in VCV-io
+/-- `StateT.run'` commutes with `Functor.map`. -/
+lemma StateT.run'_map_comm {m : Type → Type} {σ α β : Type}
+    [Monad m] [LawfulMonad m]
+    (f : α → β) (mx : StateT σ m α) (s : σ) :
+    (f <$> mx).run' s = f <$> mx.run' s := by sorry
+
+-- TODO should be in VCV-io
+/-- `Vector.mapM` commutes with post-composition by a pure map:
+    mapping `g` after each monadic action is the same as mapping `g` over the collected vector. -/
+lemma Vector.mapM_map_postcomp {m : Type → Type} {α β γ : Type} {n : ℕ}
+    [Monad m] [LawfulMonad m]
+    (v : Vector α n) (f : α → m β) (g : β → γ) :
+    (v.mapM (fun a => g <$> f a)) = (Vector.map g) <$> (v.mapM f) := by sorry
+
+-- TODO should be in VCV-io
+/-- `Option.map` distributes through `Vector.mapM id` (sequencing of options):
+    mapping before sequencing equals sequencing then mapping. -/
+lemma Vector.mapM_id_option_map_comm {α β : Type} {n : ℕ}
+    (v : Vector (Option α) n) (g : α → β) :
+    (v.map (Option.map g)).mapM (id : Option β → Option β) =
+    (v.mapM (id : Option α → Option α)).map (Vector.map g) := by sorry
+
+-- TODO should be in VCV-io
+/-- Two `Vector.mapM` calls with pointwise-related monadic bodies produce equal
+    results (after compatible post-processing) when the bodies differ by a pure map.
+    Combines `Vector.mapM_map_postcomp` with bind and the compatibility condition. -/
+lemma Vector.mapM_bind_map_eq {m : Type → Type} {α β γ δ : Type} {n : ℕ}
+    [Monad m] [LawfulMonad m]
+    (v : Vector α n)
+    (f₁ : α → m γ) (f₂ : α → m β) (g : β → γ)
+    (hf : ∀ a, f₁ a = g <$> f₂ a)
+    (post₁ : Vector γ n → m δ) (post₂ : Vector β n → m δ)
+    (hpost : ∀ opts, post₁ (opts.map g) = post₂ opts) :
+    (v.mapM f₁ >>= post₁) = (v.mapM f₂ >>= post₂) := by sorry
+
 omit [DecidableEq G₁] in
 /-- Transition 1: extending output for proofs and commitment preserves the condition -/
 lemma FB_game_ext_eq_FB_game {n L : ℕ} {AuxState : Type} [SampleableType G₁]
@@ -1583,61 +1631,54 @@ lemma FB_game_ext_eq_FB_game {n L : ℕ} {AuxState : Type} [SampleableType G₁]
       (KZG (n := n) (g₁ := g₁) (g₂ := g₂) (pairing := pairing))]
     = Pr[FB_cond_ext n L | FB_game_ext (g₁ := g₁) (g₂ := g₂) AuxState adversary
       (KZG (n := n) (g₁ := g₁) (g₂ := g₂) (pairing := pairing))] := by
-  sorry
-  /-
-  let scheme := KZG (n := n) (g₁ := g₁) (g₂ := g₂) (pairing := pairing)
-  let proj := fun (x : ZMod p × (Vector G₁ (n + 1) × Vector G₂ 2) × G₁ ×
-    Vector (ZMod p × ZMod p × Bool × G₁) L) => x.2.2.2.map (fun (a, b, c, _) => (a, b, c))
-  -- First show condition equivalence: FB_cond ∘ proj = FB_cond_ext, then unfold it
-  have h_cond : ∀ x, (FB_cond n L ∘ proj) x ↔ FB_cond_ext n L x := by
-    intro x; simp only [Function.comp_apply, proj, FB_cond_ext]
-  conv_rhs => rw [show
-    [FB_cond_ext n L | FB_game_ext (g₁ := g₁) (g₂ := g₂) AuxState adversary scheme]
-    = [FB_cond n L ∘ proj | FB_game_ext (g₁ := g₁) (g₂ := g₂) AuxState adversary scheme]
-    by apply probEvent_ext; intro x _; exact (h_cond x).symm]
-  -- Use probEvent_map to pull the projection into the monad
-  rw [← probEvent_map]
-  -- Now both sides have the form [FB_cond n L | some_computation]
-  -- Goal: [FB_cond n L | FB_game ...] = [FB_cond n L | proj <$> FB_game_ext ...]
-  -- Show OracleComp equality: FB_game = proj <$> FB_game_ext
-  congr 1
-  simp only [FB_game, FB_game_ext, proj, scheme, KZG]
-  simp only [StateT.run'_eq, Functor.map_map]
-  -- unpack key_gen in FB_game to mirror the srs computation in FB_game_ext
-  simp only [liftComp_bind, liftComp_pure, bind_assoc, pure_bind]
-  simp only [simulateQ_bind, StateT.run_bind, map_bind]
-  -- peel the srs computation layers off
-  apply bind_congr
-  intro a_state
-  simp [StateT.run_map]
-  apply bind_congr
-  intro srs_state
-
-  -- monad level definition of the projection (keeping the state)
-  let projf := (fun (x : (OracleInterface.Query (Fin (n + 1) → ZMod p)
-    × OracleInterface.Response (Fin (n + 1) → ZMod p) × Bool × G₁))
-    ↦ (x.1, x.2.1, x.2.2.1))
-  have hfmap: (fun (a : Vector (OracleInterface.Query (Fin (n + 1) → ZMod p)
-    × OracleInterface.Response (Fin (n + 1) → ZMod p) × Bool × G₁) L × unifSpec.QueryCache)
-    ↦ Vector.map (fun (x:ZMod p × ZMod p × Bool × G₁) ↦ (x.1, x.2.1, x.2.2.1)) a.1)
-    = (fun x ↦ x.1) ∘
-    (fun (a : Vector (OracleInterface.Query (Fin (n + 1) → ZMod p)
-    × OracleInterface.Response (Fin (n + 1) → ZMod p) × Bool × G₁) L × unifSpec.QueryCache)
-    ↦ (Vector.map projf a.1, a.2))
-    := by
-    simp_all only [Function.comp_apply, Prod.forall, proj, projf]
-    obtain ⟨fst, snd⟩ := a_state
-    obtain ⟨fst_1, snd_1⟩ := srs_state
-    obtain ⟨fst_1, snd_2⟩ := fst_1
+  -- Define the projection from the extended output tuple to the basic output tuple.
+  let proj : (ZMod p × (Vector G₁ (n + 1) × Vector G₂ 2) × G₁ ×
+      (Fin L → ZMod p) × (Fin L → ZMod p) × (Fin L → Bool) × (Fin L → G₁)) →
+      ((queryOf : Fin L → OracleInterface.Query (Fin (n + 1) → ZMod p)) ×
+        ((i : Fin L) → OracleInterface.Response (queryOf i)) × (Fin L → Bool)) :=
+    fun x => ⟨x.2.2.2.1, x.2.2.2.2.1, x.2.2.2.2.2.1⟩
+  -- The extended condition factors through the projection: `FB_cond_ext = FB_cond ∘ proj`.
+  have hcond_eq : (FB_cond_ext n L : _ → Prop) = (FB_cond n L) ∘ proj := by
+    funext x
+    rcases x with ⟨_, _, _, _, _, _, _⟩
     rfl
-
-  -- drag the projection into the monad
-  rw [hfmap]
-  rw [comp_map]
-  rw [←StateT.run_map]
-  rw [←simulateQ_map]
-  rw [vector_map_mapM]
-  simp_all only [Function.comp_apply, Prod.forall, Fin.isValue, Functor.map_map, proj, projf]-/
+  rw [hcond_eq]
+  -- Apply the OptionT bridge lemma with the run-level equality proved inline.
+  apply OptionT.probEvent_eq_of_run_map_eq _ _ proj (FB_cond n L)
+  -- The run-level equality: FB_game.run = Option.map proj <$> FB_game_ext.run
+  -- Step 1: unfold definitions to expose the computation structure.
+  simp only [FB_game, FB_game_ext, KZG, OptionT.run, OptionT.mk]
+  -- Step 2: push (Option.map proj) <$> through run' and simulateQ on the RHS.
+  rw [← StateT.run'_map_comm, ← simulateQ_map]
+  -- Step 3: push the map through the bind chain using monad laws.
+  simp only [map_eq_bind_pure_comp, bind_assoc, pure_bind,
+    liftComp_bind, liftComp_pure, Function.comp]
+  -- Step 4: the two sides now share the same bind prefix; match it with congr/funext.
+  congr 1; funext τ
+  -- Goal: simulateQ impl body₁ τ = simulateQ impl body₂_with_proj τ
+  -- Get inside simulateQ to compare the OracleComp bodies.
+  apply congr_fun
+  apply congr_arg
+  -- Goal: body₁ = body₂_with_proj as OracleComp expressions
+  -- Match common bind: liftComp ($ᵗ ZMod p)
+  congr 1; funext x
+  -- Match common bind: adversary.claim (generateSrs n x)
+  congr 1; funext x_1
+  -- Now at the mapM + post-processing level. Types diverge here.
+  -- LHS extracts Bool via (fun x => x.2), RHS extracts (Bool × G₁) via (fun x => (x.2, x.1.1 0)).
+  -- Use Vector.mapM_bind_map_eq with g = Option.map Prod.fst.
+  apply Vector.mapM_bind_map_eq (Vector.ofFn id) _ _ (Option.map Prod.fst)
+  · -- hf: LHS mapM body = (Option.map Prod.fst) <$> RHS mapM body
+    intro i
+    simp only [map_eq_bind_pure_comp, bind_assoc, pure_bind]
+    congr 1; funext result
+    cases result <;> rfl
+  · -- hpost: post-processing compatibility
+    intro opts
+    simp only [Vector.mapM_id_option_map_comm]
+    cases h : opts.mapM (id : Option (Bool × G₁) → Option (Bool × G₁)) with
+    | none => simp [Option.map, Option.bind]
+    | some v => simp [Option.map, Option.bind]; rfl
 
 -- TODO should be in VCV-io
 /-- Properties of `Option`-valued outputs of an underlying `OracleComp`
