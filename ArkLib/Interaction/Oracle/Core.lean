@@ -336,16 +336,17 @@ def liftAppendLeftQuery :
           (Spec.Decoration.append roles₁ roles₂)
           (Role.Refine.append od₁ od₂) (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))) :=
   fun q =>
-    cast (congrArg
-      (OracleComp <| OracleDecoration.toOracleSpec (spec₁.append spec₂)
-        (Spec.Decoration.append roles₁ roles₂) (Role.Refine.append od₁ od₂)
-        (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))
-      (OracleDecoration.QueryHandle.appendLeft_range
-        spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q)) <|
-      liftM <| query (spec := OracleDecoration.toOracleSpec (spec₁.append spec₂)
-        (Spec.Decoration.append roles₁ roles₂) (Role.Refine.append od₁ od₂)
-        (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))
-        (OracleDecoration.QueryHandle.appendLeft spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q)
+    let appendSpec :=
+      OracleDecoration.toOracleSpec (spec₁.append spec₂)
+        (Spec.Decoration.append roles₁ roles₂)
+        (Role.Refine.append od₁ od₂) (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)
+    cast
+      (congrArg (OracleComp appendSpec)
+        (OracleDecoration.QueryHandle.appendLeft_range
+          spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q))
+      (liftM (appendSpec.query
+        (OracleDecoration.QueryHandle.appendLeft
+          spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q)))
 
 /-- Route a second-phase transcript-message query into the appended transcript's
 oracle specification. The only transport needed here is the response-type
@@ -357,16 +358,17 @@ def liftAppendRightQuery :
           (Spec.Decoration.append roles₁ roles₂)
           (Role.Refine.append od₁ od₂) (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))) :=
   fun q =>
-    cast (congrArg
-      (OracleComp <| OracleDecoration.toOracleSpec (spec₁.append spec₂)
-        (Spec.Decoration.append roles₁ roles₂) (Role.Refine.append od₁ od₂)
-        (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))
-      (OracleDecoration.QueryHandle.appendRight_range
-        spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q)) <|
-      liftM <| query (spec := OracleDecoration.toOracleSpec (spec₁.append spec₂)
-        (Spec.Decoration.append roles₁ roles₂) (Role.Refine.append od₁ od₂)
-        (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))
-        (OracleDecoration.QueryHandle.appendRight spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q)
+    let appendSpec :=
+      OracleDecoration.toOracleSpec (spec₁.append spec₂)
+        (Spec.Decoration.append roles₁ roles₂)
+        (Role.Refine.append od₁ od₂) (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)
+    cast
+      (congrArg (OracleComp appendSpec)
+        (OracleDecoration.QueryHandle.appendRight_range
+          spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q))
+      (liftM (appendSpec.query
+        (OracleDecoration.QueryHandle.appendRight
+          spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q)))
 
 variable {ιₛ : Type} {OStmt : ιₛ → Type}
 variable [∀ i, OracleInterface (OStmt i)]
@@ -381,14 +383,22 @@ def liftAppendLeftContext :
           (Role.Refine.append od₁ od₂) (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))) :=
   fun
   | .inl q =>
-      liftM <| query (spec := [OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
-        (Spec.Decoration.append roles₁ roles₂) (Role.Refine.append od₁ od₂)
-        (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)) (.inl q)
+      liftM (([OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
+        (Spec.Decoration.append roles₁ roles₂)
+        (Role.Refine.append od₁ od₂)
+        (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)).query (.inl q))
   | .inr q =>
-      liftM <| liftAppendLeftQuery
-        (spec₁ := spec₁) (spec₂ := spec₂)
-        (roles₁ := roles₁) (roles₂ := roles₂)
-        (od₁ := od₁) (od₂ := od₂) tr₁ tr₂ q
+      let appendSpec :=
+        [OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
+          (Spec.Decoration.append roles₁ roles₂)
+          (Role.Refine.append od₁ od₂) (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)
+      cast
+        (congrArg (OracleComp appendSpec)
+          (OracleDecoration.QueryHandle.appendLeft_range
+            spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q))
+        (liftM (appendSpec.query
+          (.inr <| OracleDecoration.QueryHandle.appendLeft
+            spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q)))
 
 /-- Lift the second-phase oracle context `[OStmt]ₒ + msgSpec₂` into the
 appended oracle context `[OStmt]ₒ + msgSpecAppend`. -/
@@ -400,14 +410,22 @@ def liftAppendRightContext :
           (Role.Refine.append od₁ od₂) (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))) :=
   fun
   | .inl q =>
-      liftM <| query (spec := [OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
-        (Spec.Decoration.append roles₁ roles₂) (Role.Refine.append od₁ od₂)
-        (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)) (.inl q)
+      liftM (([OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
+        (Spec.Decoration.append roles₁ roles₂)
+        (Role.Refine.append od₁ od₂)
+        (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)).query (.inl q))
   | .inr q =>
-      liftM <| liftAppendRightQuery
-        (spec₁ := spec₁) (spec₂ := spec₂)
-        (roles₁ := roles₁) (roles₂ := roles₂)
-        (od₁ := od₁) (od₂ := od₂) tr₁ tr₂ q
+      let appendSpec :=
+        [OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
+          (Spec.Decoration.append roles₁ roles₂)
+          (Role.Refine.append od₁ od₂) (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)
+      cast
+        (congrArg (OracleComp appendSpec)
+          (OracleDecoration.QueryHandle.appendRight_range
+            spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q))
+        (liftM (appendSpec.query
+          (.inr <| OracleDecoration.QueryHandle.appendRight
+            spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q)))
 
 theorem simulateQ_ext
     {ι : Type _} {spec : OracleSpec ι} {r : Type _ → Type _}
@@ -430,6 +448,16 @@ theorem simulateQ_cast_query
       cast (congrArg r h) (q.cont <$> impl q.input) := by
   cases h
   simp [simulateQ_query]
+
+theorem simulateQ_cast_query_id
+    {ι : Type u} {spec : OracleSpec.{u, v} ι}
+    {α β : Type v} (h : α = β) (impl : QueryImpl spec Id) (q : OracleQuery spec α) :
+    simulateQ impl (cast (congrArg (OracleComp spec) h) (liftM q)) =
+      cast h (q.cont (impl q.input)) := by
+  cases h
+  change simulateQ impl (liftM q) = q.cont (impl q.input)
+  rw [simulateQ_query]
+  rfl
 
 theorem simulateQ_cast
     {ι : Type u} {spec : OracleSpec.{u, v} ι} {r : Type v → Type}
@@ -474,18 +502,20 @@ theorem liftM_cast_query_add_right
     {ι₁ : Type u} {ι₂ : Type w} {spec₁ : OracleSpec.{u, v} ι₁}
     {spec₂ : OracleSpec.{w, v} ι₂}
     {t : spec₂.Domain} {α : Type v} (h : spec₂.Range t = α) :
-    (liftM (cast (congrArg (OracleComp spec₂) h) (liftM (query t)) : OracleComp spec₂ α) :
+    (liftM (cast (congrArg (OracleComp spec₂) h)
+      (liftM (spec₂.query t) : OracleComp spec₂ (spec₂.Range t)) :
+        OracleComp spec₂ α) :
       OracleComp (spec₁ + spec₂) α) =
     cast (congrArg (OracleComp (spec₁ + spec₂)) h)
-      ((liftM (query (spec := spec₁ + spec₂) (Sum.inr t)) :
+      ((liftM ((spec₁ + spec₂).query (Sum.inr t)) :
         OracleComp (spec₁ + spec₂) ((spec₁ + spec₂).Range (Sum.inr t)))) := by
   cases h
   change
     (liftM
-      ((liftM (query (spec := spec₂) t) :
+      ((liftM (spec₂.query t) :
         OracleQuery (spec₁ + spec₂) (spec₂.Range t))) :
         OracleComp (spec₁ + spec₂) (spec₂.Range t)) =
-    liftM (query (spec := spec₁ + spec₂) (Sum.inr t))
+    liftM ((spec₁ + spec₂).query (Sum.inr t))
   simp
 
 theorem simulateQ_liftAppendLeftContext_eq
@@ -503,49 +533,17 @@ theorem simulateQ_liftAppendLeftContext_eq
   intro q
   cases q with
   | inl q =>
-      simp [OracleDecoration.oracleContextImpl, QueryImpl.add, liftAppendLeftContext,
-        simulateQ_query]
+      simp [OracleDecoration.oracleContextImpl, QueryImpl.add, liftAppendLeftContext]
   | inr q =>
-      have hLifted :
-          liftAppendLeftContext (spec₁ := spec₁) (spec₂ := spec₂)
-            (roles₁ := roles₁) (roles₂ := roles₂)
-            (od₁ := od₁) (od₂ := od₂) (OStmt := OStmt) tr₁ tr₂ (.inr q) =
-          cast
-            (congrArg
-              (OracleComp <| [OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
-                (Spec.Decoration.append roles₁ roles₂)
-                (Role.Refine.append od₁ od₂)
-                (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))
-              (OracleDecoration.QueryHandle.appendLeft_range
-                spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q))
-            (liftM (query
-              (spec := [OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
-                (Spec.Decoration.append roles₁ roles₂)
-                (Role.Refine.append od₁ od₂)
-                (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))
-              (Sum.inr <| OracleDecoration.QueryHandle.appendLeft
-                spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q))) := by
-        simpa [liftAppendLeftContext, liftAppendLeftQuery] using
-          (liftM_cast_query_add_right
-            (spec₁ := [OStmt]ₒ)
-            (spec₂ := OracleDecoration.toOracleSpec (spec₁.append spec₂)
-              (Spec.Decoration.append roles₁ roles₂)
-              (Role.Refine.append od₁ od₂)
-              (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))
-            (t := OracleDecoration.QueryHandle.appendLeft
-              spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q)
-            (h := OracleDecoration.QueryHandle.appendLeft_range
-              spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q))
-      calc
-        simulateQ
+      have hSim :
+          simulateQ
             (OracleDecoration.oracleContextImpl (spec₁.append spec₂)
               (Spec.Decoration.append roles₁ roles₂)
               (Role.Refine.append od₁ od₂) oStmt
               (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))
             (liftAppendLeftContext (spec₁ := spec₁) (spec₂ := spec₂)
               (roles₁ := roles₁) (roles₂ := roles₂)
-              (od₁ := od₁) (od₂ := od₂) (OStmt := OStmt) tr₁ tr₂ (.inr q))
-            =
+              (od₁ := od₁) (od₂ := od₂) (OStmt := OStmt) tr₁ tr₂ (.inr q)) =
           cast
             (OracleDecoration.QueryHandle.appendLeft_range
               spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q)
@@ -555,43 +553,53 @@ theorem simulateQ_liftAppendLeftContext_eq
               (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)
               (OracleDecoration.QueryHandle.appendLeft
                 spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q)) := by
-                  rw [hLifted]
-                  simpa [OracleDecoration.oracleContextImpl, QueryImpl.add] using
-                    (simulateQ_cast_query
-                      (spec := [OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
-                        (Spec.Decoration.append roles₁ roles₂) (Role.Refine.append od₁ od₂)
-                        (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))
-                      (α := ([OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
-                        (Spec.Decoration.append roles₁ roles₂) (Role.Refine.append od₁ od₂)
-                        (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)).Range
-                        (Sum.inr <| OracleDecoration.QueryHandle.appendLeft
-                          spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q))
-                      (β := ([OStmt]ₒ + OracleDecoration.toOracleSpec spec₁ roles₁ od₁ tr₁).Range
-                        (Sum.inr q))
-                      (h := (OracleDecoration.QueryHandle.appendLeft_range
-                        spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q :
-                          ([OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
-                              (Spec.Decoration.append roles₁ roles₂)
-                              (Role.Refine.append od₁ od₂)
-                              (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)).Range
-                            (Sum.inr <| OracleDecoration.QueryHandle.appendLeft
-                              spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q) =
-                          ([OStmt]ₒ + OracleDecoration.toOracleSpec spec₁ roles₁ od₁ tr₁).Range
-                            (Sum.inr q)))
-                      (impl := OracleDecoration.oracleContextImpl (spec₁.append spec₂)
-                        (Spec.Decoration.append roles₁ roles₂)
-                        (Role.Refine.append od₁ od₂) oStmt
-                        (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))
-                      (q := query
-                        (spec := [OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
-                          (Spec.Decoration.append roles₁ roles₂)
-                          (Role.Refine.append od₁ od₂)
-                          (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))
-                        (Sum.inr <| OracleDecoration.QueryHandle.appendLeft
-                          spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q)))
-        _ = OracleDecoration.answerQuery spec₁ roles₁ od₁ tr₁ q := by
-              simpa using OracleDecoration.QueryHandle.answerQuery_appendLeft
-                spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q
+        simpa [OracleDecoration.oracleContextImpl, QueryImpl.add,
+          liftAppendLeftContext] using
+          (simulateQ_cast_query_id
+            (spec := [OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
+              (Spec.Decoration.append roles₁ roles₂) (Role.Refine.append od₁ od₂)
+              (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))
+            (α := ([OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
+              (Spec.Decoration.append roles₁ roles₂) (Role.Refine.append od₁ od₂)
+              (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)).Range
+              (Sum.inr <| OracleDecoration.QueryHandle.appendLeft
+                spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q))
+            (β := ([OStmt]ₒ + OracleDecoration.toOracleSpec spec₁ roles₁ od₁ tr₁).Range
+              (Sum.inr q))
+            (h := (OracleDecoration.QueryHandle.appendLeft_range
+              spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q :
+                ([OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
+                    (Spec.Decoration.append roles₁ roles₂)
+                    (Role.Refine.append od₁ od₂)
+                    (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)).Range
+                  (Sum.inr <| OracleDecoration.QueryHandle.appendLeft
+                    spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q) =
+                ([OStmt]ₒ + OracleDecoration.toOracleSpec spec₁ roles₁ od₁ tr₁).Range
+                  (Sum.inr q)))
+            (impl := OracleDecoration.oracleContextImpl (spec₁.append spec₂)
+              (Spec.Decoration.append roles₁ roles₂)
+              (Role.Refine.append od₁ od₂) oStmt
+              (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))
+            (q := ([OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
+              (Spec.Decoration.append roles₁ roles₂)
+              (Role.Refine.append od₁ od₂)
+              (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)).query
+              (Sum.inr <| OracleDecoration.QueryHandle.appendLeft
+                spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q)))
+      have hAns :
+          cast
+            (OracleDecoration.QueryHandle.appendLeft_range
+              spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q)
+            (OracleDecoration.answerQuery (spec₁.append spec₂)
+              (Spec.Decoration.append roles₁ roles₂)
+              (Role.Refine.append od₁ od₂)
+              (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)
+              (OracleDecoration.QueryHandle.appendLeft
+                spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q)) =
+          OracleDecoration.answerQuery spec₁ roles₁ od₁ tr₁ q := by
+        simpa using OracleDecoration.QueryHandle.answerQuery_appendLeft
+          spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q
+      exact hSim.trans hAns
 
 theorem simulateQ_liftAppendRightContext_eq
     (oStmt : OracleStatement OStmt) :
@@ -609,41 +617,10 @@ theorem simulateQ_liftAppendRightContext_eq
   intro q
   cases q with
   | inl q =>
-      simp [OracleDecoration.oracleContextImpl, QueryImpl.add, liftAppendRightContext,
-        simulateQ_query]
+      simp [OracleDecoration.oracleContextImpl, QueryImpl.add, liftAppendRightContext]
   | inr q =>
-      have hLifted :
-          liftAppendRightContext (spec₁ := spec₁) (spec₂ := spec₂)
-            (roles₁ := roles₁) (roles₂ := roles₂)
-            (od₁ := od₁) (od₂ := od₂) (OStmt := OStmt) tr₁ tr₂ (.inr q) =
-          cast
-            (congrArg
-              (OracleComp <| [OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
-                (Spec.Decoration.append roles₁ roles₂)
-                (Role.Refine.append od₁ od₂)
-                (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))
-              (OracleDecoration.QueryHandle.appendRight_range
-                spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q))
-            (liftM (query
-              (spec := [OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
-                (Spec.Decoration.append roles₁ roles₂)
-                (Role.Refine.append od₁ od₂)
-                (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))
-              (Sum.inr <| OracleDecoration.QueryHandle.appendRight
-                spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q))) := by
-        simpa [liftAppendRightContext, liftAppendRightQuery] using
-          (liftM_cast_query_add_right
-            (spec₁ := [OStmt]ₒ)
-            (spec₂ := OracleDecoration.toOracleSpec (spec₁.append spec₂)
-              (Spec.Decoration.append roles₁ roles₂)
-              (Role.Refine.append od₁ od₂)
-              (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))
-            (t := OracleDecoration.QueryHandle.appendRight
-              spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q)
-            (h := OracleDecoration.QueryHandle.appendRight_range
-              spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q))
-      calc
-        simulateQ
+      have hSim :
+          simulateQ
             (OracleDecoration.oracleContextImpl (spec₁.append spec₂)
               (Spec.Decoration.append roles₁ roles₂)
               (Role.Refine.append od₁ od₂) oStmt
@@ -661,44 +638,141 @@ theorem simulateQ_liftAppendRightContext_eq
               (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)
               (OracleDecoration.QueryHandle.appendRight
                 spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q)) := by
-                  rw [hLifted]
-                  simpa [OracleDecoration.oracleContextImpl, QueryImpl.add] using
-                    (simulateQ_cast_query
-                      (spec := [OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
-                        (Spec.Decoration.append roles₁ roles₂) (Role.Refine.append od₁ od₂)
-                        (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))
-                      (α := ([OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
-                        (Spec.Decoration.append roles₁ roles₂) (Role.Refine.append od₁ od₂)
-                        (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)).Range
-                        (Sum.inr <| OracleDecoration.QueryHandle.appendRight
-                          spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q))
-                      (β := ([OStmt]ₒ + OracleDecoration.toOracleSpec (spec₂ tr₁)
-                        (roles₂ tr₁) (od₂ tr₁) tr₂).Range (Sum.inr q))
-                      (h := (OracleDecoration.QueryHandle.appendRight_range
-                        spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q :
-                          ([OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
-                              (Spec.Decoration.append roles₁ roles₂)
-                              (Role.Refine.append od₁ od₂)
-                              (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)).Range
-                            (Sum.inr <| OracleDecoration.QueryHandle.appendRight
-                              spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q) =
-                          ([OStmt]ₒ + OracleDecoration.toOracleSpec (spec₂ tr₁)
-                              (roles₂ tr₁) (od₂ tr₁) tr₂).Range
-                            (Sum.inr q)))
-                      (impl := OracleDecoration.oracleContextImpl (spec₁.append spec₂)
-                        (Spec.Decoration.append roles₁ roles₂)
-                        (Role.Refine.append od₁ od₂) oStmt
-                        (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))
-                      (q := query
-                        (spec := [OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
-                          (Spec.Decoration.append roles₁ roles₂)
-                          (Role.Refine.append od₁ od₂)
-                          (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))
-                        (Sum.inr <| OracleDecoration.QueryHandle.appendRight
-                          spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q)))
-        _ = OracleDecoration.answerQuery (spec₂ tr₁) (roles₂ tr₁) (od₂ tr₁) tr₂ q := by
-              simpa using OracleDecoration.QueryHandle.answerQuery_appendRight
-                spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q
+        simpa [OracleDecoration.oracleContextImpl, QueryImpl.add,
+          liftAppendRightContext] using
+          (simulateQ_cast_query_id
+            (spec := [OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
+              (Spec.Decoration.append roles₁ roles₂) (Role.Refine.append od₁ od₂)
+              (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))
+            (α := ([OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
+              (Spec.Decoration.append roles₁ roles₂) (Role.Refine.append od₁ od₂)
+              (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)).Range
+              (Sum.inr <| OracleDecoration.QueryHandle.appendRight
+                spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q))
+            (β := ([OStmt]ₒ + OracleDecoration.toOracleSpec (spec₂ tr₁)
+              (roles₂ tr₁) (od₂ tr₁) tr₂).Range (Sum.inr q))
+            (h := (OracleDecoration.QueryHandle.appendRight_range
+              spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q :
+                ([OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
+                    (Spec.Decoration.append roles₁ roles₂)
+                    (Role.Refine.append od₁ od₂)
+                    (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)).Range
+                  (Sum.inr <| OracleDecoration.QueryHandle.appendRight
+                    spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q) =
+                ([OStmt]ₒ + OracleDecoration.toOracleSpec (spec₂ tr₁)
+                    (roles₂ tr₁) (od₂ tr₁) tr₂).Range
+                  (Sum.inr q)))
+            (impl := OracleDecoration.oracleContextImpl (spec₁.append spec₂)
+              (Spec.Decoration.append roles₁ roles₂)
+              (Role.Refine.append od₁ od₂) oStmt
+              (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))
+            (q := ([OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
+              (Spec.Decoration.append roles₁ roles₂)
+              (Role.Refine.append od₁ od₂)
+              (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)).query
+              (Sum.inr <| OracleDecoration.QueryHandle.appendRight
+                spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q)))
+      have hAns :
+          cast
+            (OracleDecoration.QueryHandle.appendRight_range
+              spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q)
+            (OracleDecoration.answerQuery (spec₁.append spec₂)
+              (Spec.Decoration.append roles₁ roles₂)
+              (Role.Refine.append od₁ od₂)
+              (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)
+              (OracleDecoration.QueryHandle.appendRight
+                spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q)) =
+          OracleDecoration.answerQuery (spec₂ tr₁) (roles₂ tr₁) (od₂ tr₁) tr₂ q := by
+        simpa using OracleDecoration.QueryHandle.answerQuery_appendRight
+          spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q
+      exact hSim.trans hAns
+
+theorem simulateQ_liftAppendRightContext_eq_of_impl
+    (impl : QueryImpl [OStmt]ₒ Id) :
+    ∀ q,
+      simulateQ
+        (QueryImpl.add impl
+          (OracleDecoration.answerQuery (spec₁.append spec₂)
+            (Spec.Decoration.append roles₁ roles₂)
+            (Role.Refine.append od₁ od₂)
+            (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)))
+        (liftAppendRightContext (spec₁ := spec₁) (spec₂ := spec₂)
+          (roles₁ := roles₁) (roles₂ := roles₂)
+          (od₁ := od₁) (od₂ := od₂) (OStmt := OStmt) tr₁ tr₂ q) =
+      (QueryImpl.add impl
+        (OracleDecoration.answerQuery (spec₂ tr₁) (roles₂ tr₁) (od₂ tr₁) tr₂)) q := by
+  intro q
+  cases q with
+  | inl q =>
+      simp [QueryImpl.add, liftAppendRightContext]
+  | inr q =>
+      have hSim :
+          simulateQ
+            (QueryImpl.add impl
+              (OracleDecoration.answerQuery (spec₁.append spec₂)
+                (Spec.Decoration.append roles₁ roles₂)
+                (Role.Refine.append od₁ od₂)
+                (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)))
+            (liftAppendRightContext (spec₁ := spec₁) (spec₂ := spec₂)
+              (roles₁ := roles₁) (roles₂ := roles₂)
+              (od₁ := od₁) (od₂ := od₂) (OStmt := OStmt) tr₁ tr₂ (.inr q)) =
+          cast
+            (OracleDecoration.QueryHandle.appendRight_range
+              spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q)
+            (OracleDecoration.answerQuery (spec₁.append spec₂)
+              (Spec.Decoration.append roles₁ roles₂)
+              (Role.Refine.append od₁ od₂)
+              (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)
+              (OracleDecoration.QueryHandle.appendRight
+                spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q)) := by
+        simpa [QueryImpl.add, liftAppendRightContext] using
+          (simulateQ_cast_query_id
+            (spec := [OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
+              (Spec.Decoration.append roles₁ roles₂) (Role.Refine.append od₁ od₂)
+              (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))
+            (α := ([OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
+              (Spec.Decoration.append roles₁ roles₂) (Role.Refine.append od₁ od₂)
+              (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)).Range
+              (Sum.inr <| OracleDecoration.QueryHandle.appendRight
+                spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q))
+            (β := ([OStmt]ₒ + OracleDecoration.toOracleSpec (spec₂ tr₁)
+              (roles₂ tr₁) (od₂ tr₁) tr₂).Range (Sum.inr q))
+            (h := (OracleDecoration.QueryHandle.appendRight_range
+              spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q :
+                ([OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
+                    (Spec.Decoration.append roles₁ roles₂)
+                    (Role.Refine.append od₁ od₂)
+                    (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)).Range
+                  (Sum.inr <| OracleDecoration.QueryHandle.appendRight
+                    spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q) =
+                ([OStmt]ₒ + OracleDecoration.toOracleSpec (spec₂ tr₁)
+                    (roles₂ tr₁) (od₂ tr₁) tr₂).Range
+                  (Sum.inr q)))
+            (impl := QueryImpl.add impl
+              (OracleDecoration.answerQuery (spec₁.append spec₂)
+                (Spec.Decoration.append roles₁ roles₂)
+                (Role.Refine.append od₁ od₂)
+                (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)))
+            (q := ([OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
+              (Spec.Decoration.append roles₁ roles₂)
+              (Role.Refine.append od₁ od₂)
+              (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)).query
+              (Sum.inr <| OracleDecoration.QueryHandle.appendRight
+                spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q)))
+      have hAns :
+          cast
+            (OracleDecoration.QueryHandle.appendRight_range
+              spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q)
+            (OracleDecoration.answerQuery (spec₁.append spec₂)
+              (Spec.Decoration.append roles₁ roles₂)
+              (Role.Refine.append od₁ od₂)
+              (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)
+              (OracleDecoration.QueryHandle.appendRight
+                spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q)) =
+          OracleDecoration.answerQuery (spec₂ tr₁) (roles₂ tr₁) (od₂ tr₁) tr₂ q := by
+        simpa using OracleDecoration.QueryHandle.answerQuery_appendRight
+          spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q
+      exact hSim.trans hAns
 
 end QueryRouting
 

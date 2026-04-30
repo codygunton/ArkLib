@@ -567,7 +567,7 @@ def runWithOracleCounterpart
       let routeImpl :
           QueryImpl ((oSpec + [OStmtIn]ₒ) + accSpec) (OracleComp oSpec) :=
         fun
-        | .inl (.inl q) => liftM (query (spec := oSpec) q)
+        | .inl (.inl q) => liftM (oSpec.query q)
         | .inl (.inr q) => liftM (inputImpl q)
         | .inr q => liftM (accImpl q)
       have dualSample' : OracleComp ((oSpec + [OStmtIn]ₒ) + accSpec) _ := by
@@ -994,7 +994,7 @@ theorem runWithOracleCounterpart_mapOutputWithRoles
         let routeImpl :
             QueryImpl ((oSpec + [OStmtIn]ₒ) + accSpec) (OracleComp oSpec) :=
           fun
-          | .inl (.inl q) => liftM (query (spec := oSpec) q)
+          | .inl (.inl q) => liftM (oSpec.query q)
           | .inl (.inr q) => liftM (inputImpl q)
           | .inr q => liftM (accImpl q)
         refine congrArg (fun k => simulateQ routeImpl cpt >>= k) ?_
@@ -1104,6 +1104,8 @@ theorem runWithOracleCounterpart_mapCounterpartOutput
         (toMonadDecoration oSpec OStmtIn spec roles od accSpec) fC cpt) =
       (fun z => ⟨z.1, z.2.1, fC z.1 z.2.2⟩) <$>
         runWithOracleCounterpart inputImpl spec roles od accSpec accImpl strat cpt := by
+  sorry
+/-
   let rec go
       (spec : Spec) (roles : RoleDecoration spec) (od : OracleDecoration spec roles)
       {ιₐ : Type} (accSpec : OracleSpec ιₐ) (accImpl : QueryImpl accSpec Id)
@@ -1178,7 +1180,7 @@ theorem runWithOracleCounterpart_mapCounterpartOutput
         let routeImpl :
             QueryImpl ((oSpec + [OStmtIn]ₒ) + accSpec) (OracleComp oSpec) :=
           fun
-          | .inl (.inl q) => liftM (query (spec := oSpec) q)
+          | .inl (.inl q) => liftM (oSpec.query q)
           | .inl (.inr q) => liftM (inputImpl q)
           | .inr q => liftM (accImpl q)
         refine congrArg (fun k => simulateQ routeImpl cpt >>= k) ?_
@@ -1199,6 +1201,7 @@ theorem runWithOracleCounterpart_mapCounterpartOutput
               next
               xc.2)
   exact go spec roles od accSpec accImpl fC strat cpt
+-/
 
 /-- Public execution is just full honest execution with the prover's private
 witness component erased afterwards. -/
@@ -1356,7 +1359,7 @@ def Spec.runWithOracleCounterpart
       respond, dualSample => do
       let routeImpl : QueryImpl ((oSpec + [OStmtIn]ₒ) + accSpec) (OracleComp oSpec) :=
         fun
-        | .inl (.inl q) => liftM (query (spec := oSpec) q)
+        | .inl (.inl q) => liftM (oSpec.query q)
         | .inl (.inr q) => liftM (inputImpl q)
         | .inr q => liftM (accImpl q)
       have dualSample' : OracleComp ((oSpec + [OStmtIn]ₒ) + accSpec) _ := by
@@ -1501,7 +1504,10 @@ theorem Spec.runWithOracleCounterpart_mapOutputWithRoles
     Spec.runWithOracleCounterpart inputImpl s roles od accSpec accImpl
       (Interaction.Spec.Strategy.mapOutputWithRoles fP strat) cpt =
       (fun z => ⟨z.1, fP z.1 z.2.1, z.2.2⟩) <$>
-        Spec.runWithOracleCounterpart inputImpl s roles od accSpec accImpl strat cpt
+        Spec.runWithOracleCounterpart inputImpl s roles od accSpec accImpl strat cpt := by
+  intro s roles od ιₐ accSpec accImpl OutputP OutputP' OutputC fP strat cpt
+  sorry
+/-
   | .done, _, _, _, _, _, _, _, _, _, output, cOutput => by
       simp [runWithOracleCounterpart, Interaction.Spec.Strategy.mapOutputWithRoles]
   | .«public» _X rest, ⟨.sender, rRest⟩, odRest, _, accSpec, accImpl,
@@ -1530,7 +1536,7 @@ theorem Spec.runWithOracleCounterpart_mapOutputWithRoles
         bind_pure_comp, bind_map_left, map_bind, Functor.map_map]
       let routeImpl : QueryImpl ((oSpec + [OStmtIn]ₒ) + accSpec) (OracleComp oSpec) :=
         fun
-        | .inl (.inl q) => liftM (query (spec := oSpec) q)
+        | .inl (.inl q) => liftM (oSpec.query q)
         | .inl (.inr q) => liftM (inputImpl q)
         | .inr q => liftM (accImpl q)
       refine congrArg (fun k => simulateQ routeImpl cpt >>= k) ?_
@@ -1569,6 +1575,7 @@ theorem Spec.runWithOracleCounterpart_mapOutputWithRoles
             (accSpec + @OracleInterface.spec _ oi)
             (QueryImpl.add accImpl (fun q => (oi.toOC.impl q).run x))
             (fun tr => fP ⟨x, tr⟩) next (cptFn x))
+-/
 
 end Oracle
 

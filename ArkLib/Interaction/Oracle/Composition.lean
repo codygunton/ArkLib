@@ -54,7 +54,7 @@ def Reduction.id
     pure ⟨⟨sWithOracles.stmt, sWithOracles.oracleStmt⟩, w⟩
   verifier := {
     toFun := fun _ stmt => stmt
-    simulate := fun _ _ q => liftM <| query (spec := [OStatementIn _]ₒ) q
+    simulate := fun _ _ q => liftM <| ([OStatementIn _]ₒ).query q
   }
 
 /-! ## SharedIn reindexing -/
@@ -365,7 +365,7 @@ def mapOracles
           (OracleComp (oSpec + [OStmt₂]ₒ + (accSpec₂ + oiSpec))) :=
         QueryImpl.add
           (fun q => (reroute (.inr q)).liftComp _)
-          (fun q => liftM (query q))
+          (fun q => liftM (oiSpec.query q))
       let newReroute : QueryImpl (oSpec + [OStmt₁]ₒ + (accSpec₁ + oiSpec))
           (OracleComp (oSpec + [OStmt₂]ₒ + (accSpec₂ + oiSpec))) :=
         QueryImpl.add
@@ -447,13 +447,13 @@ def retargetMonads
       (s₂.toMonadDecoration oSpec OStmtIn roles₂ od₂ accSpec) Output :=
   let liftRoute : QueryImpl ([OStmtIn]ₒ + s₁.toOracleSpec od₁ pt₁)
       (OracleComp ((oSpec + [OStmtIn]ₒ) + accSpec)) := fun
-    | .inl q => liftM <| query (spec := [OStmtIn]ₒ) q
+    | .inl q => liftM <| ([OStmtIn]ₒ).query q
     | .inr q => pure (answerQ q)
   let route : QueryImpl (oSpec + [OStmtMid]ₒ + accSpec)
       (OracleComp (oSpec + [OStmtIn]ₒ + accSpec)) := fun
-    | .inl (.inl q) => liftM <| query (spec := oSpec) q
+    | .inl (.inl q) => liftM <| oSpec.query q
     | .inl (.inr q) => simulateQ liftRoute (simulateMid q)
-    | .inr q => liftM <| query (spec := accSpec) q
+    | .inr q => liftM <| accSpec.query q
   Counterpart.mapOracles s₂ roles₂ od₂ accSpec accSpec route cpt
 
 end Verifier
@@ -617,29 +617,29 @@ def Reduction.comp
         Spec.toOracleSpec (s₁.append s₂) od_app pt
       let embedMid : QueryImpl
           (Spec.toOracleSpec (s₁.append s₂) od_app pt) (OracleComp midSpec) :=
-        fun q => liftM <| query (spec := midSpec) (.inr q)
+        fun q => liftM <| midSpec.query (.inr q)
       let embedIn : QueryImpl
           (Spec.toOracleSpec (s₁.append s₂) od_app pt) (OracleComp inSpec) :=
-        fun q => liftM <| query (spec := inSpec) (.inr q)
+        fun q => liftM <| inSpec.query (.inr q)
       fun ⟨i, q⟩ =>
         let base := (r₂ shared pt₁).verifier.simulate PUnit.unit pt₂ ⟨i, q⟩
         let routeRight : QueryImpl
             ([OStatementMid shared pt₁]ₒ +
               Spec.toOracleSpec (s₂ pt₁) (od₂ pt₁) pt₂)
             (OracleComp midSpec) := fun
-          | .inl q => liftM <| query (spec := midSpec) (.inl q)
+          | .inl q => liftM <| midSpec.query (.inl q)
           | .inr q => Spec.restrictRight s₁ s₂ od₁ od₂ pt embedMid q
         let routedSuffix := simulateQ routeRight base
         let routeLeft : QueryImpl
             ([OStatementIn shared]ₒ +
               Spec.toOracleSpec s₁ od₁ pt₁)
             (OracleComp inSpec) := fun
-          | .inl q => liftM <| query (spec := inSpec) (.inl q)
+          | .inl q => liftM <| inSpec.query (.inl q)
           | .inr q => Spec.restrictLeft s₁ s₂ od₁ od₂ pt embedIn q
         let routeMid : QueryImpl midSpec (OracleComp inSpec) := fun
           | .inl q => simulateQ routeLeft
               (r₁.verifier.simulate shared pt₁ q)
-          | .inr q => liftM <| query (spec := inSpec) (.inr q)
+          | .inr q => liftM <| inSpec.query (.inr q)
         simulateQ routeMid routedSuffix
   }
 

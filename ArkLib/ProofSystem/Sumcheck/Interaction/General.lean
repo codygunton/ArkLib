@@ -324,7 +324,7 @@ private noncomputable def sumcheckContinuation
       · intro _ _ _ target
         exact some target
       · intro _ _ q
-        exact liftM <| query (spec := [Sumcheck.PolyFamily R deg 0]ₒ) q
+        exact liftM <| ([Sumcheck.PolyFamily R deg 0]ₒ).query q
   | succ n =>
       let prefix0 : Spec.Transcript (Sumcheck.fullSpec R deg 0) := by
         simpa [Sumcheck.fullSpec] using
@@ -432,7 +432,7 @@ private noncomputable def sumcheckContinuationStateful
       · intro _ _ _ target
         exact some target
       · intro _ _ q
-        exact liftM <| query (spec := [Sumcheck.PolyFamily R deg 0]ₒ) q
+        exact liftM <| ([Sumcheck.PolyFamily R deg 0]ₒ).query q
   | succ n =>
       have cont :
           OracleReduction oSpec PUnit

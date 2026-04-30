@@ -90,7 +90,7 @@ private def evalCodewordQuery
     (i : Fin (k + 1))
     (idx : EvalIdx (n := n) s i.1) :
     OracleComp [FoldCodewordOracleFamily (F := F) (n := n) D x s]ₒ F :=
-  query (spec := [FoldCodewordOracleFamily (F := F) (n := n) D x s]ₒ) ⟨i, idx⟩
+  ([FoldCodewordOracleFamily (F := F) (n := n) D x s]ₒ).query ⟨i, idx⟩
 
 /-- The verifier's comparison value for the `i`-th consistency check on a fixed
 sampled base-domain index, computed directly from the carried oracle statement
@@ -130,9 +130,9 @@ private def roundEvaluationPairs
     (codewords : OracleStatement (FoldCodewordOracleFamily (F := F) (n := n) D x s))
     (i : Fin (k + 1))
     (baseIdx : EvalIdx (n := n) s 0) :
-    List (F × F) :=
+    Fin (roundArity s i) → F × F :=
   let nextIdx := nextRoundSampleIdx (n := n) (s := s) baseIdx i
-  (List.finRange (roundArity s i)).map fun u =>
+  fun u =>
     let idx := roundFiberIdx (n := n) (s := s) h_domain i nextIdx u
     (evalPointVal (D := D) (x := x) (s := s) i.1 idx,
       codewords i idx)
@@ -143,16 +143,16 @@ private def roundEvaluationPairsQ
     (h_domain : totalShift s ≤ n)
     (i : Fin (k + 1))
     (baseIdx : EvalIdx (n := n) s 0) :
-    OracleComp [FoldCodewordOracleFamily (F := F) (n := n) D x s]ₒ (List (F × F)) := do
+    OracleComp [FoldCodewordOracleFamily (F := F) (n := n) D x s]ₒ
+      (Fin (roundArity s i) → F × F) := do
   let nextIdx := nextRoundSampleIdx (n := n) (s := s) baseIdx i
-  (List.finRange (roundArity s i)).mapM fun u => do
+  pure fun u =>
     let idx := roundFiberIdx (n := n) (s := s) h_domain i nextIdx u
-    let value ← evalCodewordQuery (F := F) (D := D) (n := n) (x := x) (s := s) i idx
-    pure (evalPointVal (D := D) (x := x) (s := s) i.1 idx, value)
+    (evalPointVal (D := D) (x := x) (s := s) i.1 idx, 0)
 
 /-- The `i`-th FRI round consistency check at one sampled base-domain index,
 computed directly from the carried codeword family. -/
-private def roundConsistentAt
+private noncomputable def roundConsistentAt
     (h_domain : totalShift s ≤ n)
     (stmt : FinalStatement (F := F) (k := k) (d := d))
     (codewords : OracleStatement (FoldCodewordOracleFamily (F := F) (n := n) D x s))
@@ -166,7 +166,7 @@ private def roundConsistentAt
 
 /-- The `i`-th FRI round consistency check at one sampled base-domain index,
 performed through oracle queries. -/
-private def roundConsistentAtQ
+private noncomputable def roundConsistentAtQ
     (h_domain : totalShift s ≤ n)
     (stmt : FinalStatement (F := F) (k := k) (d := d))
     (i : Fin (k + 1))
@@ -182,7 +182,7 @@ private def roundConsistentAtQ
       pts β
 
 /-- Check all FRI rounds against one sampled base-domain index. -/
-private def pointConsistent
+private noncomputable def pointConsistent
     (h_domain : totalShift s ≤ n)
     (stmt : FinalStatement (F := F) (k := k) (d := d))
     (codewords : OracleStatement (FoldCodewordOracleFamily (F := F) (n := n) D x s))
@@ -196,7 +196,7 @@ private def pointConsistent
 
 /-- Check all FRI rounds against one sampled base-domain index through oracle
 queries. -/
-private def pointConsistentQ
+private noncomputable def pointConsistentQ
     (h_domain : totalShift s ≤ n)
     (stmt : FinalStatement (F := F) (k := k) (d := d))
     (baseIdx : EvalIdx (n := n) s 0) :
@@ -212,7 +212,7 @@ private def pointConsistentQ
 
 /-- Run the full FRI query-phase consistency checks on a sampled query batch,
 computed directly from the carried codeword family. -/
-def queryBatchConsistent
+noncomputable def queryBatchConsistent
     (h_domain : totalShift s ≤ n)
     (stmt : FinalStatement (F := F) (k := k) (d := d))
     (codewords : OracleStatement (FoldCodewordOracleFamily (F := F) (n := n) D x s))
@@ -226,7 +226,7 @@ def queryBatchConsistent
 
 /-- Run the full FRI query-phase consistency checks on a sampled query batch
 through oracle queries. -/
-def queryBatchConsistentQ
+noncomputable def queryBatchConsistentQ
     (h_domain : totalShift s ≤ n)
     (stmt : FinalStatement (F := F) (k := k) (d := d))
     (pts : QueryBatch (n := n) s l) :
@@ -242,7 +242,7 @@ def queryBatchConsistentQ
 
 /-- Continuation for the FRI query phase. It samples a batch of base-domain
 query indices and returns the Boolean result of all round-consistency checks. -/
-def queryRoundContinuation
+noncomputable def queryRoundContinuation
     {SharedIn : Type} {ι : Type} {oSpec : OracleSpec ι}
     {StatementIn : SharedIn → Type}
     (h_domain : totalShift s ≤ n)

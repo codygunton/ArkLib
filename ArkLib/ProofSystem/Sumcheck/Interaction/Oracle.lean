@@ -65,12 +65,12 @@ noncomputable def oracleVerifierStep
           ((x : R) × Option (RoundClaim R)) := do
         let total ← (Finset.univ : Finset (Fin m_dom)).toList.foldlM
           (fun (acc : R) (j : Fin m_dom) => do
-            let val : R ← liftM <| query (spec := oiSpec) (D j)
+            let val : R ← liftM <| oiSpec.query (D j)
             pure (acc + val))
           (0 : R)
         let chal : R ← liftM sampleChallenge
         if total == target then do
-          let polyAtChal : R ← liftM <| query (spec := oiSpec) chal
+          let polyAtChal : R ← liftM <| oiSpec.query chal
           let nextClaim : Option (RoundClaim R) := some polyAtChal
           pure ⟨chal, nextClaim⟩
         else

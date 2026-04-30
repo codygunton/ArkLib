@@ -392,9 +392,7 @@ def foldPhaseContinuation {ι : Type} {oSpec : OracleSpec ι}
       match q with
       | ⟨⟨0, _⟩, idx⟩ =>
           liftM <|
-            query
-              (spec := [InputOracleFamily (F := F) (n := n) D x s]ₒ)
-              ⟨(), idx⟩
+            ([InputOracleFamily (F := F) (n := n) D x s]ₒ).query ⟨(), idx⟩
       | ⟨⟨j + 1, hj⟩, idx⟩ =>
           pure <|
             foldPhaseCodewordAt (D := D) (n := n) (x := x) (s := s) (k := k)

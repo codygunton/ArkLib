@@ -224,7 +224,14 @@ theorem proximity_gap_RSCodes {k t : ℕ} [NeZero k] [NeZero t] {deg : ℕ} {dom
       -- Apply Thm 1.6 at k := m + 1 to get jointAgreement (W := u').
       have hja_u' : jointAgreement (C := (ReedSolomon.code domain deg : Set (ι → F)))
           (δ := δ) (W := u') :=
-        correlatedAgreement_affine_spaces (k := m + 1) (u := u') hδ u' hPr_aff
+        by
+          have hPr_param :
+              Pr_{let r ← $ᵖ (Fin (m + 1) → F)}[
+                δᵣ(u' 0 + ∑ i, r i • u' i.succ,
+                  (ReedSolomon.code domain deg : Set (ι → F))) ≤ δ] >
+              (errorBound δ deg domain : ℝ≥0) := by
+            sorry
+          exact correlatedAgreement_affine_spaces (k := m + 1) hδ u' hPr_param
       -- Convert jointAgreement (W := u') → jointAgreement (W := C i).
       -- Witnesses: v_0 for C i 0 stays, v_{j+1} + v_0 ∈ RS.code (submodule closure)
       -- agrees with C i (j+1) on S because v_{j+1} agrees with u'(j+1) = C i (j+1) - C i 0

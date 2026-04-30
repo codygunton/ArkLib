@@ -59,9 +59,7 @@ def finalFoldContinuation {SharedIn : Type} {ι : Type} {oSpec : OracleSpec ι}
   simulate _ _ :=
     fun q =>
       liftM <|
-        query
-          (spec := [FoldCodewordOracleFamily (F := F) (n := n) D x s]ₒ)
-          q
+        ([FoldCodewordOracleFamily (F := F) (n := n) D x s]ₒ).query q
 
 end
 

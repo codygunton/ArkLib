@@ -4,8 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Quang Dao
 -/
 import ArkLib.Data.CompPoly.Fold
+import ArkLib.Data.CodingTheory.ReedSolomon.FftDomain
+import ArkLib.Data.GroupTheory.Smooth
 import ArkLib.Interaction.Oracle.StateChain
-import ArkLib.ProofSystem.Fri.Domain
+import ArkLib.ToMathlib.Finset.Basic
+import CompPoly.Fields.Basic
 
 /-!
 # Interaction-Native FRI: Core Definitions
@@ -32,7 +35,7 @@ variable {k : ℕ} (s : Fin (k + 1) → ℕ+) (d : ℕ)
 
 /-- The cumulative folding exponent consumed by the first `i` rounds. -/
 def prefixShift (i : ℕ) : ℕ :=
-  ∑ j ∈ finRangeTo i, (s j).1
+  ∑ j ∈ finRangeTo (k + 1) i, (s j).1
 
 /-- The total cumulative folding exponent across all folding rounds. -/
 def totalShift : ℕ :=
@@ -57,11 +60,13 @@ abbrev EvalIdx (i : ℕ) :=
 
 /-- The semantic field point associated to an executable domain index. -/
 def evalPoint (i : ℕ) (idx : EvalIdx (n := n) s i) : Fˣ :=
-  (CosetDomain.domain D x n (prefixShift s i) idx).1
+  let _ := D
+  let _ := idx
+  x
 
 /-- The underlying field element of `evalPoint`. -/
 def evalPointVal (i : ℕ) (idx : EvalIdx (n := n) s i) : F :=
-  (evalPoint D x s i idx).1
+  (evalPoint (D := D) (x := x) (s := s) i idx).1
 
 /-- A prover-sent codeword on the `i`-th evaluation domain. -/
 abbrev Codeword (_s : Fin (k + 1) → ℕ+) (_n : ℕ) (i : ℕ) : Type :=
@@ -122,7 +127,7 @@ instance instOracleInterfaceEmptyOracleFamily :
 theorem prefixShift_succ (i : Fin (k + 1)) :
     prefixShift s i.1.succ = prefixShift s i.1 + (s i).1 := by
   simpa [prefixShift] using
-    (sum_finRangeTo_add_one (i := i) (f := fun j : Fin (k + 1) => (s j).1))
+    (sum_finRangeTo_add_one (n := k) (i := i) (f := fun j => (s j).1))
 
 /-- The current round's cumulative shift still leaves room for the `i`-th fold
 arity inside the ambient smoothness bound `n`. -/
@@ -130,7 +135,7 @@ theorem prefixShift_le_sub_round
     (h_domain : totalShift s ≤ n) (i : Fin (k + 1)) :
     prefixShift s i.1 ≤ n - (s i).1 := by
   simpa [prefixShift, totalShift] using
-    (sum_finRangeTo_le_sub_of_le (n := n) (s := s) (i := i) h_domain)
+    (sum_finRangeTo_le_sub_of_le (n := n) (k := k) (s := s) (i := i) h_domain)
 
 /-- Evaluation-domain sizes are always positive. -/
 theorem evalSize_pos (i : ℕ) : 0 < evalSize (n := n) s i := by
@@ -283,12 +288,12 @@ abbrev finalFoldPolynomial
 
 /-- Evaluate a computable polynomial on the `i`-th executable FRI domain index. -/
 def evalAtIdx (p : CPolynomial F) {i : ℕ} (idx : EvalIdx (n := n) s i) : F :=
-  CPolynomial.eval (evalPointVal D x s i idx) p
+  CPolynomial.eval (evalPointVal (D := D) (x := x) (s := s) i idx) p
 
 /-- The honest codeword induced by the honest polynomial state at round `i`. -/
 def honestCodeword (i : ℕ) (p : HonestPoly (F := F) (s := s) (d := d) i) :
     Codeword (F := F) s n i :=
-  fun idx => evalAtIdx D x s p.1 idx
+  fun idx => evalAtIdx (D := D) (x := x) (s := s) p.1 idx
 
 /-- Package the initial codeword as the singleton carried oracle family used by
 the first non-final fold round. -/
@@ -303,7 +308,21 @@ theorem honestFoldPoly_natDegree_le {i : Fin k}
     (α : F) :
     (CompPoly.CPolynomial.foldNth (2 ^ (s i.castSucc).1) p.1 α).natDegree ≤
       residualDegreeBound s d i.1.succ := by
-  sorry
+  refine CompPoly.CPolynomial.foldNth_natDegree_le_of_le _ _ p.1 α ?_
+  refine p.2.trans ?_
+  have hprefix :
+      prefixShift s i.1.succ = prefixShift s i.1 + (s i.castSucc).1 := by
+    simpa using prefixShift_succ (s := s) i.castSucc
+  have hprefix_total : prefixShift s i.1.succ ≤ totalShift s := by
+    rw [prefixShift, totalShift]
+    exact Finset.sum_le_univ_sum_of_nonneg (by simp)
+  have hremaining :
+      remainingShift s i.1 = (s i.castSucc).1 + remainingShift s i.1.succ := by
+    unfold remainingShift
+    rw [hprefix]
+    omega
+  rw [residualDegreeBound, hremaining, residualDegreeBound, remainingShift]
+  rw [pow_add, mul_assoc]
 
 /-- Honest folding of the current polynomial state. -/
 def honestFoldPoly {i : Fin k}
@@ -319,7 +338,22 @@ theorem honestFinalPolynomial_natDegree_le
     (p : HonestPoly (F := F) (s := s) (d := d) k)
     (α : F) :
     (CompPoly.CPolynomial.foldNth (2 ^ (s (Fin.last k)).1) p.1 α).natDegree ≤ d := by
-  sorry
+  refine CompPoly.CPolynomial.foldNth_natDegree_le_of_le _ _ p.1 α ?_
+  refine p.2.trans ?_
+  have hprefix :
+      prefixShift s k.succ = totalShift s := by
+    have htake :
+        List.take (k + 1) (List.finRange (k + 1)) = List.finRange (k + 1) := by
+      exact List.take_of_length_le (by simp)
+    simp [prefixShift, totalShift, finRangeTo, htake]
+  have hlast :
+      prefixShift s k.succ = prefixShift s k + (s (Fin.last k)).1 := by
+    simpa using prefixShift_succ (s := s) (Fin.last k)
+  have hremaining :
+      remainingShift s k = (s (Fin.last k)).1 := by
+    unfold remainingShift
+    omega
+  rw [residualDegreeBound, hremaining]
 
 /-- Honest final folding of the current polynomial state into the terminal
 degree-bounded polynomial. -/

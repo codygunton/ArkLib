@@ -114,9 +114,7 @@ def foldRoundContinuation {SharedIn : Type} {ι : Type} {oSpec : OracleSpec ι}
               (F := F) (n := n) (_D := D) (_x := x) (_s := s) (i := i) tr q
       | cast j =>
           exact liftM <|
-            query
-              (spec := [FoldCodewordPrefix (F := F) (n := n) D x s i.1]ₒ)
-              ⟨j, q⟩
+            ([FoldCodewordPrefix (F := F) (n := n) D x s i.1]ₒ).query ⟨j, q⟩
 
 end
 

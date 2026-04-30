@@ -50,13 +50,21 @@ theorem splitNth_toPoly (n : ℕ) [NeZero n] (p : CPolynomial R) (i : Fin n) :
 
 theorem foldNth_toPoly (n : ℕ) [NeZero n] (p : CPolynomial R) (α : R) :
     (foldNth n p α).toPoly = p.toPoly.foldNth n α := by
-  sorry
+  simp [CPolynomial.foldNth, Polynomial.foldNth, toPoly_sum, toPoly_mul, C_toPoly,
+    splitNth_toPoly]
 
 theorem foldNth_natDegree_le_of_le
     (n d : ℕ) [NeZero n] (p : CPolynomial R) (α : R)
     (hdeg : p.natDegree ≤ n * d) :
     (foldNth n p α).natDegree ≤ d := by
-  sorry
+  rw [natDegree_toPoly, foldNth_toPoly]
+  apply Polynomial.natDegree_sum_le_of_forall_le
+  intro i _
+  refine (Polynomial.natDegree_C_mul_le _ _).trans ?_
+  refine (Polynomial.splitNth_degree_le (n := n) (f := p.toPoly) (i := i)).trans ?_
+  have hdegPoly : p.toPoly.natDegree ≤ n * d := by
+    simpa [natDegree_toPoly] using hdeg
+  exact Nat.div_le_of_le_mul hdegPoly
 
 end CompPoly.CPolynomial
 
