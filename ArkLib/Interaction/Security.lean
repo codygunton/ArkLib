@@ -1060,7 +1060,10 @@ theorem IsSound.bound_terminalProb
       have hrun :
           Spec.Strategy.runWithRoles _ _ prover (randomChallenger sample _ _) =
             sample _ >>= my := by
-        simp [my, randomChallenger, Spec.Strategy.runWithRoles_receiver]
+        simp [my, randomChallenger, Spec.Strategy.runWithRoles_receiver,
+          map_eq_bind_pure_comp]
+        rw [← bind_assoc]
+        simp
       simpa [ClaimTree.maxPathError, hrun] using hbind
 -/
 

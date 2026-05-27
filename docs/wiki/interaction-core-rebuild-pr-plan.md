@@ -71,9 +71,17 @@ Closed PR 1 proof debt on this local staging branch:
 - `ArkLib/Interaction/Oracle/Continuation.lean`:
   `OracleReduction.comp_simulate_consistent`.
 
+Additional proof debt closed during PR 3 staging:
+
+- `ArkLib/Interaction/BCS/Verifier.lean`: four BCS phase-2 scaffolding holes
+  (`openingSpec`, `openingRoles`, `bcsPhase2Prover`, `bcsPhase2Verifier`) now
+  elaborate without `sorry`, and the file also provides full checked Phase 2
+  variants.
+
 The closed generic oracle execution/composition naturality lemmas justify core
-composition behavior. PR 1 lands only the verifier representation and phase-1
-wrapping surface; full BCS Phase 2 remains PR 3 scope.
+composition behavior. PR 1 can still land only the verifier representation and
+phase-1 wrapping surface, but the local staging branch has now closed the BCS
+Phase 2 implementation surface as part of PR 3.
 
 Out of scope:
 
@@ -119,15 +127,6 @@ Required success criteria:
 - Remaining Sumcheck polynomial proof gaps are classified as proof debt, not API
   blockers.
 
-Local PR 2 progress on this staging branch:
-
-- The stateless and stateful single-round Sumcheck oracle reductions have
-  matching public and full execution theorems.
-- Sumcheck uses the generic interaction continuation/composition machinery
-  rather than a Sumcheck-specific execution path.
-- The remaining Sumcheck gaps are the computable-polynomial bridge lemmas in
-  `CompPoly.lean`, not holes in the interaction abstraction.
-
 ## PR 3: Migration Surface Needed For Retirement
 
 Goal: migrate enough transforms, wrappers, and downstream clients that the old
@@ -154,9 +153,41 @@ Decision rule:
 - Defer broad research docs, future concurrency design, and extra protocol
   frontends.
 
-PR 3 progress should be recorded here when the migration branch lands. The
-planned branch should include the full BCS opening surface, reification/boundary
-bridges needed by downstream clients, and a small non-Sumcheck component.
+Local PR 3 progress on this staging branch:
+
+- `ArkLib/Interaction/BCS/Verifier.lean` now has both a compatibility Phase 2
+  surface (`openingSpec`, `openingRoles`, `bcsPhase2Prover`,
+  `bcsPhase2Verifier`) and a full opening-proof surface
+  (`fullOpeningSpec`, `fullOpeningRoles`, `fullBcsPhase2Prover`,
+  `fullBcsPhase2Verifier`), all elaborating without `sorry`.
+- The Phase 2 prover computes committed-oracle query responses from
+  `OracleWitness`; the full prover then runs every requested opening subproof.
+- `OpeningStatementDeco`, `openingStatements`, `OpeningWitnessDeco`, and
+  `openingWitnessesFromOracleWitness` provide the typed bridge from BCS
+  transcripts/query responses to `Commitment.Interaction.Opening` statements
+  and witnesses.
+- `OpeningProverDeco`, `openingProvers`, `OpeningVerifierDeco`, and
+  `openingVerifiers` instantiate the per-query opening prover strategies and
+  verifier counterparts from `OpeningDeco`.
+- `repeatSpec`, `repeatRoles`, `openingProofSpec`, `openingProofRoles`,
+  `fullOpeningSpec`, and `fullOpeningRoles` define that composed target:
+  claimed responses first, followed by every requested commitment-opening
+  subproof determined by the BCS transcript and query decoration.
+- `repeatProverStrategies`, `repeatVerifierCounterparts`,
+  `repeatVerifierCounterpartsAll`, `openingProofProver`,
+  `openingProofVerifier`, and `openingProofVerifierAll` assemble those
+  subproofs into executable strategies/counterparts.
+- `checkedFullBcsPhase2Prover` and `checkedFullBcsPhase2Verifier` provide an
+  accept/reject Phase 2 surface: the verifier returns `some responses` exactly
+  when all opening subproof verifier outputs are `true`, and `none` otherwise.
+- `ArkLib/Interaction/OracleReification.lean` now proves the reified
+  knowledge-soundness-to-soundness bridge directly against the current
+  `OracleVerifier.run` API.
+- `ArkLib/Interaction/Boundary/Oracle.lean` now proves verifier pullback
+  execution, including the raw identity-output corollary.
+- `ArkLib/ProofSystem/Component/Interaction/DoNothing.lean` is the first
+  non-Sumcheck component migrated onto the new `Interaction.Reduction` and
+  `Interaction.OracleReduction` surfaces.
 - The generic claim-tree soundness theorem in `ArkLib/Interaction/Security.lean`
   still has a pre-existing proof hole. Its parked proof attempt is stale at a
   monadic normalization step; it is not a blocker for the current BCS Phase 2
