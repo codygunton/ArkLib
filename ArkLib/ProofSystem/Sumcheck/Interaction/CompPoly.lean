@@ -43,8 +43,6 @@ from `eval₂_equiv`.
 
 open CompPoly CPoly Std
 
-attribute [local instance] instDecidableEqOfLawfulBEq
-
 /-! ## Computable partial evaluation and domain summation -/
 
 namespace CPoly.CMvPolynomial

@@ -119,6 +119,15 @@ Required success criteria:
 - Remaining Sumcheck polynomial proof gaps are classified as proof debt, not API
   blockers.
 
+Local PR 2 progress on this staging branch:
+
+- The stateless and stateful single-round Sumcheck oracle reductions have
+  matching public and full execution theorems.
+- Sumcheck uses the generic interaction continuation/composition machinery
+  rather than a Sumcheck-specific execution path.
+- The remaining Sumcheck gaps are the computable-polynomial bridge lemmas in
+  `CompPoly.lean`, not holes in the interaction abstraction.
+
 ## PR 3: Migration Surface Needed For Retirement
 
 Goal: migrate enough transforms, wrappers, and downstream clients that the old

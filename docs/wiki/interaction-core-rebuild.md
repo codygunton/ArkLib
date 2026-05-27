@@ -142,9 +142,9 @@ judged by whether it is needed to demonstrate or protect that story.
 
 ## Current State
 
-On the local branch after the PR 1 cleanup captured with this note,
-the targeted core example build passes, and the full branch should continue to
-be checked with `./scripts/validate.sh`, including:
+On the local branch after the PR 2 cleanup captured with this note,
+the targeted core and Sumcheck builds pass, and the full branch should continue
+to be checked with `./scripts/validate.sh`, including:
 
 - a successful `lake build`;
 - a clean `ArkLib/Data/` non-sorry warning budget;
@@ -155,7 +155,8 @@ be checked with `./scripts/validate.sh`, including:
 There are still expected `sorry` warnings. The active gaps in the new surface
 are concentrated in Sumcheck/CompPoly bridge lemmas, BCS Phase 2, and generic
 security/transport lemmas. The generic oracle execution/composition naturality
-lemmas that gate the Sumcheck bridge have been closed locally.
+lemmas and the single-round Sumcheck stateless/stateful execution bridge have
+been closed locally.
 
 The major proof-debt surfaces outside the PR 3 migration surface are:
 
