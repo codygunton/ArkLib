@@ -7,7 +7,10 @@ Authors: Quang Dao
 import ArkLib.OracleReduction.LiftContext.Reduction
 
 /-!
-  ## Lifting Oracle Reductions to Larger Contexts
+  ## Legacy Lifting of Oracle Reductions to Larger Contexts
+
+  `ArkLib.Interaction` is the canonical framework for new context/boundary work. This file remains
+  for existing legacy `OracleReduction` clients.
 
   This file is a continuation of `LiftContext/Reduction.lean`, where we lift oracle reductions to
   larger contexts.

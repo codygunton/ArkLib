@@ -13,8 +13,11 @@ In the future, we plan to verify functional equivalence of the executable spec (
 
 ## Library Structure
 
-The core of our library is a mechanized theory of **Interactive Oracle Reductions** (see [OracleReduction](ArkLib/OracleReduction)):
-1. An **IOR** (called `OracleReduction` in our formalization) is an interactive protocol between a prover and a verifier to reduce a relation $$R_1$$ on some public statement & private witness to another relation $$R_2$$.
+The current core abstraction for new protocol work is the interaction-native framework in
+[Interaction](ArkLib/Interaction). The legacy [OracleReduction](ArkLib/OracleReduction) framework
+still supports existing formalizations while they are migrated:
+1. An **IOR** is an interactive protocol between a prover and a verifier to reduce a relation
+   $$R_1$$ on some public statement & private witness to another relation $$R_2$$.
 2. The verifier may _not_ see the messages sent by the prover in the clear, but can make oracle queries to these messages using a specified oracle interface;
   - For example, one can view the message as a vector, and query entries of that vector. Alternatively, one can view the message as a polynomial, and query for its evaluation at some given points.
 3. We can **(sequentially) compose** multiple IORs with _compatible_ relations together (e.g. $$R_1 \implies R_2$$ and $$R_2 \implies R_3$$), preserving the security properties in most cases. We can also **lift** an IOR from a simple context (i.e., the input & output pairs of statement & witness) into a larger, more complex context, creating a **virtual** oracle reduction.
@@ -25,7 +28,10 @@ The core of our library is a mechanized theory of **Interactive Oracle Reduction
   - We then apply the **Fiat-Shamir transform**, which collapses interaction via letting the prover derive the verifier's random challenges through querying a hash function (modeled as a random oracle). We will formalize the **duplex-sponge** version of Fiat-Shamir, which utilizes cryptographic sponges for efficiency in practice.
 5. Our formalization follows the emerging view of IORs as the central information-theoretic object underlying modern SNARKs. We also follow the latest understanding & abstraction for the interactive BCS and Fiat-Shamir transformation. See [BACKGROUND](./BACKGROUND.md) for an (in-progress) summary of the relevant history.
 
-Using the theory of interactive oracle reductions, we then formalize various proof systems in [ProofSystem](ArkLib/ProofSystem).
+Using the theory of interactive oracle reductions, we then formalize various proof systems in
+[ProofSystem](ArkLib/ProofSystem). New reductions should use `ArkLib.Interaction`; see
+[`docs/wiki/legacy-oracle-reduction.md`](docs/wiki/legacy-oracle-reduction.md) for the retained
+legacy policy.
 
 ## Active Formalizations (last updated: 7 August 2025)
 

@@ -9,8 +9,8 @@ Use four major PRs:
 
 1. Introduce the new interaction/oracle abstraction with sanity theorems.
 2. Use Sumcheck as the first serious acceptance test.
-3. Migrate the remaining transform/protocol surfaces needed for retirement.
-4. Retire the replaced legacy abstraction.
+3. Migrate the remaining transform/protocol surfaces needed before containment.
+4. Contain the retained legacy abstraction.
 
 This is a replacement path, not pure addition. The new `ArkLib/Interaction/*`
 stack is intended to supersede much of the legacy `ArkLib/OracleReduction/*`
@@ -127,10 +127,11 @@ Required success criteria:
 - Remaining Sumcheck polynomial proof gaps are classified as proof debt, not API
   blockers.
 
-## PR 3: Migration Surface Needed For Retirement
+## PR 3: Migration Surface Needed Before Containment
 
-Goal: migrate enough transforms, wrappers, and downstream clients that the old
-abstraction can actually be removed in PR 4.
+Goal: migrate enough transforms, wrappers, and downstream clients that PR 4 can
+make `Interaction` canonical and classify the retained legacy surface without
+blocking active protocols.
 
 Estimated size: 6k-12k LOC.
 
@@ -193,34 +194,48 @@ Local PR 3 progress on this staging branch:
   monadic normalization step; it is not a blocker for the current BCS Phase 2
   scaffold or boundary/reification migration path.
 
-## PR 4: Retire Legacy Abstraction
+## PR 4: Legacy OracleReduction Containment
 
-Goal: remove the replaced old abstraction and force future work onto
-`Interaction`.
+Goal: make `Interaction` the canonical abstraction for new protocol work while
+keeping the legacy `OracleReduction` tree available for active clients that have
+not yet migrated.
 
-Estimated size: net negative if done well.
+This PR is documentation and containment, not deletion. A fresh audit shows
+active imports from Binius, old FRI/BatchedFri specs, Spartan/Plonk/Stir/Whir,
+legacy component modules, old Sumcheck specs, commitment code, and shared
+`OracleInterface` users. Removing or renaming `ArkLib/OracleReduction/*` here
+would turn this close-out PR into a broad protocol migration project.
 
-Remove or deprecate:
+Include:
 
-- legacy `OracleReduction/Basic`, execution, sequential composition, BCS,
-  Fiat-Shamir, and LiftContext modules once no active client imports them;
-- generated imports for removed modules;
-- stale blueprint/wiki/root docs that describe the old abstraction as current;
-- compatibility shims introduced only for migration.
+- Root/wiki documentation that names `ArkLib/Interaction/` as the current path
+  for new reductions, oracle protocols, BCS work, and security abstractions.
+- A legacy wiki page classifying retained `OracleReduction` users and explaining
+  that the tree is frozen except for build fixes, compatibility repairs, and
+  migration support.
+- Short module notes on the legacy entry points so reviewers and future agents do
+  not read the old abstraction as current guidance.
+- The legacy audit output in the PR description.
 
-Keep temporarily only if necessary:
+Do not include:
 
-- `OracleReduction/OracleInterface.lean`, unless it is moved to a neutral
-  location like `ArkLib/Interaction/Oracle/Interface.lean` or
-  `ArkLib/Data/OracleInterface.lean`;
-- old protocol formalizations that are not yet in scope, but only behind
-  clearly named legacy imports.
+- deleting, renaming, or generated-import churn for `ArkLib/OracleReduction/*`;
+- migrating Binius, FRI/BatchedFri, Spartan, Plonk, Stir, Whir, component, or
+  old Sumcheck clients;
+- moving `OracleInterface` out of `OracleReduction`.
+
+Future deletion prerequisites:
+
+- migrate retained protocol clients to `Interaction`;
+- move `OracleInterface` to a neutral location such as
+  `ArkLib/Interaction/Oracle/Interface.lean` or `ArkLib/Data/OracleInterface.lean`;
+- then remove or deprecate now-unused legacy execution, composition, security,
+  Fiat-Shamir, and LiftContext modules.
 
 Acceptance gate:
 
-- `rg "ArkLib\\.OracleReduction" ArkLib --glob '*.lean'` returns only
-  intentionally retained legacy/interface references.
-- `lake build` passes.
-- `./scripts/validate.sh` passes after staging intentional new/removed Lean
-  files.
 - Docs identify `Interaction` as the canonical abstraction.
+- `OracleReduction` is clearly marked as frozen legacy retained for existing
+  formalizations.
+- Remaining legacy users are classified instead of silently ignored.
+- `./scripts/validate.sh` and `./scripts/validate.sh --docs` pass.

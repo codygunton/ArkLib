@@ -7,7 +7,10 @@ Authors: Quang Dao
 import ArkLib.OracleReduction.Composition.Sequential.Append
 
 /-!
-  # Sequential Composition of Many Oracle Reductions
+  # Legacy Sequential Composition of Many Oracle Reductions
+
+  `ArkLib.Interaction` is the canonical composition framework for new protocol work. This file
+  remains for existing legacy `OracleReduction` clients.
 
   This file defines the sequential composition of an arbitrary `m + 1` number of oracle reductions.
   This is defined by iterating the composition of two reductions, as defined in `Append.lean`.

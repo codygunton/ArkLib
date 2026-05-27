@@ -7,7 +7,10 @@ Authors: Quang Dao
 import ArkLib.OracleReduction.Security.Basic
 
 /-!
-  # The Basic Fiat-Shamir Transformation
+  # Legacy Basic Fiat-Shamir Transformation
+
+  `ArkLib.Interaction` is the canonical framework for new transform work. This file remains for
+  existing legacy `OracleReduction` clients.
 
   This file defines the basic Fiat-Shamir transformation. This transformation takes in a
   (public-coin) interactive reduction (IR) `R` and transforms it into a non-interactive reduction in

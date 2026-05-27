@@ -8,9 +8,12 @@ import Batteries.Data.Vector.Lemmas
 import VCVio.OracleComp.Constructions.SampleableType
 
 /-!
-  # Prelude for Interactive (Oracle) Reductions
+  # Legacy Prelude for Interactive (Oracle) Reductions
 
   This file contains preliminary definitions and instances that is used in defining I(O)Rs.
+
+  `ArkLib.Interaction` is the canonical framework for new protocol work. This module remains for
+  legacy `OracleReduction` clients while they are migrated.
 -/
 
 open OracleComp

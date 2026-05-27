@@ -22,19 +22,22 @@ home_page/            site assets and assembled website root
 
 ## Conceptual Layering
 
-- `ArkLib/Interaction/` is the new conceptual center, replacing `ArkLib/OracleReduction/`.
+- `ArkLib/Interaction/` is the canonical conceptual center for new protocol work, replacing
+  `ArkLib/OracleReduction/`.
 - `ArkLib/Interaction/BCS/` contains the generalized BCS transformation (hybrid decoration,
   spec transform, prover/verifier lifting, security theorems).
 - `ArkLib/Data/` and `ArkLib/ToMathlib/` support the core with reusable definitions and lemmas.
 - `ArkLib/CommitmentScheme/` and `ArkLib/ProofSystem/` build on top of those foundations.
 - When changing a protocol subtree, read the local subtree plus one layer of imports toward
-  `Data/` or `OracleReduction/` before making architectural edits.
+  `Data/`, `Interaction/`, or retained legacy `OracleReduction/` before making architectural
+  edits.
 
 ## Where To Start By Task
 
 - Extending foundational math or coding theory: start in `ArkLib/Data/`.
-- Changing core reduction or security abstractions: start in `ArkLib/Interaction/` (new) or
-  `ArkLib/OracleReduction/` (legacy).
+- Changing core reduction or security abstractions: start in `ArkLib/Interaction/`. Touch
+  `ArkLib/OracleReduction/` only for retained legacy clients; see
+  [`legacy-oracle-reduction.md`](legacy-oracle-reduction.md).
 - Working on the BCS transformation or hybrid oracle protocols: start in `ArkLib/Interaction/BCS/`.
 - Working on protocol statements or proofs: start in `ArkLib/ProofSystem/`.
 - Updating commitment interfaces or concrete schemes: start in `ArkLib/CommitmentScheme/`.

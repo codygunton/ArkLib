@@ -2,10 +2,13 @@ import ArkLib.OracleReduction.Basic
 import ArkLib.Data.Fin.Basic
 
 /-!
-  # Execution Semantics of Interactive Oracle Reductions
+  # Legacy Execution Semantics of Interactive Oracle Reductions
 
   We define what it means to execute an interactive oracle reduction, and prove some basic
   properties.
+
+  `ArkLib.Interaction` is the canonical execution framework for new reductions. This file remains
+  for existing legacy `OracleReduction` users.
 -/
 
 open OracleComp OracleSpec SubSpec ProtocolSpec
