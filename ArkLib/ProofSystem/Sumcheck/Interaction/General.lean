@@ -72,7 +72,6 @@ private def consumeResidual :
 termination_by remaining _ _ => remaining
 decreasing_by simp_wf
 
-omit [Nontrivial R] in
 @[simp]
 private theorem consumeResidual_replicateCons
     (remaining : Nat)
