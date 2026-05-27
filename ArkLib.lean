@@ -171,6 +171,7 @@ import ArkLib.ProofSystem.Binius.RingSwitching.Spec
 import ArkLib.ProofSystem.Binius.RingSwitching.SumcheckPhase
 import ArkLib.ProofSystem.Component.CheckClaim
 import ArkLib.ProofSystem.Component.DoNothing
+import ArkLib.ProofSystem.Component.Interaction.DoNothing
 import ArkLib.ProofSystem.Component.NoInteraction
 import ArkLib.ProofSystem.Component.RandomQuery
 import ArkLib.ProofSystem.Component.ReduceClaim

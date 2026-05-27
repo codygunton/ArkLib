@@ -142,9 +142,8 @@ judged by whether it is needed to demonstrate or protect that story.
 
 ## Current State
 
-On the local branch after the PR 2 cleanup captured with this note,
-the targeted core and Sumcheck builds pass, and the full branch should continue
-to be checked with `./scripts/validate.sh`, including:
+On the local branch after the local cleanup captured with this note,
+`./scripts/validate.sh` passes, including:
 
 - a successful `lake build`;
 - a clean `ArkLib/Data/` non-sorry warning budget;
@@ -153,10 +152,10 @@ to be checked with `./scripts/validate.sh`, including:
 - markdown/docs integrity checks.
 
 There are still expected `sorry` warnings. The active gaps in the new surface
-are concentrated in Sumcheck/CompPoly bridge lemmas, BCS Phase 2, and generic
+are concentrated in Sumcheck/CompPoly bridge lemmas and generic
 security/transport lemmas. The generic oracle execution/composition naturality
-lemmas and the single-round Sumcheck stateless/stateful execution bridge have
-been closed locally.
+lemmas that gate the Sumcheck bridge have been closed locally, and the
+`HybridSpec` BCS Phase 2 verifier scaffold now elaborates without `sorry`.
 
 The major proof-debt surfaces outside the PR 3 migration surface are:
 
@@ -165,7 +164,14 @@ The major proof-debt surfaces outside the PR 3 migration surface are:
 - Core soundness/boundary transport lemmas:
   `ArkLib/Interaction/Security.lean`.
 
-BCS Phase 2 opening checks remain PR 3 scope.
+BCS Phase 2 opening checks are now part of the local PR 3 surface.
+`ArkLib/Interaction/BCS/Verifier.lean` derives per-query
+`Commitment.Interaction.Opening` statements and witnesses from the BCS
+transcript and Phase 1 oracle witness, instantiates the corresponding opening
+prover strategies and verifier counterparts from `OpeningDeco`, assembles them
+into `fullBcsPhase2Prover` / `fullBcsPhase2Verifier`, and provides
+`checkedFullBcsPhase2Prover` / `checkedFullBcsPhase2Verifier`, where the
+verifier returns `some responses` exactly when every opening subproof accepts.
 
 The first non-Sumcheck component migrated onto the new interaction surface is
 `ArkLib/ProofSystem/Component/Interaction/DoNothing.lean`. It provides both a
