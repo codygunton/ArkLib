@@ -9,6 +9,9 @@ import ArkLib.OracleReduction.ProtocolSpec.SeqCompose
 /-!
 # Interactive (Oracle) Reductions
 
+This is the legacy IOR framework. New protocol work should use `ArkLib.Interaction`; this module is
+retained for existing `OracleReduction` clients while they are migrated.
+
 This file defines the basic components of a public-coin **Interactive Oracle Reduction** (IOR).
 These are interactive protocols between two parties, a prover and a verifier, with the following
 format:

@@ -7,7 +7,10 @@ Authors: Quang Dao
 import ArkLib.OracleReduction.Execution
 
 /-!
-  # Security Definitions for (Oracle) Reductions
+  # Legacy Security Definitions for (Oracle) Reductions
+
+  `ArkLib.Interaction` is the canonical framework for new protocol security work. This file remains
+  for existing legacy `OracleReduction` clients.
 
   This file defines basic security notions for (oracle) reductions:
 

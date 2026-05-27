@@ -17,6 +17,8 @@ For reusable cross-cutting workflows that are not tied to one repo area, see
   interaction-native core rebuild, with Sumcheck as the first acceptance test.
 - [`interaction-core-rebuild-pr-plan.md`](interaction-core-rebuild-pr-plan.md) - proposed
   four-PR landing narrative for the interaction core rebuild.
+- [`legacy-oracle-reduction.md`](legacy-oracle-reduction.md) - status of the retained legacy
+  `OracleReduction` tree and its remaining clients.
 
 ## Maintenance Contract
 
@@ -28,6 +30,7 @@ For reusable cross-cutting workflows that are not tied to one repo area, see
   - `blueprint-and-citations.md` for blueprint workflow, references, and citation updates.
   - `interaction-core-rebuild.md` for the current core-rebuild landing plan.
   - `interaction-core-rebuild-pr-plan.md` for the proposed stacked PR narrative.
+  - `legacy-oracle-reduction.md` for the frozen legacy `OracleReduction` policy.
 - Add new pages when a recurring topic no longer fits cleanly in an existing guide.
 - If a PR changes commands, repo structure, generated-file behavior, or the paper workflow,
   update the matching page in the same PR, or add a new page when that is the cleaner split.

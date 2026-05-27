@@ -8,7 +8,10 @@ import ArkLib.OracleReduction.ProtocolSpec.SeqCompose
 import ArkLib.OracleReduction.Security.RoundByRound
 
 /-!
-  # Sequential Composition of Two (Oracle) Reductions
+  # Legacy Sequential Composition of Two (Oracle) Reductions
+
+  `ArkLib.Interaction` is the canonical composition framework for new protocol work. This file
+  remains for existing legacy `OracleReduction` clients.
 
   This file gives the definition & properties of the sequential composition of two (oracle)
   reductions. For composition to be valid, we need that the output context (statement + oracle

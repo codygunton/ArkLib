@@ -53,6 +53,9 @@ If the task is specifically Lean warning cleanup, follow
 ./scripts/validate.sh --docs
 ```
 
+The wrapper builds the DocGen database and renders the API docs in safe core-root
+groups, avoiding full-core DocGen stack overflows or segfaults on some machines.
+
 For website or blueprint output, run:
 
 ```bash

@@ -31,7 +31,7 @@ For substantial contributions, discuss the blueprint-first workflow described in
 ## Build And Publish Checks
 
 ```bash
-DISABLE_EQUATIONS=1 lake build ArkLib:docs
+./scripts/validate.sh --docs
 ./scripts/build-web.sh
 ```
 

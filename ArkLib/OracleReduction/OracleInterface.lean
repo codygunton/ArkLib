@@ -12,6 +12,10 @@ import Mathlib.Algebra.Polynomial.Roots
 /-!
   # Definitions and Instances for `OracleInterface`
 
+  `OracleInterface` is shared infrastructure that currently lives under the legacy
+  `OracleReduction` namespace. New reduction work should use `ArkLib.Interaction`; moving this
+  interface to a neutral location is future mechanical work.
+
   We define `OracleInterface`, which is a type class that augments a type with an oracle interface
   for that type. The interface specifies the type of queries, the type of responses, and the
   oracle's behavior for a given underlying element of the type.

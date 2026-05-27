@@ -8,7 +8,10 @@ import ArkLib.Data.Hash.DuplexSponge
 import ArkLib.OracleReduction.FiatShamir.Basic
 
 /-!
-# Duplex Sponge Fiat-Shamir
+# Legacy Duplex Sponge Fiat-Shamir
+
+`ArkLib.Interaction` is the canonical framework for new transform work. This file remains for
+existing legacy `OracleReduction` clients.
 
 We define the (multi-round) Fiat-Shamir transformation using duplex sponges.
 

@@ -6,7 +6,21 @@ echo "Fetching Cache..."
 lake exe cache get
 
 echo "Building Project Documentation..."
-lake build ArkLib:docs
+# doc-gen4 can overflow the default shell stack or segfault when all core roots
+# are rendered in one process. Build the docInfo database through Lake, then
+# render the same docs in two safe root groups.
+ulimit -s unlimited
+DISABLE_EQUATIONS=1 lake build ArkLib:docInfo
+docgen=".lake/packages/doc-gen4/.lake/build/bin/doc-gen4"
+build_dir=".lake/build"
+DISABLE_EQUATIONS=1 "$docgen" fromDb \
+    --build "$build_dir" \
+    --manifest "$build_dir/doc-manifest-arklib-lake.json" \
+    "$build_dir/api-docs.db" ArkLib Init Std Lake
+DISABLE_EQUATIONS=1 "$docgen" fromDb \
+    --build "$build_dir" \
+    --manifest "$build_dir/doc-manifest-arklib-lean.json" \
+    "$build_dir/api-docs.db" ArkLib Init Std Lean
 
 # Build the Blueprint
 if [ -d "blueprint" ]; then
