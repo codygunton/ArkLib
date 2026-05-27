@@ -98,6 +98,7 @@ import ArkLib.Interaction.Boundary.Oracle
 import ArkLib.Interaction.Boundary.OracleSecurity
 import ArkLib.Interaction.Boundary.Reification
 import ArkLib.Interaction.Boundary.Security
+import ArkLib.Interaction.Examples.Core
 import ArkLib.Interaction.FiatShamir.Basic
 import ArkLib.Interaction.FiatShamir.DuplexSponge
 import ArkLib.Interaction.FiatShamir.Transform

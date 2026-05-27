@@ -864,8 +864,6 @@ theorem runWithOracleCounterpart_pullbackCounterpart
             accImpl
             strat
             cpt := by
-  sorry
-/-
   intro spec roles od ιₐ accSpec accImpl OutputP Output₁ Output₂ f strat cpt
   let rec go
       (spec : Spec) (roles : RoleDecoration spec) (od : OracleDecoration spec roles)
@@ -1189,11 +1187,71 @@ theorem runWithOracleCounterpart_pullbackCounterpart
                     accImpl
                     strat
                     cpt := hThird
-        simpa [simulateQ_map, routeOuter, routeInner, contOuter, contInner, addPrefix,
-          bind_assoc, OracleDecoration.runWithOracleCounterpart] using
-          hFinalRaw
+        calc
+          (simulateQ
+              (fun x =>
+                match x with
+                | Sum.inl (Sum.inl q) => liftM (oSpec.query q)
+                | Sum.inl (Sum.inr q) => liftM (outerInputImpl q)
+                | Sum.inr q => liftM (accImpl q))
+              (simulateQ
+                (OracleStatementAccess.routeInputQueries
+                  (oSpec := oSpec)
+                  simulateIn
+                  accSpec)
+                (mapRest <$> cpt)) >>=
+            fun z' => do
+              let next ← strat z'.fst
+              (fun a => ⟨⟨z'.fst, a.fst⟩, a.snd⟩) <$>
+                OracleDecoration.runWithOracleCounterpart
+                  outerInputImpl
+                  (rest z'.fst)
+                  (rRest z'.fst)
+                  (odFn z'.fst)
+                  accSpec
+                  accImpl
+                  next
+                  z'.snd) =
+              bindCont
+                (simulateQ
+                  (fun x =>
+                    match x with
+                    | Sum.inl (Sum.inl q) => liftM (oSpec.query q)
+                    | Sum.inl (Sum.inr q) => liftM (outerInputImpl q)
+                    | Sum.inr q => liftM (accImpl q))
+                  (simulateQ
+                    (OracleStatementAccess.routeInputQueries
+                      (oSpec := oSpec)
+                      simulateIn
+                      accSpec)
+                    cpt)) := by
+              simp [bindCont, contOuter, mapRest, addPrefix, simulateQ_bind, bind_assoc,
+                map_eq_bind_pure_comp]
+          _ =
+              (simulateQ
+                  (fun x =>
+                    match x with
+                    | Sum.inl (Sum.inl q) => liftM (oSpec.query q)
+                    | Sum.inl (Sum.inr q) => liftM (innerInputImpl q)
+                    | Sum.inr q => liftM (accImpl q))
+                  cpt >>=
+                fun a => do
+                  let next ← strat a.fst
+                  (fun a_1 =>
+                      ⟨⟨a.fst, a_1.fst⟩,
+                        (a_1.snd.1, f ⟨a.fst, a_1.fst⟩ a_1.snd.2)⟩) <$>
+                    OracleDecoration.runWithOracleCounterpart
+                      innerInputImpl
+                      (rest a.fst)
+                      (rRest a.fst)
+                      (odFn a.fst)
+                      accSpec
+                      accImpl
+                      next
+                      a.snd) := by
+              simpa [OracleDecoration.runWithOracleCounterpart, routeInner, contInner, prefixMap,
+                map_bind, bind_pure_comp, Functor.map_map] using hFinalRaw
   exact go spec roles od accSpec accImpl f strat cpt
--/
 
 /-- Running a verifier counterpart after the raw oracle pullback is the same as
 running the original inner counterpart against the realized inner input oracle.

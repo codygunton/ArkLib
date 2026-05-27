@@ -952,35 +952,77 @@ theorem reifiedKnowledgeSoundness_implies_reifiedSoundness
         sOut ∈ langOut shared tr →
           (sOut, acceptWitness shared tr) ∈ relOut shared tr) :
     reifiedSoundness verifier langIn langOut ε := by
-  sorry
-/-
-  refine
-    Interaction.OracleVerifier.knowledgeSoundness_implies_soundness
-      (verifier := verifier)
-      (relIn := inputRelationOfReifiedRelation relIn)
-      (relOut := outputRelationOfReifiedRelation
-        (Context := Context) (Roles := Roles) (oracleDeco := oracleDeco)
-        (StatementOut := StatementOut) relOut)
-      (ε := ε)
-      hKS
-      (langIn := inputLanguageOfReifiedLanguage langIn)
-      ?_
-      (langOut := outputLanguageOfReifiedLanguage
-        (Context := Context) (Roles := Roles) (oracleDeco := oracleDeco)
-        (StatementOut := StatementOut) langOut)
-      (acceptWitness := acceptWitness)
-      ?_
-  · intro shared stmt inputImpl hNotIn wit hRel
-    rcases hRel with ⟨oStatementIn, hRealizes, hMemRel⟩
-    have hNotMem : ⟨stmt, oStatementIn⟩ ∉ langIn shared := by
-      intro hMemLang
-      exact hNotIn ⟨oStatementIn, hRealizes, hMemLang⟩
-    exact hLang shared ⟨stmt, oStatementIn⟩ hNotMem wit hMemRel
-  · intro shared inputImpl tr stmtOut hOut
-    rcases hOut with ⟨oStatementOut, hRealizes, hMemLang⟩
-    exact ⟨oStatementOut, hRealizes,
-      hLangOut shared tr ⟨stmtOut, oStatementOut⟩ hMemLang⟩
--/
+  rcases hKS with ⟨extractor, hKS⟩
+  intro shared stmt inputImpl OutputP prover ιₐ accSpec accImpl hNotIn
+  let proverKS :
+      Spec.Strategy.withRoles (OracleComp oSpec) (Context shared) (Roles shared)
+        (WitnessOut shared) :=
+    Spec.Strategy.mapOutputWithRoles
+      (fun tr _ => acceptWitness shared tr) prover
+  have hrun :
+      OracleVerifier.run verifier shared stmt inputImpl proverKS
+        (accSpec := accSpec) accImpl =
+        (fun z => ⟨z.1, acceptWitness shared z.1, z.2.2⟩) <$>
+          OracleVerifier.run verifier shared stmt inputImpl prover
+            (accSpec := accSpec) accImpl := by
+    have hbase :=
+      OracleDecoration.runWithOracleCounterpart_mapOutputWithRoles
+        (inputImpl := inputImpl)
+        (spec := Context shared) (roles := Roles shared) (od := oracleDeco shared)
+        (accSpec := accSpec) (accImpl := accImpl)
+        (fP := fun tr (_ : OutputP tr) => acceptWitness shared tr)
+        (strat := prover) (cpt := verifier shared accSpec stmt)
+    simp only [OracleVerifier.run, proverKS, map_bind]
+    rw [hbase]
+    simp
+  let badFromAccept :
+      ((tr : Spec.Transcript (Context shared)) × OutputP tr ×
+        (StatementOut shared tr × QueryImpl [OStatementOut shared tr]ₒ
+          (OracleComp
+            ([OStatementIn shared]ₒ +
+              OracleDecoration.toOracleSpec
+                (Context shared) (Roles shared) (oracleDeco shared) tr)))) → Prop :=
+    fun z =>
+      outputRelationOfReifiedRelation
+            (Context := Context) (Roles := Roles) (oracleDeco := oracleDeco)
+            (StatementOut := StatementOut) relOut shared inputImpl z.1 z.2.2.1
+            (verifier.simulate shared z.1) (acceptWitness shared z.1) ∧
+        ¬ inputRelationOfReifiedRelation relIn shared stmt inputImpl
+          (extractor shared stmt inputImpl z.1 z.2.2.1
+            (verifier.simulate shared z.1) (acceptWitness shared z.1))
+  have hKS' :
+      Pr[badFromAccept |
+          OracleVerifier.run verifier shared stmt inputImpl prover
+            (accSpec := accSpec) accImpl] ≤ ε := by
+    simpa [badFromAccept, hrun, proverKS, probEvent_map] using
+      hKS shared stmt inputImpl proverKS accSpec accImpl
+  have hmono :
+      Pr[fun z =>
+          OracleVerifier.Accepts verifier
+            (outputLanguageOfReifiedLanguage
+              (Context := Context) (Roles := Roles) (oracleDeco := oracleDeco)
+              (StatementOut := StatementOut) langOut)
+            shared inputImpl z.1 z.2.2.1
+        | OracleVerifier.run verifier shared stmt inputImpl prover
+            (accSpec := accSpec) accImpl] ≤
+        Pr[badFromAccept |
+          OracleVerifier.run verifier shared stmt inputImpl prover
+            (accSpec := accSpec) accImpl] := by
+    apply probEvent_mono
+    intro z _ hz
+    rcases hz with ⟨oStatementOut, hRealizesOut, hMemOut⟩
+    refine ⟨⟨oStatementOut, hRealizesOut,
+      hLangOut shared z.1 ⟨z.2.2.1, oStatementOut⟩ hMemOut⟩, ?_⟩
+    intro hRelIn
+    rcases hRelIn with ⟨oStatementIn, hRealizesIn, hMemIn⟩
+    exact hLang shared ⟨stmt, oStatementIn⟩
+      (by
+        intro hMemLang
+        exact hNotIn ⟨oStatementIn, hRealizesIn, hMemLang⟩)
+      (extractor shared stmt inputImpl z.1 z.2.2.1
+        (verifier.simulate shared z.1) (acceptWitness shared z.1))
+      hMemIn
+  exact le_trans hmono hKS'
 
 end OracleVerifier
 

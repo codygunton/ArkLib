@@ -447,15 +447,14 @@ and a `Proof` (prover + verifier pair) for the opening sub-protocol.
 
 At non-committed `.oracle` nodes and `.public` nodes, recurse structurally. -/
 def OpeningDeco {m : Type → Type}
-    (OpeningProof : {X : Type} → OracleInterface X →
-      {nc : NodeCommitment m X} → Type 1) :
+    (OpeningProof : {X : Type} → OracleInterface X → NodeCommitment m X → Type 1) :
     (s : Oracle.Spec) → (od : OracleDeco s) →
     CommitDeco m s → Type 1
   | .done, _, _ => PUnit
   | .«public» _ rest, odRest, cdRest =>
       (x : _) → OpeningDeco OpeningProof (rest x) (odRest x) (cdRest x)
   | .oracle _X rest, ⟨oi, odRest⟩, ⟨some nc, cdRest⟩ =>
-      @OpeningProof _ oi (nc := nc) × OpeningDeco OpeningProof rest odRest cdRest
+      OpeningProof oi nc × OpeningDeco OpeningProof rest odRest cdRest
   | .oracle _ rest, ⟨_, odRest⟩, ⟨none, cdRest⟩ =>
       OpeningDeco OpeningProof rest odRest cdRest
 

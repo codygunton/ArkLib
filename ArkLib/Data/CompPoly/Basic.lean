@@ -18,8 +18,6 @@ with reusable `OracleInterface` instances.
 
 open CompPoly CPoly Std
 
-attribute [local instance] instDecidableEqOfLawfulBEq
-
 namespace CPoly.CMvPolynomial
 
 variable {n : ℕ} {R : Type} [CommSemiring R] [BEq R] [LawfulBEq R]
@@ -27,6 +25,7 @@ variable {n : ℕ} {R : Type} [CommSemiring R] [BEq R] [LawfulBEq R]
 /-- `p` has individual degree at most `deg` when every monomial exponent is
  bounded by `deg` in every coordinate. -/
 def IndividualDegreeLE (deg : ℕ) (p : CMvPolynomial n R) : Prop :=
+  letI := Classical.decEq R
   ∀ i : Fin n, ∀ mono ∈ Lawful.monomials p, mono.degreeOf i ≤ deg
 end CPoly.CMvPolynomial
 
