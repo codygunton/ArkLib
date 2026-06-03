@@ -70,6 +70,7 @@ import ArkLib.Data.CodingTheory.ReedSolomon
 import ArkLib.Data.CodingTheory.ReedSolomon.FftDomain
 import ArkLib.Data.CodingTheory.ReedSolomon.Multilinear
 import ArkLib.Data.CompPoly.Basic
+import ArkLib.Data.CompPoly.Fold
 import ArkLib.Data.EllipticCurve.BN254
 import ArkLib.Data.Fin.Basic
 import ArkLib.Data.Fin.Fold
@@ -178,6 +179,13 @@ import ArkLib.ProofSystem.ConstraintSystem.Lookup
 import ArkLib.ProofSystem.ConstraintSystem.MemoryChecking
 import ArkLib.ProofSystem.ConstraintSystem.Plonk
 import ArkLib.ProofSystem.ConstraintSystem.R1CS
+import ArkLib.ProofSystem.Fri.Interaction.Core
+import ArkLib.ProofSystem.Fri.Interaction.FinalFold
+import ArkLib.ProofSystem.Fri.Interaction.FoldPhase
+import ArkLib.ProofSystem.Fri.Interaction.FoldRound
+import ArkLib.ProofSystem.Fri.Interaction.General
+import ArkLib.ProofSystem.Fri.Interaction.Protocol
+import ArkLib.ProofSystem.Fri.Interaction.QueryRound
 import ArkLib.ProofSystem.Fri.RoundConsistency
 import ArkLib.ProofSystem.Fri.Spec.General
 import ArkLib.ProofSystem.Fri.Spec.SingleRound
