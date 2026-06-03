@@ -105,6 +105,15 @@ import ArkLib.Data.Polynomial.SplitFold
 import ArkLib.Data.Polynomial.Trivariate
 import ArkLib.Data.Probability.Instances
 import ArkLib.Data.Probability.Notation
+import ArkLib.Interaction.BCS.HybridDecoration
+import ArkLib.Interaction.BCS.HybridReduction
+import ArkLib.Interaction.BCS.HybridSpec
+import ArkLib.Interaction.Boundary.Core
+import ArkLib.Interaction.Boundary.Oracle
+import ArkLib.Interaction.FiatShamir.Basic
+import ArkLib.Interaction.FiatShamir.DuplexSponge
+import ArkLib.Interaction.FiatShamir.Transform
+import ArkLib.Interaction.Oracle.BCS
 import ArkLib.Interaction.Oracle.Bridge
 import ArkLib.Interaction.Oracle.Chain
 import ArkLib.Interaction.Oracle.Composition
