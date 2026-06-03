@@ -52,4 +52,26 @@ instance instOracleInterfaceCMvDegreeLE :
      impl := fun points => do return CMvPolynomial.eval points (← read).1
    }
 
+namespace Examples
+
+/-- A verifier-side query against a multivariate polynomial oracle.
+
+The verifier supplies only an evaluation point. The polynomial itself is supplied
+later as the read-only oracle environment. -/
+def verifierQueryCMvPolynomial (points : Fin n → R) :
+    ReaderM (CMvPolynomial n R) R :=
+  (instOracleInterfaceCMvPolynomial (n := n) (R := R)).toOC.impl points
+
+set_option linter.unusedSectionVars false
+
+/-- Running the verifier-side query against a concrete polynomial agrees with
+ordinary polynomial evaluation. -/
+theorem verifierQueryCMvPolynomial_run (poly : CMvPolynomial n R) (points : Fin n → R) :
+    (verifierQueryCMvPolynomial (R := R) points).run poly =
+      CMvPolynomial.eval points poly := by
+  unfold verifierQueryCMvPolynomial
+  rfl
+
+end Examples
+
 end OracleInterface
