@@ -190,6 +190,12 @@ import ArkLib.ProofSystem.Stir.ProximityBound
 import ArkLib.ProofSystem.Stir.ProximityGap
 import ArkLib.ProofSystem.Stir.Quotienting
 import ArkLib.ProofSystem.Sumcheck.Impl.Basic
+import ArkLib.ProofSystem.Sumcheck.Interaction.CompPoly
+import ArkLib.ProofSystem.Sumcheck.Interaction.Defs
+import ArkLib.ProofSystem.Sumcheck.Interaction.Examples
+import ArkLib.ProofSystem.Sumcheck.Interaction.General
+import ArkLib.ProofSystem.Sumcheck.Interaction.Oracle
+import ArkLib.ProofSystem.Sumcheck.Interaction.SingleRound
 import ArkLib.ProofSystem.Sumcheck.Spec.General
 import ArkLib.ProofSystem.Sumcheck.Spec.SingleRound
 import ArkLib.ProofSystem.Whir.BlockRelDistance
