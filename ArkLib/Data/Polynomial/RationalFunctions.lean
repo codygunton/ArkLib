@@ -276,6 +276,52 @@ as Type. -/
 def regularElms (H : F[X][Y]) : Type :=
   {a : 𝕃 H // ∃ b : 𝒪 H, a = embeddingOf𝒪Into𝕃 _ b}
 
+/-- Zero is regular. -/
+@[simp]
+lemma regularElms_set_zero (H : F[X][Y]) : (0 : 𝕃 H) ∈ regularElms_set H :=
+  ⟨0, by simp⟩
+
+/-- One is regular. -/
+@[simp]
+lemma regularElms_set_one (H : F[X][Y]) : (1 : 𝕃 H) ∈ regularElms_set H :=
+  ⟨1, by simp⟩
+
+/-- The regular elements are closed under addition. -/
+lemma regularElms_set_add {H : F[X][Y]} {a b : 𝕃 H}
+    (ha : a ∈ regularElms_set H) (hb : b ∈ regularElms_set H) :
+    a + b ∈ regularElms_set H := by
+  rcases ha with ⟨a', rfl⟩
+  rcases hb with ⟨b', rfl⟩
+  exact ⟨a' + b', by simp⟩
+
+/-- The regular elements are closed under negation. -/
+lemma regularElms_set_neg {H : F[X][Y]} {a : 𝕃 H}
+    (ha : a ∈ regularElms_set H) : -a ∈ regularElms_set H := by
+  rcases ha with ⟨a', rfl⟩
+  exact ⟨-a', by simp⟩
+
+/-- The regular elements are closed under subtraction. -/
+lemma regularElms_set_sub {H : F[X][Y]} {a b : 𝕃 H}
+    (ha : a ∈ regularElms_set H) (hb : b ∈ regularElms_set H) :
+    a - b ∈ regularElms_set H := by
+  simpa [sub_eq_add_neg] using regularElms_set_add ha (regularElms_set_neg hb)
+
+/-- The regular elements are closed under multiplication. -/
+lemma regularElms_set_mul {H : F[X][Y]} {a b : 𝕃 H}
+    (ha : a ∈ regularElms_set H) (hb : b ∈ regularElms_set H) :
+    a * b ∈ regularElms_set H := by
+  rcases ha with ⟨a', rfl⟩
+  rcases hb with ⟨b', rfl⟩
+  exact ⟨a' * b', by simp⟩
+
+/-- The regular elements are closed under natural powers. -/
+lemma regularElms_set_pow {H : F[X][Y]} {a : 𝕃 H}
+    (ha : a ∈ regularElms_set H) (n : ℕ) : a ^ n ∈ regularElms_set H := by
+  induction n with
+  | zero => simp
+  | succ n ih =>
+      simpa [pow_succ] using regularElms_set_mul ih ha
+
 /-- Given an element `z ∈ F`, `t_z ∈ F` is a rational root of a bivariate polynomial if the pair
 `(z, t_z)` is a root of the bivariate polynomial. -/
 def rationalRoot (H : F[X][Y]) (z : F) : Type :=
@@ -303,6 +349,71 @@ noncomputable def canonicalRepOf𝒪 {H : F[X][Y]} (hH : 0 < H.natDegree) (β : 
   let _hHt := H_tilde'_monic H hH
   Polynomial.modByMonic β.out (H_tilde' H)
 
+/-- The canonical representative has degree strictly smaller than the defining relation. -/
+lemma canonicalRepOf𝒪_degree_lt {H : F[X][Y]} (hH : 0 < H.natDegree) (β : 𝒪 H) :
+    (canonicalRepOf𝒪 hH β).degree < (H_tilde' H).degree := by
+  rw [canonicalRepOf𝒪]
+  exact Polynomial.degree_modByMonic_lt _ (H_tilde'_monic H hH)
+
+omit [IsDomain F] in
+/-- The canonical representative has natural degree bounded by the defining relation. -/
+lemma canonicalRepOf𝒪_natDegree_le {H : F[X][Y]} (hH : 0 < H.natDegree) (β : 𝒪 H) :
+    (canonicalRepOf𝒪 hH β).natDegree ≤ (H_tilde' H).natDegree := by
+  rw [canonicalRepOf𝒪]
+  exact Polynomial.natDegree_modByMonic_le _ (H_tilde'_monic H hH)
+
+omit [IsDomain F] in
+/-- The canonical representative maps back to the original quotient element of `𝒪`. -/
+@[simp]
+lemma mk_canonicalRepOf𝒪 {H : F[X][Y]} (hH : 0 < H.natDegree) (β : 𝒪 H) :
+    Ideal.Quotient.mk (Ideal.span {H_tilde' H}) (canonicalRepOf𝒪 hH β) = β := by
+  let I : Ideal F[X][Y] := Ideal.span {H_tilde' H}
+  let q : F[X][Y] := H_tilde' H
+  let p : F[X][Y] := β.out
+  have hq_zero : Ideal.Quotient.mk I (q * (p /ₘ q)) = 0 := by
+    rw [Ideal.Quotient.eq_zero_iff_mem]
+    exact Ideal.mul_mem_right _ _ (Ideal.subset_span rfl)
+  calc
+    Ideal.Quotient.mk (Ideal.span {H_tilde' H}) (canonicalRepOf𝒪 hH β)
+        = Ideal.Quotient.mk I (p %ₘ q) := by
+            simp [canonicalRepOf𝒪, I, q, p]
+    _ = Ideal.Quotient.mk I (p %ₘ q) + Ideal.Quotient.mk I (q * (p /ₘ q)) := by
+            simp [hq_zero]
+    _ = Ideal.Quotient.mk I (p %ₘ q + q * (p /ₘ q)) := by
+            rw [map_add]
+    _ = Ideal.Quotient.mk I p := by
+            rw [Polynomial.modByMonic_add_div]
+    _ = β := by
+            simp [I, p]
+
+omit [IsDomain F] in
+/-- Canonical representatives of quotient constructors are computed by `modByMonic`. -/
+lemma canonicalRepOf𝒪_mk {H : F[X][Y]} (hH : 0 < H.natDegree) (p : F[X][Y]) :
+    canonicalRepOf𝒪 hH (Ideal.Quotient.mk (Ideal.span {H_tilde' H}) p : 𝒪 H) =
+      p %ₘ H_tilde' H := by
+  apply Polynomial.modByMonic_eq_of_dvd_sub (H_tilde'_monic H hH)
+  rw [← Ideal.mem_span_singleton]
+  rw [← Ideal.Quotient.mk_eq_mk_iff_sub_mem]
+  calc
+    Ideal.Quotient.mk (Ideal.span {H_tilde' H})
+        ((Ideal.Quotient.mk (Ideal.span {H_tilde' H}) p : 𝒪 H).out)
+        = (Ideal.Quotient.mk (Ideal.span {H_tilde' H}) p : 𝒪 H) := by simp
+    _ = Ideal.Quotient.mk (Ideal.span {H_tilde' H}) p := rfl
+
+omit [IsDomain F] in
+/-- The canonical representative of zero is zero. -/
+@[simp]
+lemma canonicalRepOf𝒪_zero {H : F[X][Y]} (hH : 0 < H.natDegree) :
+    canonicalRepOf𝒪 hH (0 : 𝒪 H) = 0 := by
+  simpa using (canonicalRepOf𝒪_mk (H := H) hH 0)
+
+/-- A polynomial whose degree is already below the relation is its own canonical representative. -/
+lemma canonicalRepOf𝒪_mk_eq_self_of_degree_lt {H : F[X][Y]} (hH : 0 < H.natDegree)
+    {p : F[X][Y]} (hp : p.degree < (H_tilde' H).degree) :
+    canonicalRepOf𝒪 hH (Ideal.Quotient.mk (Ideal.span {H_tilde' H}) p : 𝒪 H) = p := by
+  rw [canonicalRepOf𝒪_mk]
+  exact (Polynomial.modByMonic_eq_self_iff (H_tilde'_monic H hH)).2 hp
+
 /-- `Λ` is a weight function on the ring of bivariate polynomials `F[X][Y]`. The weight of
 a polynomial is the maximal weight of all monomials appearing in it with non-zero coefficients.
 The weight of the zero polynomial is `−∞`.
@@ -314,10 +425,39 @@ noncomputable def weight_Λ (f H : F[X][Y]) (D : ℕ) : WithBot ℕ :=
       WithBot.some <| deg * (D + 1 - Bivariate.natDegreeY H) + (f.coeff deg).natDegree
     )
 
+omit [IsDomain F] in
+/-- The zero polynomial has bottom `Λ`-weight. -/
+@[simp]
+lemma weight_Λ_zero (H : F[X][Y]) (D : ℕ) :
+    weight_Λ (0 : F[X][Y]) H D = ⊥ := by
+  simp [weight_Λ]
+
 /-- The weight function `Λ` on the ring of regular elements `𝒪` is defined as the weight their
 canonical representatives in `F[X][Y]`. -/
 noncomputable def weight_Λ_over_𝒪 {H : F[X][Y]} (hH : 0 < H.natDegree) (f : 𝒪 H) (D : ℕ) :
     WithBot ℕ := weight_Λ (canonicalRepOf𝒪 hH f) H D
+
+omit [IsDomain F] in
+/-- The `𝒪`-weight of zero is bottom. -/
+@[simp]
+lemma weight_Λ_over_𝒪_zero {H : F[X][Y]} (hH : 0 < H.natDegree) (D : ℕ) :
+    weight_Λ_over_𝒪 hH (0 : 𝒪 H) D = ⊥ := by
+  simp [weight_Λ_over_𝒪]
+
+omit [IsDomain F] in
+/-- The `𝒪`-weight of a quotient constructor is computed on its canonical remainder. -/
+lemma weight_Λ_over_𝒪_mk {H : F[X][Y]} (hH : 0 < H.natDegree) (p : F[X][Y])
+    (D : ℕ) :
+    weight_Λ_over_𝒪 hH (Ideal.Quotient.mk (Ideal.span {H_tilde' H}) p : 𝒪 H) D =
+      weight_Λ (p %ₘ H_tilde' H) H D := by
+  simp [weight_Λ_over_𝒪, canonicalRepOf𝒪_mk]
+
+/-- If a representative is already reduced, its `𝒪`-weight is its polynomial `Λ`-weight. -/
+lemma weight_Λ_over_𝒪_mk_eq_self_of_degree_lt {H : F[X][Y]} (hH : 0 < H.natDegree)
+    {p : F[X][Y]} (hp : p.degree < (H_tilde' H).degree) (D : ℕ) :
+    weight_Λ_over_𝒪 hH (Ideal.Quotient.mk (Ideal.span {H_tilde' H}) p : 𝒪 H) D =
+      weight_Λ p H D := by
+  simp [weight_Λ_over_𝒪, canonicalRepOf𝒪_mk_eq_self_of_degree_lt hH hp]
 
 /-- The set `S_β` from the statement of Lemma A.1 in Appendix A of [BCIKS20].
 Note: Here `F[X][Y]` is `F[Z][T]`. -/
@@ -342,6 +482,55 @@ noncomputable def liftToFunctionField {H : F[X][Y]} : F[X] →+* 𝕃 H :=
 noncomputable def liftBivariate {H : F[X][Y]} : F[X][Y] →+* 𝕃 H :=
   RingHom.comp (Ideal.Quotient.mk (Ideal.span {H_tilde H})) bivPolyHom
 
+/-- The image of the polynomial variable `T` in the function field `𝕃 H`. -/
+noncomputable def functionFieldT {H : F[X][Y]} : 𝕃 H :=
+  Ideal.Quotient.mk (Ideal.span {H_tilde H}) Polynomial.X
+
+/-- Quotient constructors in `𝒪` embed by applying the bivariate lift. -/
+@[simp]
+lemma embeddingOf𝒪Into𝕃_mk (H : F[X][Y]) (p : F[X][Y]) :
+    embeddingOf𝒪Into𝕃 H (Ideal.Quotient.mk (Ideal.span {H_tilde' H}) p : 𝒪 H) =
+      liftBivariate (H := H) p := by
+  rfl
+
+/-- Every bivariate polynomial representative gives a regular element of the function field. -/
+lemma regular_liftBivariate (H : F[X][Y]) (p : F[X][Y]) :
+    ∃ pre : 𝒪 H, embeddingOf𝒪Into𝕃 H pre = liftBivariate (H := H) p :=
+  ⟨Ideal.Quotient.mk (Ideal.span {H_tilde' H}) p, by simp⟩
+
+/-- Bivariate-polynomial images are regular elements of the function field. -/
+lemma regularElms_set_liftBivariate (H : F[X][Y]) (p : F[X][Y]) :
+    liftBivariate (H := H) p ∈ regularElms_set H := by
+  rcases regular_liftBivariate H p with ⟨pre, hpre⟩
+  exact ⟨pre, hpre.symm⟩
+
+/-- Coefficients embedded into `𝕃` are regular elements. -/
+lemma regular_liftToFunctionField (H : F[X][Y]) (p : F[X]) :
+    ∃ pre : 𝒪 H, embeddingOf𝒪Into𝕃 H pre = liftToFunctionField (H := H) p :=
+  regular_liftBivariate H (Polynomial.C p)
+
+/-- Coefficient-polynomial images are regular elements of the function field. -/
+lemma regularElms_set_liftToFunctionField (H : F[X][Y]) (p : F[X]) :
+    liftToFunctionField (H := H) p ∈ regularElms_set H := by
+  simpa using regularElms_set_liftBivariate H (Polynomial.C p)
+
+/-- The bivariate variable maps to the function-field variable `T`. -/
+@[simp]
+lemma liftBivariate_X {H : F[X][Y]} :
+    liftBivariate (H := H) (Polynomial.X : F[X][Y]) = functionFieldT (H := H) := by
+  simp [liftBivariate, functionFieldT, bivPolyHom]
+
+/-- The function-field variable `T` is regular. -/
+lemma regularElms_set_functionFieldT (H : F[X][Y]) :
+    functionFieldT (H := H) ∈ regularElms_set H := by
+  simpa using regularElms_set_liftBivariate H (Polynomial.X : F[X][Y])
+
+/-- Constant bivariate polynomials map through the coefficient embedding. -/
+@[simp]
+lemma liftBivariate_C {H : F[X][Y]} (p : F[X]) :
+    liftBivariate (H := H) (Polynomial.C p : F[X][Y]) = liftToFunctionField (H := H) p := by
+  rfl
+
 /-- The embeddining of the scalars into the function field `𝕃`. -/
 noncomputable def fieldTo𝕃 {H : F[X][Y]} : F →+* 𝕃 H :=
   RingHom.comp liftToFunctionField Polynomial.C
@@ -364,9 +553,33 @@ variable {F : Type} [CommRing F] [IsDomain F]
 /-- The definition of `ζ` given in Appendix A.4 of [BCIKS20]. -/
 def ζ (R : F[X][X][Y]) (x₀ : F) (H : F[X][Y]) [H_irreducible : Fact (Irreducible H)] : 𝕃 H :=
   let W  : 𝕃 H := liftToFunctionField (H.leadingCoeff);
-  let T : 𝕃 H := liftToFunctionField (Polynomial.X);
+  let T : 𝕃 H := functionFieldT (H := H);
     Polynomial.eval₂ liftToFunctionField (T / W)
       (Bivariate.evalX (Polynomial.C x₀) R.derivative)
+
+/-- If the derivative specialization is constant in the function-field variable, then `ζ` is
+regular. -/
+lemma ζ_regular_of_derivative_evalX_eq_C (x₀ : F) (R : F[X][X][Y]) (H : F[X][Y])
+    [H_irreducible : Fact (Irreducible H)] {p : F[X]}
+    (hp : Bivariate.evalX (Polynomial.C x₀) R.derivative = Polynomial.C p) :
+    ζ R x₀ H ∈ regularElms_set H := by
+  rw [ζ, hp]
+  simp only [Polynomial.eval₂_C]
+  exact regularElms_set_liftToFunctionField H p
+
+/-- In the constant-derivative, low-`Y`-degree case, the `ξ` regularity witness is explicit. -/
+lemma ξ_regular_of_derivative_evalX_eq_C_of_natDegree_le_one
+    (x₀ : F) (R : F[X][X][Y]) (H : F[X][Y]) [H_irreducible : Fact (Irreducible H)]
+    {p : F[X]} (hp : Bivariate.evalX (Polynomial.C x₀) R.derivative = Polynomial.C p)
+    (hR : R.natDegree ≤ 1) :
+    ∃ pre : 𝒪 H,
+    let d := R.natDegree
+    let W : 𝕃 H := liftToFunctionField (H.leadingCoeff);
+    embeddingOf𝒪Into𝕃 _ pre = W ^ (d - 2) * ζ R x₀ H := by
+  rcases ζ_regular_of_derivative_evalX_eq_C x₀ R H hp with ⟨pre, hpre⟩
+  refine ⟨pre, ?_⟩
+  have hd : R.natDegree - 2 = 0 := by omega
+  simpa [hd] using hpre.symm
 
 /-- There exist regular elements `ξ = W(Z)^(d-2) * ζ` as defined in Claim A.2 of Appendix A.4
 of [BCIKS20]. -/

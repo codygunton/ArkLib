@@ -62,7 +62,7 @@ noncomputable def oracleVerifierStep
   fun _ =>
     let receiverStep :
         OracleComp (oSpec + [OStmtIn]ₒ + (accSpec + oiSpec))
-          ((x : R) × Option (RoundClaim R)) := do
+          ((_ : R) × Option (RoundClaim R)) := do
         let total ← (Finset.univ : Finset (Fin m_dom)).toList.foldlM
           (fun (acc : R) (j : Fin m_dom) => do
             let val : R ← liftM <| oiSpec.query (D j)
@@ -99,7 +99,7 @@ noncomputable def oracleVerifierStepOption
       fun _ =>
         let receiverStep :
             OracleComp (oSpec + [OStmtIn]ₒ + (accSpec + oiSpec))
-              ((x : R) × Option (RoundClaim R)) := do
+              ((_ : R) × Option (RoundClaim R)) := do
             let chal : R ← liftM sampleChallenge
             let nextClaim : Option (RoundClaim R) := none
             pure ⟨chal, nextClaim⟩
