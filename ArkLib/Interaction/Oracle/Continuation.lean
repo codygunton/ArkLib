@@ -1642,9 +1642,6 @@ theorem simulate_comp {ι : Type} {oSpec : OracleSpec ι}
         (outImpl (splitLiftAppendOracleQuery
           (ctx₁ shared) (ctx₂ shared) (ιₛₒ shared) (OStatementOut shared) tr qOut)) := by
   intro qOut
-  sorry
-/-
-  intro qOut
   let split := Spec.Transcript.split (ctx₁ shared) (ctx₂ shared) tr
   let tr₁ := split.1
   let tr₂ := split.2
@@ -1827,8 +1824,7 @@ theorem simulate_comp {ι : Type} {oSpec : OracleSpec ι}
         (ctx₁ shared) (ctx₂ shared) (ιₛₒ shared) (OStatementOut shared)
         tr qOut
         (outImpl qSplit) := by
-        rw [hRouted]
--/
+        simpa [answerSplitLiftAppendQuery] using hRouted
 
 end OracleReduction
 
