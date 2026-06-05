@@ -365,7 +365,8 @@ theorem roundContinuation_publicEq_stateful
     (prefixTr : Spec.Transcript (Sumcheck.fullSpec R deg prefixLen))
     (sampleChallenge : OracleComp oSpec R)
     (sWithOracles :
-      StatementWithOracles (fun _ => RoundClaim R) (fun _ => Sumcheck.PolyFamily R deg n) PUnit.unit) :
+      StatementWithOracles
+        (fun _ => RoundClaim R) (fun _ => Sumcheck.PolyFamily R deg n) PUnit.unit) :
     (Spec.Strategy.mapOutputWithRoles (fun _ out => out.stmt) ·) <$>
       (roundContinuationStateful (R := R) (deg := deg) D
         (totalVars := n)
@@ -404,7 +405,8 @@ theorem roundContinuationOption_proverEq_stateful
         PUnit.unit sWithOracles
           (currentRoundResidual (R := R) (deg := deg) h prefixTr
             (sWithOracles.oracleStmt ())) := by
-  simpa [roundContinuationOption, roundContinuationOptionStateful, honestRoundPolyAtPrefix] using
+  simpa only [roundContinuationOption, roundContinuationOptionStateful,
+    honestRoundPolyAtPrefix] using
     congrArg
       (fun x =>
         (pure x :
@@ -500,8 +502,6 @@ theorem roundOracleReduction_executePublic_eq_stateful
     Interaction.OracleDecoration.OracleReduction.executePublicConcrete
       (roundOracleReductionStateful (R := R) (deg := deg) D numVars sampleChallenge)
       claim s (s.oracleStmt ()) := by
-  sorry
-/-
   let prefixTr : Spec.Transcript (Sumcheck.fullSpec R deg 0) := by
     simpa [Sumcheck.fullSpec] using
       (show Spec.Transcript ((roundSpec R deg).replicate 0) from ⟨⟩)
@@ -615,7 +615,6 @@ theorem roundOracleReduction_executePublic_eq_stateful
     roundOracleReduction, roundOracleReductionStateful,
     Interaction.OracleDecoration.OracleReduction.promoteStatementToShared,
     sCont, liftStmt, pack, k] using hRun
--/
 
 theorem roundOracleReduction_execute_eq_stateful
     {ι : Type} {oSpec : OracleSpec ι}
@@ -648,8 +647,6 @@ theorem roundOracleReduction_execute_eq_stateful
     OracleReduction.executeConcrete
       (roundOracleReductionStateful (R := R) (deg := deg) D numVars sampleChallenge)
       claim s (s.oracleStmt ()) := by
-  sorry
-/-
   let prefixTr : Spec.Transcript (Sumcheck.fullSpec R deg 0) := by
     simpa [Sumcheck.fullSpec] using
       (show Spec.Transcript ((roundSpec R deg).replicate 0) from ⟨⟩)
@@ -910,7 +907,6 @@ theorem roundOracleReduction_execute_eq_stateful
       Interaction.OracleDecoration.OracleReduction.promoteStatementToShared,
       sCont, liftOut, statefulProver, verifierStateful, simulateStateful, gStateful]
   exact hLeft.trans <| hRun₁.trans <| hRun₂.trans hRight.symm
--/
 
 /-- The stateless recomputing round reduction and the stateful residual-witness
 round reduction are honestly publicly equivalent: once we relate the stateful

@@ -69,7 +69,7 @@ private def consumeResidual :
           (stepResidual (R := R) (deg := deg)
             (Sumcheck.roundChallenge R deg split.1) residual)
           split.2
-termination_by remaining residual tr => remaining
+termination_by remaining _ _ => remaining
 decreasing_by simp_wf
 
 @[simp]
@@ -84,8 +84,7 @@ private theorem consumeResidual_replicateCons
         (stepResidual (R := R) (deg := deg)
           (Sumcheck.roundChallenge R deg tr₁) residual)
         tr₂ := by
-  simp [consumeResidual, Spec.Transcript.replicateCons, Spec.Transcript.replicateUncons,
-    Spec.Transcript.split_append]
+  simp [consumeResidual, Spec.Transcript.replicateCons, Spec.Transcript.split_append]
 
 /-- The active residual polynomial after fixing the `prefixLen` verifier
 challenges already present in `prefixTr`. The equality `prefixLen + remaining = n`
@@ -518,7 +517,8 @@ noncomputable def sumcheckReduction
       (fun _ _ => Option (RoundClaim R))
       (fun _ _ => Sumcheck.PolyFamily R deg n)
       (fun _ _ => PUnit) :=
-  (sumcheckContinuation (R := R) (deg := deg) n D sampleChallenge).promoteStatementToShared PUnit.unit
+  (sumcheckContinuation (R := R) (deg := deg) n D sampleChallenge).promoteStatementToShared
+    PUnit.unit
 
 /-- The canonical `n`-round oracle-native sum-check protocol with a private
 residual polynomial witness threaded across rounds. The public oracle statement
@@ -539,7 +539,8 @@ noncomputable def sumcheckReductionStateful
       (fun _ _ => Option (RoundClaim R))
       (fun _ _ => Sumcheck.PolyFamily R deg n)
       (fun _ _ => Sumcheck.PolyStmt R deg 0) :=
-  (sumcheckContinuationStateful (R := R) (deg := deg) n D sampleChallenge).promoteStatementToShared PUnit.unit
+  (sumcheckContinuationStateful (R := R) (deg := deg) n D sampleChallenge).promoteStatementToShared
+    PUnit.unit
 
 /-! ## Security placeholders
 
