@@ -32,11 +32,6 @@ rev = "lean4.18.0"
 [[require]]
 name = "CompPoly"
 git = "https://github.com/Verified-zkEVM/CompPoly"
-rev = "18c1613e9186c7afa79a4179eea5f4b80d8e9e00"
-
-[[require]]
-name = "mathlib"
-scope = "leanprover-community"
 rev = "v4.30.0"
 
 [[lean_lib]]
