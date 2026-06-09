@@ -157,9 +157,6 @@ theorem degreeOf_X_le (i j : σ) : degreeOf i (X (R := R) j) ≤ 1 := by
   apply le_trans (Multiset.count_le_card _ _) _
   exact Multiset.card_le_card (degrees_X' (R := R) j)
 
--- `degreeOf_X_of_ne` was upstreamed to Mathlib (`Mathlib.Algebra.MvPolynomial.Degrees`,
--- with `{i j}` implicit); use that one directly.
-
 theorem degreeOf_linear_le {a b : R} : degreeOf n (C a + C b * p) ≤ degreeOf n p := by
   apply le_trans (degreeOf_add_le _ _ _) _
   rw [max_def]

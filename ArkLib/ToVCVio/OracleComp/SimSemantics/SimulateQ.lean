@@ -26,10 +26,6 @@ lemma simulateQ_randomOracle_map_uniformFin {α : Type} (n : ℕ) (f : Fin (n + 
   rw [simulateQ_map, StateT.run'_map_comm]
   congr 1
 
--- `support_simulateQ_run'_subset` was upstreamed to VCV-io
--- (`VCVio.OracleComp.SimSemantics.StateT.Basic`, in a more general monad-parametric form);
--- use that one directly.
-
 /-- If all outputs of the original `OracleComp` are successful and satisfy `P`, then the
     simulated `OptionT` computation satisfies `P` with probability one. -/
 lemma OptionT.probEvent_eq_one_of_simulateQ_support

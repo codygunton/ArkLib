@@ -7,9 +7,6 @@ pp.unicode.fun = true
 autoImplicit = false
 weak.linter.mathlibStandardSet = true
 weak.linter.style.longFile = 1500
-# Mathlib #38396 made the `style.header` linter run in downstream projects. It flags ArkLib's
-# existing copyright-range headers / missing module docstrings (which were fine on rc2). Opt out
-# of this one Mathlib-internal style linter rather than churn dozens of file headers.
 weak.linter.style.header = false
 
 [moreServerOptions]
@@ -17,7 +14,6 @@ linter.mathlibStandardSet = true
 linter.style.longFile = 1500
 linter.style.header = false
 
-# TODO: re-pin to Verified-zkEVM/VCV-io once the v4.30.0 PR lands upstream.
 [[require]]
 name = "VCVio"
 git = "https://github.com/codygunton/VCV-io"
@@ -33,13 +29,11 @@ name = "checkdecls"
 git = "https://github.com/PatrickMassot/checkdecls.git"
 rev = "lean4.18.0"
 
-# TODO: re-pin to Verified-zkEVM/CompPoly once the v4.30.0 PR lands upstream.
 [[require]]
 name = "CompPoly"
-git = "https://github.com/codygunton/CompPoly"
-rev = "e1d6cfef86c751a274a40c4d4d6434097814e60c"
+git = "https://github.com/Verified-zkEVM/CompPoly"
+rev = "18c1613e9186c7afa79a4179eea5f4b80d8e9e00"
 
-# Force Mathlib v4.30.0 (final). Listed last so this pin governs the transitive graph.
 [[require]]
 name = "mathlib"
 scope = "leanprover-community"

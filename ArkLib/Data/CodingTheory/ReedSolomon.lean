@@ -237,7 +237,6 @@ lemma dim_eq_deg_of_le' {ι : Type*} [Fintype ι] {F : Type*} [Field F]
     rw [Fintype.card_eq_zero_iff] at hcard
     simp only [nonpos_iff_eq_zero] at h
     subst h
-    -- `finrank_eq_zero_of_subsingleton` lost `@[simp]` in Mathlib #38401; add it back here.
     simp [ReedSolomon.code, dim, Module.finrank_eq_zero_of_subsingleton]
   · rw [LinearCode.dim]
     let f := ReedSolomon.evalOnPoints (F := F) α

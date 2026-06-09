@@ -125,8 +125,6 @@ lemma minSeedCard_pos {F : Type} {s : ℕ} (S : Fin s → Set F)
     [∀ i, Fintype ↥(S i)] [∀ i, Nonempty ↥(S i)] :
     0 < minSeedCard S := by
   unfold minSeedCard
-  -- Mathlib #39414 made `s.ncard` the simpNF of `Fintype.card s`, so the positivity goal is now
-  -- about `ncard`; supply `Set.ncard_pos` and the nonempty fact (the instance is consumed by simp).
   have hne : ∀ i, (S i).Nonempty := fun i => Set.nonempty_coe_sort.mp inferInstance
   split_ifs with h
   · rw [Finset.lt_inf'_iff]

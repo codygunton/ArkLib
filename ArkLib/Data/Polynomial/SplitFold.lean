@@ -265,7 +265,7 @@ lemma folding_polynomial_eq_sum_splitNth {𝔽 : Type} [Field 𝔽]
       Polynomial.map_sum,
       Polynomial.eval_finsetSum]
     simp only [Polynomial.map_mul, map_C, coe_compRingHom, Polynomial.map_pow, map_X,
-      eval_mul, eval_C, eval_pow, eval_X]
+    eval_mul, eval_C, eval_pow, eval_X]
     simp only [comp]
     conv =>
       lhs
@@ -299,18 +299,18 @@ lemma folding_polynomial_eq_sum_splitNth {𝔽 : Type} [Field 𝔽]
 /-- `polyFold` in terms of `splitNth`. -/
 @[simp]
 lemma polyFold_eq_sum_of_splitNth {𝔽 : Type} [Field 𝔽]
-    {f : 𝔽[X]} {n : ℕ} {r : 𝔽}
-    [inst : NeZero n] :
-    FoldingPolynomial.polyFold f n r =
-      ∑ i, C (r ^ i.val) * splitNth f n i := by
-    simp only [FoldingPolynomial.polyFold, folding_polynomial_eq_sum_splitNth, map_pow]
-    rw [Polynomial.eval_finsetSum]
-    simp only [eval_mul, eval_C, eval_pow, eval_X]
-    conv =>
-      lhs
-      rhs
-      ext x
-      rw [mul_comm]
+  {f : 𝔽[X]} {n : ℕ} {r : 𝔽}
+  [inst : NeZero n] :
+  FoldingPolynomial.polyFold f n r =
+    ∑ i, C (r ^ i.val) * splitNth f n i := by
+  simp only [FoldingPolynomial.polyFold, folding_polynomial_eq_sum_splitNth, map_pow]
+  rw [Polynomial.eval_finsetSum]
+  simp only [eval_mul, eval_C, eval_pow, eval_X]
+  conv =>
+    lhs
+    rhs
+    ext x
+    rw [mul_comm]
 
 omit [NoZeroDivisors 𝔽] in
 /--

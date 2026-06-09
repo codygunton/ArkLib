@@ -441,13 +441,13 @@ private lemma indicated_polynomial_degree_y_lt
 
 private lemma indicated_polynomial_eq_foldAux
   {α : F} (hx : x ∈ s') :
-    ((indicatedPolynomial domain f k s').eval (Polynomial.C α)).eval x =
-      (foldWordAux domain f k x).eval α := by
-    aesop
-      (add simp [indicatedPolynomial, eval_finsetSum])
-      (add safe
-        [(by rw [singleton_indicator_eval_eq_zero_of_mem_sdiff]),
-          (by rw [Finset.sum_eq_ite x])])
+  ((indicatedPolynomial domain f k s').eval (Polynomial.C α)).eval x =
+    (foldWordAux domain f k x).eval α := by
+  aesop
+    (add simp [indicatedPolynomial, eval_finsetSum])
+    (add safe
+      [(by rw [singleton_indicator_eval_eq_zero_of_mem_sdiff]),
+        (by rw [Finset.sum_eq_ite x])])
 
 private lemma indicated_polynomial_eval_eq_combination_of_correlated
   {u : Fin (2 ^ k) → Polynomial F}
@@ -526,9 +526,8 @@ private lemma foldWordAux_poly_sum {a : F} :
 
 private lemma indicated_polynomial_comp_x_k_natDegree
   (hs' : s'.Nonempty) :
-    ((Polynomial.map (Polynomial.compRingHom (Polynomial.X ^ (2 ^ k))) <|
-      indicatedPolynomial domain f (2 ^ k) s').eval Polynomial.X).natDegree <
-        (2 ^ k) * s'.card := by
+  ((Polynomial.map (Polynomial.compRingHom (Polynomial.X ^ (2 ^ k))) <|
+    indicatedPolynomial domain f (2 ^ k) s').eval Polynomial.X).natDegree < (2 ^ k) * s'.card := by
   by_cases h_card : 1 < s'.card
   · simp only [indicatedPolynomial,
       Polynomial.eval_map, eval₂_finsetSum,
