@@ -5,7 +5,7 @@ Authors: Quang Dao
 -/
 import ArkLib.Interaction.Reduction
 import ArkLib.Interaction.Oracle.Spec
-import VCVio.Interaction.TwoParty.Refine
+import PolyFun.Interaction.TwoParty.Refine
 
 /-!
 # Oracle Decoration, Oracle Verifiers, and Oracle Reductions
@@ -76,6 +76,8 @@ open OracleComp OracleSpec
 
 namespace Interaction
 
+open TwoParty
+
 /-! ## Oracle decoration
 
 `OracleDecoration` is a `Role.Refine` specialized to `OracleInterface`:
@@ -85,7 +87,7 @@ at receiver nodes (no junk data). -/
 /-- An `OracleDecoration` assigns an `OracleInterface` instance (as data, not a
 typeclass) to each sender node. Defined as `Role.Refine OracleInterface`. -/
 abbrev OracleDecoration (spec : Spec) (roles : RoleDecoration spec) :=
-  Interaction.Role.Refine OracleInterface spec roles
+  Role.Refine OracleInterface spec roles
 
 /-- Oracle-statement data for an indexed oracle-statement family. -/
 abbrev OracleStatement {ιₛ : Type v} (OStmt : ιₛ → Type w) :=
@@ -791,7 +793,7 @@ definitionally), receiver nodes get `OracleComp (oSpec + [OStmtIn]ₒ + accSpec)
 (oracle computation with current access). The accumulated spec grows at sender
 nodes and stays fixed at receiver nodes. -/
 def toMonadDecoration {ι : Type} (oSpec : OracleSpec.{0, 0} ι)
-    {ιₛᵢ : Type} (OStmtIn : ιₛᵢ → Type) [∀ i, OracleInterface.{0, u} (OStmtIn i)] :
+    {ιₛᵢ : Type} (OStmtIn : ιₛᵢ → Type) [∀ i, OracleInterface.{0, 0} (OStmtIn i)] :
     (spec : Spec.{0}) → (roles : RoleDecoration spec) → OracleDecoration.{0, 0} spec roles →
     {ιₐ : Type} → OracleSpec.{0, 0} ιₐ → Spec.MonadDecoration spec
   | .done, _, _, _, _ => ⟨⟩

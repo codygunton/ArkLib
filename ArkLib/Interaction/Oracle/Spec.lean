@@ -3,9 +3,9 @@ Copyright (c) 2026 ArkLib Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Quang Dao
 -/
-import VCVio.Interaction.Basic.Spec
-import VCVio.Interaction.Basic.Append
-import VCVio.Interaction.TwoParty.Strategy
+import PolyFun.Interaction.Basic.Spec
+import PolyFun.Interaction.Basic.Append
+import PolyFun.Interaction.TwoParty.Strategy
 import ArkLib.OracleReduction.OracleInterface
 
 /-!
@@ -61,6 +61,8 @@ universe u
 open OracleComp OracleSpec
 
 namespace Interaction.Oracle
+
+open Interaction.TwoParty
 
 /-- The canonical protocol specification for oracle reductions.
 
@@ -365,11 +367,11 @@ theorem toInteractionSpec_append :
       s₁.toInteractionSpec.append (fun tr => (s₂ (s₁.projectPublic tr)).toInteractionSpec)
   | .done, _ => rfl
   | .«public» _ rest, s₂ => by
-      simp only [Spec.append, toInteractionSpec, Interaction.Spec.append]
+      simp only [Spec.append, toInteractionSpec]
       congr 1; ext x
       exact toInteractionSpec_append (rest x) (fun pt => s₂ ⟨x, pt⟩)
   | .oracle _ rest, s₂ => by
-      simp only [Spec.append, toInteractionSpec, Interaction.Spec.append]
+      simp only [Spec.append, toInteractionSpec]
       congr 1; ext _
       exact toInteractionSpec_append rest s₂
 
