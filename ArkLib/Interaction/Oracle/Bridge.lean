@@ -39,6 +39,7 @@ rather than converting from the old representation.
 -/
 
 open OracleComp OracleSpec
+open Interaction.TwoParty
 
 namespace Interaction.Oracle.Spec
 

@@ -3,9 +3,9 @@ Copyright (c) 2024-2025 ArkLib Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Quang Dao
 -/
-import VCVio.Interaction.Basic.Chain
-import VCVio.Interaction.Basic.Replicate
-import VCVio.Interaction.TwoParty.Compose
+import PolyFun.Interaction.Basic.Chain
+import PolyFun.Interaction.Basic.Replicate
+import PolyFun.Interaction.TwoParty.Compose
 import ArkLib.Interaction.Reduction
 import ArkLib.ProofSystem.Sumcheck.Interaction.CompPoly
 
@@ -51,6 +51,7 @@ After round `i`, the target is updated to `p_i(r_i)`. The public *stage state*
 namespace Sumcheck
 
 open Interaction CompPoly CPoly
+open Interaction.TwoParty
 
 /-- The fixed polynomial oracle statement with `numVars` variables. -/
 abbrev PolyStmt (R : Type) [BEq R] [CommSemiring R] [LawfulBEq R]
@@ -90,7 +91,7 @@ abbrev fullSpec (n : Nat) : Spec :=
 
 /-- The role decoration for the `n`-round replicated interaction surface. -/
 abbrev fullRoles (n : Nat) : RoleDecoration (fullSpec R deg n) :=
-  (roundRoles R deg).replicate n
+  Spec.Decoration.replicate (roundRoles R deg) n
 
 /-- Extract the polynomial from a single-round transcript. -/
 abbrev roundPoly (tr : Spec.Transcript (roundSpec R deg)) :

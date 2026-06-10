@@ -5,7 +5,7 @@ Authors: Quang Dao
 -/
 import ArkLib.ProofSystem.Sumcheck.Interaction.Oracle
 import ArkLib.Interaction.Oracle.Continuation
-import VCVio.Interaction.TwoParty.Strategy
+import PolyFun.Interaction.TwoParty.Strategy
 
 /-!
 # Interaction-Native Sum-Check: Single Round
@@ -142,8 +142,15 @@ theorem roundProverStep_map_fst
       (roundProverStep (m := m) (R := R) (deg := deg) D h prefixTr poly
         (fun chal => (computeNext chal, computeWit chal))) =
       roundProverStep (m := m) (R := R) (deg := deg) D h prefixTr poly computeNext := by
-  simp [roundProverStep, roundSpec, roundRoles, map_pure,
-    Spec.Strategy.mapOutputWithRoles, Spec.Counterpart.mapReceiver]
+  simp [roundProverStep, roundSpec, roundRoles, Spec.Strategy.mapOutputWithRoles]
+  congr
+  funext chal
+  change Functor.map (fun (x : NextState × NextWitness) => x.1)
+      (pure (computeNext chal, computeWit chal) : m (NextState × NextWitness)) =
+    (pure (computeNext chal) : m NextState)
+  simpa using
+    (map_pure (g := fun (x : NextState × NextWitness) => x.1)
+      (x := (computeNext chal, computeWit chal)))
 
 @[simp]
 theorem roundProverStep_map_residualWitness
@@ -169,7 +176,25 @@ theorem roundProverStep_map_residualWitness
               (currentRoundResidual (R := R) (deg := deg) h prefixTr poly)) :
             NextState × Sumcheck.PolyStmt R deg (n - (prefixLen + 1)))) := by
   simp [roundProverStep, roundProverStepStateful, roundSpec, roundRoles,
-    honestRoundPolyAtPrefix, Spec.Strategy.mapOutputWithRoles, Spec.Counterpart.mapReceiver]
+    honestRoundPolyAtPrefix, Spec.Strategy.mapOutputWithRoles]
+  congr
+  funext chal
+  change Functor.map
+      (fun (next : NextState) =>
+        (next, stepResidual (R := R) (deg := deg) chal
+          (currentRoundResidual (R := R) (deg := deg) h prefixTr poly)))
+      (pure (computeNext chal) : m NextState) =
+    (pure
+      (computeNext chal,
+        stepResidual (R := R) (deg := deg) chal
+          (currentRoundResidual (R := R) (deg := deg) h prefixTr poly)) :
+      m (NextState × Sumcheck.PolyStmt R deg (n - (prefixLen + 1))))
+  simpa using
+    (map_pure
+      (g := fun (next : NextState) =>
+        (next, stepResidual (R := R) (deg := deg) chal
+          (currentRoundResidual (R := R) (deg := deg) h prefixTr poly)))
+      (x := computeNext chal))
 
 @[simp]
 theorem roundProverStep_map_honestProverOutputWitness
@@ -196,7 +221,28 @@ theorem roundProverStep_map_honestProverOutputWitness
               (currentRoundResidual (R := R) (deg := deg) h prefixTr poly)⟩ :
             HonestProverOutput NextStmt (Sumcheck.PolyStmt R deg (n - (prefixLen + 1))))) := by
   simp [roundProverStep, roundProverStepStateful, roundSpec, roundRoles,
-    honestRoundPolyAtPrefix, Spec.Strategy.mapOutputWithRoles, Spec.Counterpart.mapReceiver]
+    honestRoundPolyAtPrefix, Spec.Strategy.mapOutputWithRoles]
+  congr
+  funext chal
+  change Functor.map
+      (fun (out : HonestProverOutput NextStmt PUnit) =>
+        (⟨out.stmt, stepResidual (R := R) (deg := deg) chal
+          (currentRoundResidual (R := R) (deg := deg) h prefixTr poly)⟩ :
+        HonestProverOutput NextStmt (Sumcheck.PolyStmt R deg (n - (prefixLen + 1)))))
+      (pure (computeNext chal) : m (HonestProverOutput NextStmt PUnit)) =
+    (pure
+      (⟨(computeNext chal).stmt,
+        stepResidual (R := R) (deg := deg) chal
+          (currentRoundResidual (R := R) (deg := deg) h prefixTr poly)⟩ :
+      HonestProverOutput NextStmt (Sumcheck.PolyStmt R deg (n - (prefixLen + 1)))) :
+      m (HonestProverOutput NextStmt (Sumcheck.PolyStmt R deg (n - (prefixLen + 1)))))
+  simpa using
+    (map_pure
+      (g := fun (out : HonestProverOutput NextStmt PUnit) =>
+        (⟨out.stmt, stepResidual (R := R) (deg := deg) chal
+          (currentRoundResidual (R := R) (deg := deg) h prefixTr poly)⟩ :
+        HonestProverOutput NextStmt (Sumcheck.PolyStmt R deg (n - (prefixLen + 1)))))
+      (x := computeNext chal))
 
 @[simp]
 theorem roundProverStepStateful_fromResidual

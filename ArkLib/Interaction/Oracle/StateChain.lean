@@ -7,6 +7,8 @@ import ArkLib.Interaction.Oracle.Continuation
 
 namespace Interaction
 
+open TwoParty
+
 namespace OracleDecoration
 
 /-- Build the verifier-side counterpart for an oracle state chain while
@@ -30,11 +32,11 @@ private def stateChainVerifier
       (Spec.Decoration.stateChain roles n i st)
       (toMonadDecoration oSpec OStmtIn (Spec.stateChain Stage spec advance n i st)
         (Spec.Decoration.stateChain roles n i st) (Role.Refine.stateChain od n i st) accSpec)
-      (Spec.Transcript.stateChainFamily VerifierState n i st)
+      (PFunctor.FreeM.Path.stateChainFamily VerifierState n i st)
   | 0, _, _, b => b
   | n + 1, i, st, b => by
       simpa [Spec.stateChain_succ, Spec.Decoration.stateChain,
-          Role.Refine.stateChain, Spec.Transcript.stateChainFamily,
+          Role.Refine.stateChain, PFunctor.FreeM.Path.stateChainFamily,
           toMonadDecoration_append]
         using
           (Spec.Counterpart.withMonads.append
@@ -76,7 +78,7 @@ private def stateChainCompConcrete {ι : Type} {oSpec : OracleSpec ι}
         (fun tr => ProverState (i + 1) (advance i st tr))))
     (stmtResult : (s : StatementIn) →
       (tr : Spec.Transcript (Spec.stateChain Stage spec advance n 0 (initStage s))) →
-      Spec.Transcript.stateChainFamily VerifierState n 0 (initStage s) tr)
+      PFunctor.FreeM.Path.stateChainFamily VerifierState n 0 (initStage s) tr)
     (proverOStmtResult :
       (s : StatementIn) →
       StatementWithOracles (fun _ => PUnit) OStmtIn s →
@@ -102,15 +104,18 @@ private def stateChainCompConcrete {ι : Type} {oSpec : OracleSpec ι}
       (fun _ => PUnit)
       OStmtIn
       WitnessIn
-      (fun s => Spec.Transcript.stateChainFamily VerifierState n 0 (initStage s))
+      (fun s => PFunctor.FreeM.Path.stateChainFamily VerifierState n 0 (initStage s))
       OStmtOut
-      (fun s => Spec.Transcript.stateChainFamily ProverState n 0 (initStage s)) where
+      (fun s => PFunctor.FreeM.Path.stateChainFamily ProverState n 0 (initStage s)) where
   prover s sWithOracles w := do
     let a ← proverInit s sWithOracles w
     let strat ← Spec.Strategy.stateChainCompWithRoles proverStep n 0 (initStage s) a
-    pure <| Spec.Strategy.mapOutputWithRoles
-      (fun tr pOut => ⟨⟨stmtResult s tr, proverOStmtResult s sWithOracles tr⟩, pOut⟩)
-      strat
+    pure <| by
+      simpa [Spec.stateChain, Spec.Decoration.stateChain,
+        PFunctor.FreeM.Path.stateChainFamily] using
+        (Spec.Strategy.mapOutputWithRoles
+          (fun tr pOut => ⟨⟨stmtResult s tr, proverOStmtResult s sWithOracles tr⟩, pOut⟩)
+          strat)
   verifier s {_} accSpec _ :=
     stateChainVerifier od accSpec (verifierStep s) n 0 (initStage s) (verifierInit s)
   simulate := simulateResult
@@ -153,7 +158,7 @@ def OracleReduction.stateChainComp {ι : Type} {oSpec : OracleSpec ι}
         (fun tr => ProverState shared (i + 1) (advance i st tr))))
     (stmtResult : (shared : SharedIn) → (stmt : StatementIn shared) →
       (tr : Spec.Transcript (Spec.stateChain Stage spec advance n 0 (initStage shared))) →
-      Spec.Transcript.stateChainFamily (fun i st => VerifierState shared i st)
+      PFunctor.FreeM.Path.stateChainFamily (fun i st => VerifierState shared i st)
         n 0 (initStage shared) tr)
     (proverOStatementResult :
       (shared : SharedIn) →
@@ -181,21 +186,24 @@ def OracleReduction.stateChainComp {ι : Type} {oSpec : OracleSpec ι}
       (fun shared => Role.Refine.stateChain (fun i st => od i st) n 0 (initStage shared))
       StatementIn OStatementIn WitnessIn
       (fun shared tr =>
-        Spec.Transcript.stateChainFamily (fun i st => VerifierState shared i st)
+        PFunctor.FreeM.Path.stateChainFamily (fun i st => VerifierState shared i st)
           n 0 (initStage shared) tr)
       OStatementOut
       (fun shared tr =>
-        Spec.Transcript.stateChainFamily (fun i st => ProverState shared i st)
+        PFunctor.FreeM.Path.stateChainFamily (fun i st => ProverState shared i st)
           n 0 (initStage shared) tr) where
   prover shared sWithOracles w := do
     let a ← proverInit shared sWithOracles w
     let strat ← Spec.Strategy.stateChainCompWithRoles
       (proverStep shared) n 0 (initStage shared) a
-    pure <| Spec.Strategy.mapOutputWithRoles
-      (fun tr pOut =>
-        ⟨⟨stmtResult shared sWithOracles.stmt tr,
-            proverOStatementResult shared sWithOracles tr⟩, pOut⟩)
-      strat
+    pure <| by
+      simpa [Spec.stateChain, Spec.Decoration.stateChain,
+        PFunctor.FreeM.Path.stateChainFamily] using
+        (Spec.Strategy.mapOutputWithRoles
+          (fun tr pOut =>
+            ⟨⟨stmtResult shared sWithOracles.stmt tr,
+                proverOStatementResult shared sWithOracles tr⟩, pOut⟩)
+          strat)
   verifier shared {_} accSpec stmt :=
     stateChainVerifier od accSpec (verifierStep shared) n 0 (initStage shared)
       (verifierInit shared stmt)

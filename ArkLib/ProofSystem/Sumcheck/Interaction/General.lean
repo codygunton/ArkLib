@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Quang Dao
 -/
 import ArkLib.ProofSystem.Sumcheck.Interaction.SingleRound
+import PolyFun.Interaction.TwoParty.Refine
 import VCVio
 
 /-!
@@ -25,7 +26,8 @@ and the prefix transcript of prior challenges.
 
 namespace Sumcheck
 
-open Interaction Interaction.OracleDecoration CompPoly CPoly OracleComp OracleSpec
+open Interaction Interaction.TwoParty Interaction.OracleDecoration
+open CompPoly CPoly OracleComp OracleSpec
 open scoped NNReal ENNReal
 
 section
@@ -564,7 +566,7 @@ theorem sumcheckReduction_completeness
 omit [Nontrivial R] in
 theorem sumcheckReduction_soundness
     {ι : Type} {oSpec : OracleSpec ι}
-    {m : Type → Type} [Monad m] [HasEvalSPMF m]
+    {m : Type → Type} [Monad m] [MonadLiftT m SPMF] [LawfulMonadLiftT m SPMF]
     (n : Nat)
     {m_dom : Nat} (D : Fin m_dom → R)
     (poly : Sumcheck.PolyStmt R deg n)

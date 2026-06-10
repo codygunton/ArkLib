@@ -3,9 +3,9 @@ Copyright (c) 2026 ArkLib Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Quang Dao
 -/
-import VCVio.Interaction.Basic.Spec
-import VCVio.Interaction.Basic.Chain
-import VCVio.Interaction.TwoParty.Compose
+import PolyFun.Interaction.Basic.Spec
+import PolyFun.Interaction.Basic.Chain
+import PolyFun.Interaction.TwoParty.Compose
 
 /-!
 # Provers, Verifiers, and Reductions
@@ -73,6 +73,415 @@ definitions built on this execution model.
 universe u v w
 
 namespace Interaction
+
+open TwoParty
+
+/-! ## Compatibility aliases for the PolyFun v4.30 interaction API -/
+
+namespace Spec
+
+/-- Compatibility name for dependent append on interaction specs. -/
+abbrev append (s₁ : Spec) (s₂ : Transcript s₁ → Spec) : Spec :=
+  PFunctor.FreeM.append s₁ s₂
+
+namespace Transcript
+
+abbrev append (s₁ : Spec) (s₂ : Transcript s₁ → Spec)
+    (tr₁ : Transcript s₁) (tr₂ : Transcript (s₂ tr₁)) :
+    Transcript (s₁.append s₂) :=
+  PFunctor.FreeM.Path.append s₁ s₂ tr₁ tr₂
+
+abbrev liftAppend (s₁ : Spec) (s₂ : Transcript s₁ → Spec)
+    (F : (tr₁ : Transcript s₁) → Transcript (s₂ tr₁) → Type u)
+    (tr : Transcript (s₁.append s₂)) : Type u :=
+  PFunctor.FreeM.Path.liftAppend s₁ s₂ F tr
+
+abbrev packAppend (s₁ : Spec) (s₂ : Transcript s₁ → Spec)
+    (F : (tr₁ : Transcript s₁) → Transcript (s₂ tr₁) → Type u)
+    (tr₁ : Transcript s₁) (tr₂ : Transcript (s₂ tr₁))
+    (x : F tr₁ tr₂) :
+    liftAppend s₁ s₂ F (append s₁ s₂ tr₁ tr₂) :=
+  PFunctor.FreeM.Path.packAppend s₁ s₂ F tr₁ tr₂ x
+
+abbrev split (s₁ : Spec) (s₂ : Transcript s₁ → Spec)
+    (tr : Transcript (s₁.append s₂)) :
+    (tr₁ : Transcript s₁) × Transcript (s₂ tr₁) :=
+  PFunctor.FreeM.Path.split s₁ s₂ tr
+
+abbrev unliftAppend (s₁ : Spec) (s₂ : Transcript s₁ → Spec)
+    (F : (tr₁ : Transcript s₁) → Transcript (s₂ tr₁) → Type u)
+    (tr : Transcript (s₁.append s₂)) (x : liftAppend s₁ s₂ F tr) :
+    let splitPath := split s₁ s₂ tr
+    F splitPath.1 splitPath.2 :=
+  PFunctor.FreeM.Path.unliftAppend s₁ s₂ F tr x
+
+abbrev unpackAppend (s₁ : Spec) (s₂ : Transcript s₁ → Spec)
+    (F : (tr₁ : Transcript s₁) → Transcript (s₂ tr₁) → Type u)
+    (tr₁ : Transcript s₁) (tr₂ : Transcript (s₂ tr₁))
+    (x : liftAppend s₁ s₂ F (append s₁ s₂ tr₁ tr₂)) :
+    F tr₁ tr₂ :=
+  PFunctor.FreeM.Path.unpackAppend s₁ s₂ F tr₁ tr₂ x
+
+@[simp]
+theorem split_append (s₁ : Spec) (s₂ : Transcript s₁ → Spec)
+    (tr₁ : Transcript s₁) (tr₂ : Transcript (s₂ tr₁)) :
+    split s₁ s₂ (append s₁ s₂ tr₁ tr₂) = ⟨tr₁, tr₂⟩ :=
+  PFunctor.FreeM.Path.split_append s₁ s₂ tr₁ tr₂
+
+@[simp]
+theorem append_split (s₁ : Spec) (s₂ : Transcript s₁ → Spec)
+    (tr : Transcript (s₁.append s₂)) :
+    let splitPath := split s₁ s₂ tr
+    append s₁ s₂ splitPath.1 splitPath.2 = tr :=
+  PFunctor.FreeM.Path.append_split s₁ s₂ tr
+
+@[simp]
+theorem unpackAppend_packAppend (s₁ : Spec) (s₂ : Transcript s₁ → Spec)
+    (F : (tr₁ : Transcript s₁) → Transcript (s₂ tr₁) → Type u)
+    (tr₁ : Transcript s₁) (tr₂ : Transcript (s₂ tr₁))
+    (x : F tr₁ tr₂) :
+    unpackAppend s₁ s₂ F tr₁ tr₂ (packAppend s₁ s₂ F tr₁ tr₂ x) = x :=
+  PFunctor.FreeM.Path.unpackAppend_packAppend s₁ s₂ F tr₁ tr₂ x
+
+@[simp]
+theorem packAppend_unpackAppend (s₁ : Spec) (s₂ : Transcript s₁ → Spec)
+    (F : (tr₁ : Transcript s₁) → Transcript (s₂ tr₁) → Type u)
+    (tr₁ : Transcript s₁) (tr₂ : Transcript (s₂ tr₁))
+    (x : liftAppend s₁ s₂ F (append s₁ s₂ tr₁ tr₂)) :
+    packAppend s₁ s₂ F tr₁ tr₂ (unpackAppend s₁ s₂ F tr₁ tr₂ x) = x :=
+  PFunctor.FreeM.Path.packAppend_unpackAppend s₁ s₂ F tr₁ tr₂ x
+
+theorem rel_unliftAppend_append (s₁ : Spec) (s₂ : Transcript s₁ → Spec)
+    (F G : (tr₁ : Transcript s₁) → Transcript (s₂ tr₁) → Type u)
+    (R : ∀ tr₁ tr₂, F tr₁ tr₂ → G tr₁ tr₂ → Prop)
+    (tr₁ : Transcript s₁) (tr₂ : Transcript (s₂ tr₁))
+    (x : F tr₁ tr₂) (y : G tr₁ tr₂) :
+    let path := append s₁ s₂ tr₁ tr₂
+    R (split s₁ s₂ path).1 (split s₁ s₂ path).2
+        (unliftAppend s₁ s₂ F path
+          (packAppend s₁ s₂ F tr₁ tr₂ x))
+        (unliftAppend s₁ s₂ G path
+          (packAppend s₁ s₂ G tr₁ tr₂ y)) =
+      R tr₁ tr₂ x y :=
+  PFunctor.FreeM.Path.rel_unliftAppend_append s₁ s₂ F G R tr₁ tr₂ x y
+
+abbrev liftAppendProd (s₁ : Spec) (s₂ : Transcript s₁ → Spec)
+    (A B : (tr₁ : Transcript s₁) → Transcript (s₂ tr₁) → Type u)
+    (tr : Transcript (s₁.append s₂))
+    (x : liftAppend s₁ s₂ (fun tr₁ tr₂ => A tr₁ tr₂ × B tr₁ tr₂) tr) :
+    liftAppend s₁ s₂ A tr × liftAppend s₁ s₂ B tr :=
+  PFunctor.FreeM.Path.liftAppendProd s₁ s₂ A B tr x
+
+abbrev stateChainFamily
+    {Stage : Nat → Type u} {spec : (i : Nat) → Stage i → Spec}
+    {advance : (i : Nat) → (s : Stage i) → Transcript (spec i s) → Stage (i + 1)}
+    (Family : (i : Nat) → Stage i → Type u)
+    (n : Nat) (i : Nat) (stage : Stage i) :
+    Transcript (Spec.stateChain Stage spec advance n i stage) → Type u :=
+  PFunctor.FreeM.Path.stateChainFamily (advance := advance) Family n i stage
+
+end Transcript
+
+namespace Strategy
+
+abbrev withRoles (m : Type u → Type u)
+    (spec : Spec) (roles : RoleDecoration spec)
+    (Output : Transcript spec → Type u) : Type u :=
+  StrategyOver (SyntaxOver.TwoParty.pairedSpec m) Participant.focal spec roles Output
+
+def runWithRoles {m : Type u → Type u} [Monad m]
+    (spec : Spec) (roles : RoleDecoration spec)
+    {OutputP OutputC : Transcript spec → Type u}
+    (strat : withRoles m spec roles OutputP)
+    (cpt : StrategyOver (SyntaxOver.TwoParty.pairedSpec m) Participant.counterpart
+      spec roles OutputC) :
+    m ((tr : Transcript spec) × OutputP tr × OutputC tr) :=
+  TwoParty.run spec roles strat cpt
+
+def compWithRoles {m : Type u → Type u} [Monad m]
+    {s₁ : Spec} {s₂ : Transcript s₁ → Spec}
+    {r₁ : RoleDecoration s₁}
+    {r₂ : (tr₁ : Transcript s₁) → RoleDecoration (s₂ tr₁)}
+    {Mid : Transcript s₁ → Type u}
+    {F : (tr₁ : Transcript s₁) → Transcript (s₂ tr₁) → Type u}
+    (strat₁ : withRoles m s₁ r₁ Mid)
+    (f : (tr₁ : Transcript s₁) → Mid tr₁ → m (withRoles m (s₂ tr₁) (r₂ tr₁) (F tr₁))) :
+    m (withRoles m (s₁.append s₂) (r₁.append r₂)
+      (PFunctor.FreeM.Path.liftAppend s₁ s₂ F)) :=
+  StrategyOver.TwoParty.Focal.comp strat₁ f
+
+def compWithRolesFlat {m : Type u → Type u} [Monad m]
+    {s₁ : Spec} {s₂ : Transcript s₁ → Spec}
+    {r₁ : RoleDecoration s₁}
+    {r₂ : (tr₁ : Transcript s₁) → RoleDecoration (s₂ tr₁)}
+    {Mid : Transcript s₁ → Type u}
+    {Output : Transcript (s₁.append s₂) → Type u}
+    (strat₁ : withRoles m s₁ r₁ Mid)
+    (f : (tr₁ : Transcript s₁) → Mid tr₁ →
+      m (withRoles m (s₂ tr₁) (r₂ tr₁)
+        (fun tr₂ => Output (PFunctor.FreeM.Path.append s₁ s₂ tr₁ tr₂)))) :
+    m (withRoles m (s₁.append s₂) (r₁.append r₂) Output) :=
+  StrategyOver.TwoParty.Focal.compFlat strat₁ f
+
+def mapOutputWithRoles {m : Type u → Type u} [Functor m] :
+    {spec : Spec} → {roles : RoleDecoration spec} →
+    {A B : Transcript spec → Type u} →
+    (∀ tr, A tr → B tr) →
+    withRoles m spec roles A → withRoles m spec roles B
+  | .done, _, _, _, f, output => f ⟨⟩ output
+  | .node _ _rest, ⟨.sender, _rRest⟩, _, _, f, strat =>
+      (fun xc => ⟨xc.1, mapOutputWithRoles (fun tr => f ⟨xc.1, tr⟩) xc.2⟩) <$> strat
+  | .node _ _rest, ⟨.receiver, _rRest⟩, _, _, f, strat =>
+      fun x => mapOutputWithRoles (fun tr => f ⟨x, tr⟩) <$> strat x
+
+theorem mapOutputWithRoles_eq_focal_mapOutput {m : Type u → Type u} [Functor m] :
+    {spec : Spec} → {roles : RoleDecoration spec} →
+    {A B : Transcript spec → Type u} →
+    (f : ∀ tr, A tr → B tr) →
+    (strat : withRoles m spec roles A) →
+    mapOutputWithRoles f strat = StrategyOver.TwoParty.Focal.mapOutput f strat
+  | .done, roles, _, _, f, strat => by
+      cases roles
+      rfl
+  | .node _ rest, ⟨.sender, rRest⟩, _, _, f, strat => by
+      simp only [mapOutputWithRoles, StrategyOver.TwoParty.Focal.mapOutput, ShapeOver.mapOutput,
+        ShapeOver.TwoParty.pairedSpec, ShapeOver.TwoParty.paired,
+        SyntaxOver.TwoParty.paired, PFunctor.Lens.id]
+      congr 1
+      funext xc
+      exact Sigma.ext rfl
+        (heq_of_eq (mapOutputWithRoles_eq_focal_mapOutput
+          (fun tr => f ⟨xc.1, tr⟩) xc.2))
+  | .node _ rest, ⟨.receiver, rRest⟩, _, _, f, strat => by
+      simp only [mapOutputWithRoles, StrategyOver.TwoParty.Focal.mapOutput, ShapeOver.mapOutput,
+        ShapeOver.TwoParty.pairedSpec, ShapeOver.TwoParty.paired,
+        SyntaxOver.TwoParty.paired, PFunctor.Lens.id]
+      funext x
+      congr 1
+      funext next
+      exact mapOutputWithRoles_eq_focal_mapOutput
+        (fun tr => f ⟨x, tr⟩) next
+
+abbrev stateChainCompWithRoles {m : Type u → Type u} [Monad m]
+    {Stage : Nat → Type u} {spec : (i : Nat) → Stage i → Spec}
+    {advance : (i : Nat) → (s : Stage i) → Transcript (spec i s) → Stage (i + 1)}
+    {roles : (i : Nat) → (s : Stage i) → RoleDecoration (spec i s)}
+    {Family : (i : Nat) → Stage i → Type u}
+    (step : (i : Nat) → (s : Stage i) → Family i s →
+      m (withRoles m (spec i s) (roles i s)
+        (fun tr => Family (i + 1) (advance i s tr)))) :=
+  StrategyOver.TwoParty.Focal.stateChainComp
+    (advance := advance) (roles := roles) (Family := Family) step
+
+theorem runWithRoles_mapOutputWithRoles_mapOutput
+    {m : Type u → Type u} [Monad m] [LawfulMonad m]
+    {spec : Spec} {roles : RoleDecoration spec}
+    {OutputP OutputP' OutputC OutputC' : Transcript spec → Type u}
+    (fP : ∀ tr, OutputP tr → OutputP' tr)
+    (fC : ∀ tr, OutputC tr → OutputC' tr)
+    (strat : withRoles m spec roles OutputP)
+    (cpt : StrategyOver (SyntaxOver.TwoParty.pairedSpec m) Participant.counterpart
+      spec roles OutputC) :
+    runWithRoles spec roles (mapOutputWithRoles fP strat)
+      (StrategyOver.TwoParty.Counterpart.mapOutput fC cpt) =
+      (fun z => ⟨z.1, fP z.1 z.2.1, fC z.1 z.2.2⟩) <$>
+        runWithRoles spec roles strat cpt :=
+  by
+    rw [mapOutputWithRoles_eq_focal_mapOutput]
+    exact TwoParty.run_mapOutput_mapOutput fP fC strat cpt
+
+theorem runWithRoles_compWithRoles_append
+    {m : Type u → Type u} [Monad m] [LawfulCommMonad m]
+    {s₁ : Spec} {s₂ : Transcript s₁ → Spec}
+    {r₁ : RoleDecoration s₁}
+    {r₂ : (tr₁ : Transcript s₁) → RoleDecoration (s₂ tr₁)}
+    {Mid OutputC : Transcript s₁ → Type u}
+    {F : (tr₁ : Transcript s₁) → Transcript (s₂ tr₁) → Type u}
+    {G : (tr₁ : Transcript s₁) → Transcript (s₂ tr₁) → Type u}
+    (strat₁ : withRoles m s₁ r₁ Mid)
+    (f : (tr₁ : Transcript s₁) → Mid tr₁ → m (withRoles m (s₂ tr₁) (r₂ tr₁) (F tr₁)))
+    (cpt₁ : StrategyOver (SyntaxOver.TwoParty.pairedSpec m) Participant.counterpart
+      s₁ r₁ OutputC)
+    (cpt₂ : (tr₁ : Transcript s₁) → OutputC tr₁ →
+      StrategyOver (SyntaxOver.TwoParty.pairedSpec m) Participant.counterpart
+        (s₂ tr₁) (r₂ tr₁) (G tr₁)) :
+    (do
+      let strat ← compWithRoles strat₁ f
+      runWithRoles (s₁.append s₂) (r₁.append r₂) strat
+        (StrategyOver.TwoParty.Counterpart.append cpt₁ cpt₂)) =
+      (do
+        let ⟨tr₁, mid, outC⟩ ← runWithRoles s₁ r₁ strat₁ cpt₁
+        let strat₂ ← f tr₁ mid
+        let ⟨tr₂, outP, outC₂⟩ ← runWithRoles (s₂ tr₁) (r₂ tr₁) strat₂ (cpt₂ tr₁ outC)
+        pure ⟨PFunctor.FreeM.Path.append s₁ s₂ tr₁ tr₂,
+          PFunctor.FreeM.Path.packAppend s₁ s₂ F tr₁ tr₂ outP,
+          PFunctor.FreeM.Path.packAppend s₁ s₂ G tr₁ tr₂ outC₂⟩) :=
+  TwoParty.run_comp_append (strat₁ := strat₁) (f := f) (cpt₁ := cpt₁) (cpt₂ := cpt₂)
+
+end Strategy
+
+abbrev Counterpart (m : Type u → Type u)
+    (spec : Spec) (roles : RoleDecoration spec)
+    (Output : Transcript spec → Type u) : Type u :=
+  StrategyOver (SyntaxOver.TwoParty.pairedSpec m) Participant.counterpart spec roles Output
+
+namespace Counterpart
+
+abbrev withMonads (spec : Spec) (roles : RoleDecoration spec)
+    (md : MonadDecoration spec)
+    (Output : Transcript spec → Type u) : Type u :=
+  StrategyOver SyntaxOver.TwoParty.Counterpart.monadicSpec.{u + 1, u, u}
+    (PUnit.unit : PUnit.{u + 1}) spec (RoleDecoration.withMonads roles md) Output
+
+def append {m : Type u → Type u} [Monad m]
+    {s₁ : Spec} {s₂ : Transcript s₁ → Spec}
+    {r₁ : RoleDecoration s₁}
+    {r₂ : (tr₁ : Transcript s₁) → RoleDecoration (s₂ tr₁)}
+    {A : Transcript s₁ → Type u}
+    {B : (tr₁ : Transcript s₁) → Transcript (s₂ tr₁) → Type u}
+    (cpt₁ : Counterpart m s₁ r₁ A)
+    (cpt₂ : (tr₁ : Transcript s₁) → A tr₁ → Counterpart m (s₂ tr₁) (r₂ tr₁) (B tr₁)) :
+    Counterpart m (s₁.append s₂) (r₁.append r₂)
+      (PFunctor.FreeM.Path.liftAppend s₁ s₂ B) :=
+  StrategyOver.TwoParty.Counterpart.append cpt₁ cpt₂
+
+def appendFlat {m : Type u → Type u} [Monad m]
+    {s₁ : Spec} {s₂ : Transcript s₁ → Spec}
+    {r₁ : RoleDecoration s₁}
+    {r₂ : (tr₁ : Transcript s₁) → RoleDecoration (s₂ tr₁)}
+    {A : Transcript s₁ → Type u}
+    {Output : Transcript (s₁.append s₂) → Type u}
+    (cpt₁ : Counterpart m s₁ r₁ A)
+    (cpt₂ : (tr₁ : Transcript s₁) → A tr₁ → Counterpart m (s₂ tr₁) (r₂ tr₁)
+      (fun tr₂ => Output (PFunctor.FreeM.Path.append s₁ s₂ tr₁ tr₂))) :
+    Counterpart m (s₁.append s₂) (r₁.append r₂) Output :=
+  StrategyOver.TwoParty.Counterpart.appendFlat cpt₁ cpt₂
+
+def mapOutput {m : Type u → Type u} [Functor m]
+    {spec : Spec} {roles : RoleDecoration spec}
+    {A B : Transcript spec → Type u}
+    (f : ∀ tr, A tr → B tr)
+    (cpt : Counterpart m spec roles A) :
+    Counterpart m spec roles B :=
+  StrategyOver.TwoParty.Counterpart.mapOutput f cpt
+
+abbrev mapReceiver {m : Type u → Type u} [Functor m]
+    {spec : Spec} {roles : RoleDecoration spec}
+    {A B : Transcript spec → Type u}
+    (f : ∀ tr, A tr → B tr)
+    (cpt : Counterpart m spec roles A) :
+    Counterpart m spec roles B :=
+  mapOutput f cpt
+
+abbrev stateChainComp {m : Type u → Type u} [Monad m]
+    {Stage : Nat → Type u} {spec : (i : Nat) → Stage i → Spec}
+    {advance : (i : Nat) → (s : Stage i) → Transcript (spec i s) → Stage (i + 1)}
+    {roles : (i : Nat) → (s : Stage i) → RoleDecoration (spec i s)}
+    {Family : (i : Nat) → Stage i → Type u}
+    (step : (i : Nat) → (s : Stage i) → Family i s →
+      Counterpart m (spec i s) (roles i s)
+        (fun tr => Family (i + 1) (advance i s tr))) :=
+  StrategyOver.TwoParty.Counterpart.stateChainComp
+    (advance := advance) (roles := roles) (Family := Family) step
+
+theorem mapOutput_id {m : Type u → Type u} [Functor m] [LawfulFunctor m]
+    {spec : Spec} {roles : RoleDecoration spec} {A : Transcript spec → Type u}
+    (cpt : Counterpart m spec roles A) :
+    mapOutput (fun _ x => x) cpt = cpt :=
+  StrategyOver.TwoParty.Counterpart.mapOutput_id cpt
+
+namespace withMonads
+
+def append :
+    {s₁ : Spec} → {s₂ : Transcript s₁ → Spec} →
+    {r₁ : RoleDecoration s₁} →
+    {r₂ : (tr₁ : Transcript s₁) → RoleDecoration (s₂ tr₁)} →
+    {md₁ : MonadDecoration s₁} →
+    {md₂ : (tr₁ : Transcript s₁) → MonadDecoration (s₂ tr₁)} →
+    {A : Transcript s₁ → Type u} →
+    {B : (tr₁ : Transcript s₁) → Transcript (s₂ tr₁) → Type u} →
+    Counterpart.withMonads s₁ r₁ md₁ A →
+    ((tr₁ : Transcript s₁) → A tr₁ →
+      Counterpart.withMonads (s₂ tr₁) (r₂ tr₁) (md₂ tr₁) (B tr₁)) →
+    Counterpart.withMonads (s₁.append s₂) (r₁.append r₂) (md₁.append md₂)
+      (PFunctor.FreeM.Path.liftAppend s₁ s₂ B)
+  | .done, _, _, _, _, _, _, _, cpt₁, cpt₂ => cpt₂ ⟨⟩ cpt₁
+  | .node _ rest, s₂, ⟨.sender, rRest⟩, r₂, ⟨_, mdRest⟩, md₂, _, _, cpt₁, cpt₂ =>
+      fun x => do
+        let cRest ← cpt₁ x
+        pure <| append
+          (s₁ := rest x)
+          (s₂ := fun tr => s₂ ⟨x, tr⟩)
+          (r₁ := rRest x)
+          (r₂ := fun tr => r₂ ⟨x, tr⟩)
+          (md₁ := mdRest x)
+          (md₂ := fun tr => md₂ ⟨x, tr⟩)
+          cRest
+          (fun tr out => cpt₂ ⟨x, tr⟩ out)
+  | .node _ rest, s₂, ⟨.receiver, rRest⟩, r₂, ⟨_, mdRest⟩, md₂, _, _, cpt₁, cpt₂ =>
+      do
+        let ⟨x, cRest⟩ ← cpt₁
+        pure ⟨x, append
+          (s₁ := rest x)
+          (s₂ := fun tr => s₂ ⟨x, tr⟩)
+          (r₁ := rRest x)
+          (r₂ := fun tr => r₂ ⟨x, tr⟩)
+          (md₁ := mdRest x)
+          (md₂ := fun tr => md₂ ⟨x, tr⟩)
+          cRest
+          (fun tr out => cpt₂ ⟨x, tr⟩ out)⟩
+
+def mapOutput
+    (spec : Spec) (roles : RoleDecoration spec) (md : MonadDecoration spec)
+    {A B : Transcript spec → Type u}
+    (f : ∀ tr, A tr → B tr)
+    (cpt : Counterpart.withMonads spec roles md A) :
+    Counterpart.withMonads spec roles md B := by
+  simpa [Counterpart.withMonads] using
+    (ShapeOver.mapOutput ShapeOver.TwoParty.Counterpart.monadicSpec
+      (RoleDecoration.withMonads roles md) f cpt)
+
+@[simp]
+theorem mapOutput_done
+    {roles : RoleDecoration Spec.done} {md : MonadDecoration Spec.done}
+    {A B : Transcript Spec.done → Type u}
+    (f : ∀ tr, A tr → B tr)
+    (cpt : Counterpart.withMonads Spec.done roles md A) :
+    mapOutput Spec.done roles md f cpt = f ⟨⟩ cpt := by
+  cases roles
+  cases md
+  rfl
+
+end withMonads
+
+end Counterpart
+
+abbrev PublicCoinCounterpart (m : Type u → Type u)
+    (spec : Spec) (roles : RoleDecoration spec)
+    (Output : Transcript spec → Type u) : Type u :=
+  StrategyOver (TwoParty.PublicCoinCounterpart.counterpartSyntax.{u, u + 1} m)
+    (PUnit.unit : PUnit.{u + 2}) spec roles Output
+
+namespace PublicCoinCounterpart
+
+def toCounterpart {m : Type u → Type u} [Monad m]
+    {spec : Spec} {roles : RoleDecoration spec} {Output : Transcript spec → Type u}
+    (cpt : PublicCoinCounterpart m spec roles Output) :
+    Counterpart m spec roles Output :=
+  TwoParty.PublicCoinCounterpart.toCounterpart cpt
+
+def replay {m : Type u → Type u} [Monad m]
+    {spec : Spec} {roles : RoleDecoration spec} {Output : Transcript spec → Type u}
+    (cpt : PublicCoinCounterpart m spec roles Output)
+    (tr : Transcript spec) : m (Output tr) :=
+  TwoParty.PublicCoinCounterpart.replay cpt tr
+
+end PublicCoinCounterpart
+
+abbrev LawfulCommMonad (m : Type u → Type u) [Monad m] :=
+  TwoParty.LawfulCommMonad m
+
+end Spec
 
 /-! ## Protocol participants -/
 
@@ -469,7 +878,7 @@ def Reduction.stateChainComp {m : Type u → Type u} [Monad m]
         (fun tr => ProverState (j + 1) (advance j st tr))))
     (stmtResult : (i : SharedIn) → StatementIn i →
       (tr : Spec.Transcript (Spec.stateChain Stage spec advance n 0 (initStage i))) →
-      Spec.Transcript.stateChainFamily VerifierState n 0 (initStage i) tr)
+      PFunctor.FreeM.Path.stateChainFamily VerifierState n 0 (initStage i) tr)
     (verifierInit : (i : SharedIn) → StatementIn i → VerifierState 0 (initStage i))
     (verifierStep : (j : Nat) → (st : Stage j) → VerifierState j st →
       Spec.Counterpart m (spec j st) (roles j st)
@@ -479,8 +888,8 @@ def Reduction.stateChainComp {m : Type u → Type u} [Monad m]
       (fun i => Spec.Decoration.stateChain roles n 0 (initStage i))
       StatementIn
       WitnessIn
-      (fun i => Spec.Transcript.stateChainFamily VerifierState n 0 (initStage i))
-      (fun i => Spec.Transcript.stateChainFamily ProverState n 0 (initStage i)) where
+      (fun i => PFunctor.FreeM.Path.stateChainFamily VerifierState n 0 (initStage i))
+      (fun i => PFunctor.FreeM.Path.stateChainFamily ProverState n 0 (initStage i)) where
   prover i stmt w := do
     let a ← proverInit i stmt w
     let strat ← Spec.Strategy.stateChainCompWithRoles proverStep n 0 (initStage i) a

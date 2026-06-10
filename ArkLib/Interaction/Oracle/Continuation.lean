@@ -8,6 +8,7 @@ import ArkLib.Interaction.Oracle.Execution
 set_option linter.style.longFile 2000
 
 open OracleComp OracleSpec
+open Interaction.TwoParty
 
 namespace Interaction
 

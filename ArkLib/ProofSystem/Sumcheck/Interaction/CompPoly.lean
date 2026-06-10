@@ -4,13 +4,13 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Quang Dao
 -/
 import ArkLib.Data.CompPoly.Basic
-import CompPoly.Multivariate.Sumcheck
+import ArkLib.ProofSystem.Sumcheck.Interaction.CompPolyHelpers
 
 /-!
 # CompPoly Bridge for Sum-Check
 
 This module connects ArkLib's degree-bounded Sumcheck wrappers to the reusable
-CompPoly operations in `CompPoly.Multivariate.Sumcheck`.
+CompPoly multivariate polynomial operations.
 -/
 
 open CompPoly CPoly Std
