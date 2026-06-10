@@ -27,6 +27,7 @@ Composition utilities for `Oracle.Spec`-based reductions (`Oracle.Reduction`).
 -/
 
 open OracleComp OracleSpec
+open Interaction.TwoParty
 
 namespace Interaction.Oracle
 

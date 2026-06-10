@@ -3,16 +3,42 @@ Copyright (c) 2024-2025 ArkLib Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Quang Dao
 -/
-import CompPoly.Multivariate.DegreeBound
+import CompPoly.Multivariate.CMvPolynomial
+import CompPoly.Multivariate.Operations
+import CompPoly.Multivariate.Rename
+import CompPoly.Univariate.ToPoly.Impl
 import ArkLib.OracleReduction.OracleInterface
 
 /-!
 # Shared CompPoly Wrappers and Oracle Interfaces
 
-Reusable `OracleInterface` instances for CompPoly polynomial types.
+Shared degree-bounded computable polynomial types used across protocols, together
+with reusable `OracleInterface` instances.
 -/
 
 open CompPoly CPoly Std
+
+namespace CPoly.CMvPolynomial
+
+variable {n : ℕ} {R : Type} [CommSemiring R] [BEq R] [LawfulBEq R]
+
+/-- `p` has individual degree at most `deg` when every monomial exponent is
+bounded by `deg` in every coordinate. -/
+def IndividualDegreeLE (deg : ℕ) (p : CMvPolynomial n R) : Prop :=
+  letI := Classical.decEq R
+  ∀ i : Fin n, ∀ mono ∈ Lawful.monomials p, mono.degreeOf i ≤ deg
+
+end CPoly.CMvPolynomial
+
+/-- A computable univariate polynomial with `natDegree ≤ d`. -/
+def CDegreeLE (R : Type) [BEq R] [Semiring R] [LawfulBEq R] (d : ℕ) :=
+  { p : CPolynomial R // p.natDegree ≤ d }
+
+/-- A computable multivariate polynomial with individual degree at most `d` in
+every coordinate. -/
+def CMvDegreeLE
+    (R : Type) [BEq R] [CommSemiring R] [LawfulBEq R] (n d : ℕ) :=
+  { p : CMvPolynomial n R // CMvPolynomial.IndividualDegreeLE (R := R) d p }
 
 section OracleInterface
 

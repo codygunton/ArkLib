@@ -51,6 +51,7 @@ This mirrors the non-oracle `Spec.Chain` (in VCVio) and `Reduction.ofChain`
 -/
 
 open OracleComp OracleSpec
+open Interaction.TwoParty
 
 namespace Interaction.Oracle
 
